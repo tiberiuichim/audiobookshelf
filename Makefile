@@ -2,7 +2,7 @@ SCRIPTS_DIR := scripts
 
 .DEFAULT_GOAL := help
 
-.PHONY: help db-dump-all db-dump-folders db-dump-items db-dump-books db-dump-feeds db-dump-settings db-summary
+.PHONY: help db-dump-all db-dump-folders db-dump-items db-dump-books db-dump-feeds db-dump-settings db-summary frontend-start backend-start
 
 help:
 	@echo "Audiobookshelf Database Migration Tools"
@@ -35,3 +35,9 @@ db-dump-settings:
 
 db-summary:
 	@bash $(SCRIPTS_DIR)/dump_all.sh
+
+frontend-start:
+	cd client && npm run dev3
+
+backend-start:
+	npm run dev

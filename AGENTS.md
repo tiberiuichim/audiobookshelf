@@ -14,6 +14,7 @@ This is a **local development deployment** of [Audiobookshelf](https://audiobook
 ## Technology Stack
 
 ### Backend
+
 - **Runtime**: Node.js (v20)
 - **Framework**: Express.js with Socket.IO
 - **Database**: SQLite3 with Sequelize ORM
@@ -25,6 +26,7 @@ This is a **local development deployment** of [Audiobookshelf](https://audiobook
   - `nodemailer` - Email notifications
 
 ### Frontend
+
 - **Framework**: Nuxt.js (Vue.js)
 - **State Management**: Vuex
 - **CSS**: Custom styles with PostCSS
@@ -112,8 +114,10 @@ docker buildx build --platform linux/amd64,linux/arm64 -t advplyr/audiobookshelf
 1. **Node.js v20** and **FFmpeg** are required
 2. Create `dev.js` in root directory for local configuration (see `.devcontainer/dev.js` for example)
 3. Default development ports:
-  - Server: `3333`
-  - Client (dev): `3000`
+
+- Server: `3333`
+- Client (dev): `3000`
+
 4. Access the running instance directly on `localhost:3333`
 
 ## Important Notes
@@ -138,12 +142,68 @@ OpenAPI documentation available at `docs/openapi.json`
 ## Database Migrations
 
 Located in `server/migrations/`. Key migrations include:
+
 - v2.15.0+ - Schema improvements
 - v2.17.x - Foreign key constraints and indices
 - v2.19.x - Library item improvements
 - v2.26.0 - Authentication tables
 
 Run migrations automatically on server startup.
+
+## Portable Database Setup
+
+The database uses **relative paths** for portability. When moving the entire project folder:
+
+### Path Structure
+
+| Data Type    | Database Path                | Actual Location                |
+| ------------ | ---------------------------- | ------------------------------ |
+| Audiobooks   | `audiobooks/`                | `./data/audiobooks/`           |
+| Cover images | `metadata/metadata/items/`   | `./metadata/metadata/items/`   |
+| Backups      | `metadata/metadata/backups/` | `./metadata/metadata/backups/` |
+
+### Migration Script
+
+Run the migration script to convert absolute Docker paths to relative paths:
+
+```bash
+./scripts/migrate_to_relative_paths.sh
+```
+
+This script:
+
+1. Creates a backup at `config/absdatabase.sqlite.backup`
+2. Converts `libraryFolders.path` to relative paths
+3. Converts `libraryItems.path` and `relPath` to relative paths
+4. Converts `books.coverPath` to relative paths
+5. Updates `settings.backupPath` in JSON configuration
+6. Creates necessary directory structure
+
+### Directory Structure (Created by Migration)
+
+```
+data/
+  audiobooks/
+metadata/
+  metadata/
+    items/
+    backups/
+    cache/
+    logs/
+    streams/
+config/
+  absdatabase.sqlite
+  absdatabase.sqlite.backup
+```
+
+### Starting the Server
+
+```bash
+cd /mnt/docker/work/books/audiobookshelf
+npm run dev
+```
+
+The server will resolve all paths relative to the current working directory.
 
 ## Related Documentation
 

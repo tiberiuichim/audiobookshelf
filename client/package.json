@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "nuxt",
     "dev2": "nuxt --hostname localhost --port 1337",
+    "dev3": "nuxt --hostname localhost --port 13378",
     "build": "nuxt build",
     "start": "nuxt start",
     "generate": "nuxt generate",
