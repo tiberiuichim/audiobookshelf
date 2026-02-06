@@ -425,6 +425,10 @@ export default {
 
       if (this.userCanDelete) {
         items.push({
+          text: this.$strings.ButtonReScan,
+          action: 'rescan'
+        })
+        items.push({
           text: this.$strings.ButtonMoveToLibrary,
           action: 'move'
         })
@@ -760,6 +764,28 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
+    rescan() {
+      this.processing = true
+      this.$axios
+        .$post(`/api/items/${this.libraryItemId}/scan`)
+        .then((data) => {
+          var result = data.result
+          if (!result) {
+            this.$toast.error(this.$getString('ToastRescanFailed', [this.title]))
+          } else if (result === 'UPDATED') {
+            this.$toast.success(this.$strings.ToastRescanUpdated)
+          } else if (result === 'UPTODATE') {
+            this.$toast.success(this.$strings.ToastRescanUpToDate)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to rescan', error)
+          this.$toast.error(this.$getString('ToastRescanFailed', [this.title]))
+        })
+        .finally(() => {
+          this.processing = false
+        })
+    },
     contextMenuAction({ action, data }) {
       if (action === 'collections') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
@@ -775,6 +801,8 @@ export default {
         this.downloadLibraryItem()
       } else if (action === 'delete') {
         this.deleteLibraryItem()
+      } else if (action === 'rescan') {
+        this.rescan()
       } else if (action === 'move') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
         this.$store.commit('globals/setShowMoveToLibraryModal', true)

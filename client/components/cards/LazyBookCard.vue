@@ -566,7 +566,7 @@ export default {
           text: this.$strings.HeaderMatch
         })
       }
-      if (this.userIsAdminOrUp && !this.isFile) {
+      if ((this.userIsAdminOrUp || this.userCanDelete) && !this.isFile) {
         items.push({
           func: 'rescan',
           text: this.$strings.ButtonReScan

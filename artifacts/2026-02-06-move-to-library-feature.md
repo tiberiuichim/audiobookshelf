@@ -56,11 +56,27 @@ POST /api/items/:id/move
 
 ### Localization Strings Added
 
-- `ButtonMove`, `ButtonMoveToLibrary`
+- `ButtonMove`, `ButtonMoveToLibrary`, `ButtonReScan`
 - `LabelMoveToLibrary`, `LabelMovingItem`
 - `LabelSelectTargetLibrary`, `LabelSelectTargetFolder`
 - `MessageNoCompatibleLibraries`
-- `ToastItemMoved`, `ToastItemMoveFailed`
+- `ToastItemMoved`, `ToastItemMoveFailed`, `ToastRescanUpdated`, `ToastRescanUpToDate`, `ToastRescanFailed`
+
+---
+
+## Post-Move Rescan Feature
+
+In addition to automated handling during moves, a manual "Re-scan" feature has been enhanced and exposed to users with move permissions.
+
+### Why it's needed
+
+If a book was moved before the recent logic enhancements, it might still point to authors or series in its _old_ library. The "Re-scan" action fixes this.
+
+### Logic Improvements
+
+- During a rescan, the system now validates that all linked authors and series belong to the library the book is currently in.
+- If a link to an author/series in a different library is found, it is removed.
+- The system then re-evaluates the file metadata and links the book to the correct author/series in its _current_ library (creating them if they don't exist).
 
 ---
 

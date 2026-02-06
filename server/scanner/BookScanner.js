@@ -220,7 +220,7 @@ class BookScanner {
       if (key === 'authors') {
         // Check for authors added
         for (const authorName of bookMetadata.authors) {
-          if (!media.authors.some((au) => au.name === authorName)) {
+          if (!media.authors.some((au) => au.name === authorName && au.libraryId === libraryItemData.libraryId)) {
             const existingAuthorId = await Database.getAuthorIdByName(libraryItemData.libraryId, authorName)
             if (existingAuthorId) {
               await Database.bookAuthorModel.create({
@@ -242,11 +242,11 @@ class BookScanner {
             }
           }
         }
-        // Check for authors removed
+        // Check for authors removed (including those from wrong library)
         for (const author of media.authors) {
-          if (!bookMetadata.authors.includes(author.name)) {
+          if (!bookMetadata.authors.includes(author.name) || author.libraryId !== libraryItemData.libraryId) {
             await author.bookAuthor.destroy()
-            libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" removed author "${author.name}"`)
+            libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" removed author "${author.name}"${author.libraryId !== libraryItemData.libraryId ? ' (wrong library)' : ''}`)
             authorsUpdated = true
             bookAuthorsRemoved.push(author.id)
           }
@@ -254,7 +254,7 @@ class BookScanner {
       } else if (key === 'series') {
         // Check for series added
         for (const seriesObj of bookMetadata.series) {
-          const existingBookSeries = media.series.find((se) => se.name === seriesObj.name)
+          const existingBookSeries = media.series.find((se) => se.name === seriesObj.name && se.libraryId === libraryItemData.libraryId)
           if (!existingBookSeries) {
             const existingSeriesId = await Database.getSeriesIdByName(libraryItemData.libraryId, seriesObj.name)
             if (existingSeriesId) {
@@ -283,11 +283,11 @@ class BookScanner {
             await existingBookSeries.bookSeries.save()
           }
         }
-        // Check for series removed
+        // Check for series removed (including those from wrong library)
         for (const series of media.series) {
-          if (!bookMetadata.series.some((se) => se.name === series.name)) {
+          if (!bookMetadata.series.some((se) => se.name === series.name) || series.libraryId !== libraryItemData.libraryId) {
             await series.bookSeries.destroy()
-            libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" removed series "${series.name}"`)
+            libraryScan.addLog(LogLevel.DEBUG, `Updating book "${bookMetadata.title}" removed series "${series.name}"${series.libraryId !== libraryItemData.libraryId ? ' (wrong library)' : ''}`)
             seriesUpdated = true
             bookSeriesRemoved.push(series.id)
           }
