@@ -425,6 +425,10 @@ export default {
 
       if (this.userCanDelete) {
         items.push({
+          text: this.$strings.ButtonMoveToLibrary,
+          action: 'move'
+        })
+        items.push({
           text: this.$strings.ButtonDelete,
           action: 'delete'
         })
@@ -771,6 +775,9 @@ export default {
         this.downloadLibraryItem()
       } else if (action === 'delete') {
         this.deleteLibraryItem()
+      } else if (action === 'move') {
+        this.$store.commit('setSelectedLibraryItem', this.libraryItem)
+        this.$store.commit('globals/setShowMoveToLibraryModal', true)
       } else if (action === 'sendToDevice') {
         this.sendToDevice(data)
       } else if (action === 'share') {

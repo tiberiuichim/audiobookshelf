@@ -50,6 +50,7 @@ POST /api/items/:id/move
 | `client/components/modals/item/MoveToLibraryModal.vue` | **NEW** - Modal component                                              |
 | `client/store/globals.js`                              | State: `showMoveToLibraryModal`, Mutation: `setShowMoveToLibraryModal` |
 | `client/components/cards/LazyBookCard.vue`             | Menu item `openMoveToLibraryModal` in `moreMenuItems`                  |
+| `client/pages/item/_id/index.vue`                      | Added "Move to library" to context menu                                |
 | `client/layouts/default.vue`                           | Added `<modals-item-move-to-library-modal />`                          |
 | `client/strings/en-us.json`                            | Localization strings                                                   |
 
