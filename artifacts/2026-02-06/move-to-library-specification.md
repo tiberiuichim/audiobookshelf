@@ -139,9 +139,12 @@ Following the initial implementation, several critical areas were improved:
 - **Issue**: Metadata `save()` calls for newly created series/authors were not awaited.
 - **Fix**: Ensured all `.save()` calls are properly awaited.
 
-### 4. Transactional Integrity - FIXED
-- **Issue**: The move logic was not wrapped in a DB transaction.
-- **Fix**: Wrapped the DB update portion of `handleMoveLibraryItem` in a Sequelize transaction that is committed only if all updates succeed.
+### 4. Transactional Integrity & Lock Optimization - FIXED
+- **Issue**: The move logic was not wrapped in a DB transaction, and long-running file moves inside transactions would lock the SQLite database for several seconds (causing `SQLITE_BUSY`).
+- **Fix**: 
+  - Wrapped the DB update portion of `handleMoveLibraryItem` in a Sequelize transaction.
+  - **Optimization**: Moved the `fs.move` operation **outside** the transaction. The files are moved first, then the transaction handles the lightning-fast DB updates. If the DB update fails, the files are moved back to their original location.
+  - **Transaction Propagation**: Updated `Series`, `Author`, and `BookAuthor` model helpers to correctly accept and propagate the transaction object.
 
 ### 5. Scanner "ENOTDIR" Error - FIXED
 - **Issue**: Single-file items (e.g., `.m4b`) were being scanned as directories, leading to `ENOTDIR` errors and causing items to appear with the "has issues" icon.
