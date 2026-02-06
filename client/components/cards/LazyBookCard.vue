@@ -602,6 +602,10 @@ export default {
 
       if (this.userCanDelete) {
         items.push({
+          func: 'openMoveToLibraryModal',
+          text: this.$strings.ButtonMoveToLibrary
+        })
+        items.push({
           func: 'deleteLibraryItem',
           text: this.$strings.ButtonDelete
         })
@@ -903,6 +907,10 @@ export default {
     openShare() {
       this.store.commit('setSelectedLibraryItem', this.libraryItem)
       this.store.commit('globals/setShareModal', this.mediaItemShare)
+    },
+    openMoveToLibraryModal() {
+      this.store.commit('setSelectedLibraryItem', this.libraryItem)
+      this.store.commit('globals/setShowMoveToLibraryModal', true)
     },
     deleteLibraryItem() {
       const payload = {

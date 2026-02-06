@@ -21,6 +21,7 @@
     <modals-rssfeed-open-close-modal />
     <modals-raw-cover-preview-modal />
     <modals-share-modal />
+    <modals-item-move-to-library-modal />
     <prompt-confirm />
     <readers-reader />
   </div>

@@ -27,6 +27,7 @@ export const state = () => ({
   isCasting: false, // Actively casting
   isChromecastInitialized: false, // Script loadeds
   showBatchQuickMatchModal: false,
+  showMoveToLibraryModal: false,
   dateFormats: [
     {
       text: 'MM/DD/YYYY',
@@ -203,6 +204,9 @@ export const mutations = {
   },
   setShowBatchQuickMatchModal(state, val) {
     state.showBatchQuickMatchModal = val
+  },
+  setShowMoveToLibraryModal(state, val) {
+    state.showMoveToLibraryModal = val
   },
   resetSelectedMediaItems(state) {
     state.selectedMediaItems = []

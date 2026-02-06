@@ -1158,6 +1158,164 @@ class LibraryItemController {
   }
 
   /**
+   * POST: /api/items/:id/move
+   * Move a library item to a different library
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async move(req, res) {
+    // Permission check - require delete permission (implies write access)
+    if (!req.user.canDelete) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to move item without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { targetLibraryId, targetFolderId } = req.body
+
+    if (!targetLibraryId) {
+      return res.status(400).send('Target library ID is required')
+    }
+
+    // Get target library with folders
+    const targetLibrary = await Database.libraryModel.findByIdWithFolders(targetLibraryId)
+    if (!targetLibrary) {
+      return res.status(404).send('Target library not found')
+    }
+
+    // Validate media type compatibility
+    const sourceLibrary = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
+    if (!sourceLibrary) {
+      Logger.error(`[LibraryItemController] Source library not found for item ${req.libraryItem.id}`)
+      return res.status(500).send('Source library not found')
+    }
+
+    if (sourceLibrary.mediaType !== targetLibrary.mediaType) {
+      return res.status(400).send(`Cannot move ${sourceLibrary.mediaType} to ${targetLibrary.mediaType} library`)
+    }
+
+    // Don't allow moving to same library
+    if (sourceLibrary.id === targetLibrary.id) {
+      return res.status(400).send('Item is already in this library')
+    }
+
+    // Determine target folder
+    let targetFolder = null
+    if (targetFolderId) {
+      targetFolder = targetLibrary.libraryFolders.find((f) => f.id === targetFolderId)
+      if (!targetFolder) {
+        return res.status(400).send('Target folder not found in library')
+      }
+    } else {
+      // Use first folder if not specified
+      targetFolder = targetLibrary.libraryFolders[0]
+    }
+
+    if (!targetFolder) {
+      return res.status(400).send('Target library has no folders')
+    }
+
+    // Calculate new paths
+    const itemFolderName = Path.basename(req.libraryItem.path)
+    const newPath = Path.join(targetFolder.path, itemFolderName)
+    const newRelPath = itemFolderName
+
+    // Check if destination already exists
+    const destinationExists = await fs.pathExists(newPath)
+    if (destinationExists) {
+      return res.status(400).send(`Destination already exists: ${newPath}`)
+    }
+
+    const oldPath = req.libraryItem.path
+    const oldLibraryId = req.libraryItem.libraryId
+
+    try {
+      // Move files on disk
+      Logger.info(`[LibraryItemController] Moving item "${req.libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
+      await fs.move(oldPath, newPath)
+
+      // Update library item in database
+      req.libraryItem.libraryId = targetLibrary.id
+      req.libraryItem.libraryFolderId = targetFolder.id
+      req.libraryItem.path = newPath
+      req.libraryItem.relPath = newRelPath
+      req.libraryItem.changed('updatedAt', true)
+      await req.libraryItem.save()
+
+      // Update library files paths
+      if (req.libraryItem.libraryFiles?.length) {
+        req.libraryItem.libraryFiles = req.libraryItem.libraryFiles.map((lf) => {
+          lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+          return lf
+        })
+        req.libraryItem.changed('libraryFiles', true)
+        await req.libraryItem.save()
+      }
+
+      // Update media file paths (audioFiles, ebookFile for books; podcastEpisodes for podcasts)
+      if (req.libraryItem.isBook) {
+        // Update audioFiles paths
+        if (req.libraryItem.media.audioFiles?.length) {
+          req.libraryItem.media.audioFiles = req.libraryItem.media.audioFiles.map((af) => {
+            if (af.metadata?.path) {
+              af.metadata.path = af.metadata.path.replace(oldPath, newPath)
+            }
+            return af
+          })
+          req.libraryItem.media.changed('audioFiles', true)
+        }
+        // Update ebookFile path
+        if (req.libraryItem.media.ebookFile?.metadata?.path) {
+          req.libraryItem.media.ebookFile.metadata.path = req.libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
+          req.libraryItem.media.changed('ebookFile', true)
+        }
+        await req.libraryItem.media.save()
+      } else if (req.libraryItem.isPodcast) {
+        // Update podcast episode audio file paths
+        for (const episode of req.libraryItem.media.podcastEpisodes || []) {
+          if (episode.audioFile?.metadata?.path) {
+            episode.audioFile.metadata.path = episode.audioFile.metadata.path.replace(oldPath, newPath)
+            episode.changed('audioFile', true)
+            await episode.save()
+          }
+        }
+      }
+
+      // Emit socket events for UI updates
+      SocketAuthority.emitter('item_removed', {
+        id: req.libraryItem.id,
+        libraryId: oldLibraryId
+      })
+      SocketAuthority.libraryItemEmitter('item_added', req.libraryItem)
+
+      // Reset library filter data for both libraries
+      await Database.resetLibraryIssuesFilterData(oldLibraryId)
+      await Database.resetLibraryIssuesFilterData(targetLibrary.id)
+
+      Logger.info(`[LibraryItemController] Successfully moved item "${req.libraryItem.media.title}" to library "${targetLibrary.name}"`)
+
+      res.json({
+        success: true,
+        libraryItem: req.libraryItem.toOldJSONExpanded()
+      })
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to move item "${req.libraryItem.media.title}"`, error)
+
+      // Attempt to rollback file move if database update failed
+      if (await fs.pathExists(newPath)) {
+        try {
+          await fs.move(newPath, oldPath)
+          Logger.info(`[LibraryItemController] Rolled back file move for item "${req.libraryItem.media.title}"`)
+        } catch (rollbackError) {
+          Logger.error(`[LibraryItemController] Failed to rollback file move`, rollbackError)
+        }
+      }
+
+      return res.status(500).send('Failed to move item')
+    }
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res
