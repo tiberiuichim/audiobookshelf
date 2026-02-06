@@ -123,31 +123,45 @@ The `MoveToLibraryModal` automatically detects if it's in batch mode by checking
    - Verify all items are moved correctly in the UI and filesystem.
 3. **Incompatible Move**: Try moving a book to a podcast library (should be blocked).
 
-## Bug Analysis & Refinements (2026-02-06)
+## Bug Analysis & Refinements (2026-02-06) - RESOLVED
 
-Following the initial implementation, a deep dive into the code identified several critical areas for improvement:
+Following the initial implementation, several critical areas were improved:
 
-### 1. Socket Event Omissions
-- **Issue**: Source series and authors are destroyed in the DB when empty, but no `series_removed` or `author_removed` events are emitted.
-- **Fix**: Add `SocketAuthority.emitter` calls for these events in `handleMoveLibraryItem`.
+### 1. Socket Event Omissions - FIXED
+- **Issue**: Source series and authors were destroyed in the DB when empty, but no `series_removed` or `author_removed` events were emitted.
+- **Fix**: Added `SocketAuthority.emitter` calls for `series_removed` and `author_removed` in `handleMoveLibraryItem`.
 
-### 2. Batch Move Efficiency
-- **Issue**: `Database.resetLibraryIssuesFilterData` is called inside the loop for every item.
-- **Fix**: Move these calls out of `handleMoveLibraryItem` and into the parent `move` and `batchMove` controllers, ensuring they only run once per request.
+### 2. Batch Move Efficiency - FIXED
+- **Issue**: `Database.resetLibraryIssuesFilterData` and count cache updates were called inside the loop for every item.
+- **Fix**: Moved these calls out of `handleMoveLibraryItem` and into the parent `move` and `batchMove` controllers, ensuring they only run once per request (or per library set in batch moves).
 
-### 3. Async/Await Inconsistency
+### 3. Async/Await Inconsistency - FIXED
 - **Issue**: Metadata `save()` calls for newly created series/authors were not awaited.
-- **Fix**: Ensure all `.save()` calls are properly awaited to prevent race conditions.
+- **Fix**: Ensured all `.save()` calls are properly awaited.
 
-### 4. Transactional Integrity
-- **Issue**: The move logic is not wrapped in a DB transaction.
-- **Fix**: Wrap the DB update portion of `handleMoveLibraryItem` in a transaction to ensure atomicity.
+### 4. Transactional Integrity - FIXED
+- **Issue**: The move logic was not wrapped in a DB transaction.
+- **Fix**: Wrapped the DB update portion of `handleMoveLibraryItem` in a Sequelize transaction that is committed only if all updates succeed.
+
+### 5. Scanner "ENOTDIR" Error - FIXED
+- **Issue**: Single-file items (e.g., `.m4b`) were being scanned as directories, leading to `ENOTDIR` errors and causing items to appear with the "has issues" icon.
+- **Fix**: Updated `LibraryItemScanner.js` to correctly honor the `isFile` property of the library item during re-scans.
+
+### 6. Scanner/Watcher Race Conditions (ENOENT) - FIXED
+- **Issue**: The automatic folder watcher would trigger scans while the move was in progress, leading to "file not found" warnings for the source path.
+- **Fix**: 
+  - Integrated `Watcher.addIgnoreDir` and `removeIgnoreDir` into the move process to temporarily silence the watcher for the relevant paths.
+  - Added existence checks in `LibraryScanner.js` before performing inode lookups.
+
+### 7. Incomplete Path Updates - FIXED
+- **Issue**: Nested paths like `media.coverPath` and `libraryFiles.metadata.relPath` were not being updated during moves.
+- **Fix**: Improved `handleMoveLibraryItem` to perform recursive path replacement on all associated metadata objects.
 
 ---
 
 ## Known Limitations / Future Work
 
-- Does not support moving to different folder within same library.
-- Rollback is per-item; a failure in a batch move does not roll back successfully moved previous items.
+- Does not support moving to a different folder within the same library.
+- Rollback is per-item; a failure in a batch move does not roll back successfully moved previous items (though the DB for the failed item is protected by a transaction).
 - No overall progress bar for large batch moves (it's sequential and blocking).
 - Moves currently flatten nested structures (uses `basename` of the item path) instead of preserving source relative paths.

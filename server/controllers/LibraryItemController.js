@@ -46,8 +46,9 @@ const ShareManager = require('../managers/ShareManager')
  * @param {import('../models/LibraryItem')} libraryItem
  * @param {import('../models/Library')} targetLibrary
  * @param {import('../models/LibraryFolder')} targetFolder
+ * @param {import('sequelize').Transaction} [transaction]
  */
-async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
+async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, transaction = null) {
   const oldPath = libraryItem.path
   const oldLibraryId = libraryItem.libraryId
 
@@ -80,7 +81,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
     libraryItem.isMissing = false
     libraryItem.isInvalid = false
     libraryItem.changed('updatedAt', true)
-    await libraryItem.save()
+    await libraryItem.save({ transaction })
 
     // Update library files paths
     if (libraryItem.libraryFiles?.length) {
@@ -94,7 +95,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
         return lf
       })
       libraryItem.changed('libraryFiles', true)
-      await libraryItem.save()
+      await libraryItem.save({ transaction })
     }
 
     // Update media file paths (audioFiles, ebookFile for books; podcastEpisodes for podcasts)
@@ -124,13 +125,13 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
       if (libraryItem.media.coverPath) {
         libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
       }
-      await libraryItem.media.save()
+      await libraryItem.media.save({ transaction })
     } else if (libraryItem.isPodcast) {
       // Update coverPath
       if (libraryItem.media.coverPath) {
         libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
       }
-      await libraryItem.media.save()
+      await libraryItem.media.save({ transaction })
       // Update podcast episode audio file paths
       for (const episode of libraryItem.media.podcastEpisodes || []) {
         let episodeUpdated = false
@@ -144,7 +145,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
         }
         if (episodeUpdated) {
           episode.changed('audioFile', true)
-          await episode.save()
+          await episode.save({ transaction })
         }
       }
     }
@@ -153,41 +154,45 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
     if (libraryItem.isBook) {
       // Handle Series
       const bookSeries = await Database.bookSeriesModel.findAll({
-        where: { bookId: libraryItem.media.id }
+        where: { bookId: libraryItem.media.id },
+        transaction
       })
       for (const bs of bookSeries) {
-        const sourceSeries = await Database.seriesModel.findByPk(bs.seriesId)
+        const sourceSeries = await Database.seriesModel.findByPk(bs.seriesId, { transaction })
         if (sourceSeries) {
-          const targetSeries = await Database.seriesModel.findOrCreateByNameAndLibrary(sourceSeries.name, targetLibrary.id)
+          const targetSeries = await Database.seriesModel.findOrCreateByNameAndLibrary(sourceSeries.name, targetLibrary.id, transaction)
 
           // If target series doesn't have a description but source does, copy it
           if (!targetSeries.description && sourceSeries.description) {
             targetSeries.description = sourceSeries.description
-            await targetSeries.save()
+            await targetSeries.save({ transaction })
           }
 
           // Update link
           bs.seriesId = targetSeries.id
-          await bs.save()
+          await bs.save({ transaction })
 
           // Check if source series is now empty
-          const sourceSeriesBooksCount = await Database.bookSeriesModel.count({ where: { seriesId: sourceSeries.id } })
+          const sourceSeriesBooksCount = await Database.bookSeriesModel.count({ where: { seriesId: sourceSeries.id }, transaction })
           if (sourceSeriesBooksCount === 0) {
             Logger.info(`[LibraryItemController] Source series "${sourceSeries.name}" in library ${oldLibraryId} is now empty. Deleting.`)
-            await sourceSeries.destroy()
+            await sourceSeries.destroy({ transaction })
             Database.removeSeriesFromFilterData(oldLibraryId, sourceSeries.id)
+
+            SocketAuthority.emitter('series_removed', { id: sourceSeries.id, libraryId: oldLibraryId })
           }
         }
       }
 
       // Handle Authors
       const bookAuthors = await Database.bookAuthorModel.findAll({
-        where: { bookId: libraryItem.media.id }
+        where: { bookId: libraryItem.media.id },
+        transaction
       })
       for (const ba of bookAuthors) {
-        const sourceAuthor = await Database.authorModel.findByPk(ba.authorId)
+        const sourceAuthor = await Database.authorModel.findByPk(ba.authorId, { transaction })
         if (sourceAuthor) {
-          const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id)
+          const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
 
           // Copy description and ASIN if target doesn't have them
           let targetAuthorUpdated = false
@@ -213,21 +218,23 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
             }
           }
 
-          if (targetAuthorUpdated) await targetAuthor.save()
+          if (targetAuthorUpdated) await targetAuthor.save({ transaction })
 
           // Update link
           ba.authorId = targetAuthor.id
-          await ba.save()
+          await ba.save({ transaction })
 
           // Check if source author is now empty
-          const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id)
+          const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id, transaction)
           if (sourceAuthorBooksCount === 0) {
             Logger.info(`[LibraryItemController] Source author "${sourceAuthor.name}" in library ${oldLibraryId} is now empty. Deleting.`)
             if (sourceAuthor.imagePath) {
               await fs.remove(sourceAuthor.imagePath).catch((err) => Logger.error(`[LibraryItemController] Failed to remove source author image`, err))
             }
-            await sourceAuthor.destroy()
+            await sourceAuthor.destroy({ transaction })
             Database.removeAuthorFromFilterData(oldLibraryId, sourceAuthor.id)
+
+            SocketAuthority.emitter('author_removed', { id: sourceAuthor.id, libraryId: oldLibraryId })
           }
         }
       }
@@ -239,21 +246,6 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
       libraryId: oldLibraryId
     })
     SocketAuthority.libraryItemEmitter('item_added', libraryItem)
-
-    // Reset library filter data for both libraries
-    await Database.resetLibraryIssuesFilterData(oldLibraryId)
-    await Database.resetLibraryIssuesFilterData(targetLibrary.id)
-
-    // Clear filter data cache for both libraries to ensure authors/series/genres are updated
-    if (Database.libraryFilterData[oldLibraryId]) delete Database.libraryFilterData[oldLibraryId]
-    if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
-
-    // Clear count cache to ensure the library page shows the correct item count
-    if (libraryItem.isBook) {
-      libraryItemsBookFilters.clearCountCache('move_item')
-    } else if (libraryItem.isPodcast) {
-      libraryItemsPodcastFilters.clearCountCache('podcast', 'move_item')
-    }
 
     Logger.info(`[LibraryItemController] Successfully moved item "${libraryItem.media.title}" to library "${targetLibrary.name}"`)
   } catch (error) {
@@ -1090,6 +1082,8 @@ class LibraryItemController {
     let failCount = 0
     const errors = []
 
+    const sourceLibraryIds = new Set()
+
     for (const libraryItem of libraryItems) {
       try {
         if (libraryItem.libraryId === targetLibrary.id) {
@@ -1098,17 +1092,50 @@ class LibraryItemController {
         }
 
         const sourceLibrary = await Database.libraryModel.findByPk(libraryItem.libraryId)
+        if (!sourceLibrary) {
+          Logger.error(`[LibraryItemController] Source library not found for item ${libraryItem.id}`)
+          failCount++
+          errors.push({ id: libraryItem.id, error: 'Source library not found' })
+          continue
+        }
+        sourceLibraryIds.add(sourceLibrary.id)
+
         if (sourceLibrary.mediaType !== targetLibrary.mediaType) {
-          throw new Error(`Incompatible media type: ${sourceLibrary.mediaType} vs ${targetLibrary.mediaType}`)
+          Logger.warn(`[LibraryItemController] Cannot move ${sourceLibrary.mediaType} to ${targetLibrary.mediaType} library`)
+          failCount++
+          errors.push({ id: libraryItem.id, error: 'Incompatible media type' })
+          continue
         }
 
-        await handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder)
-        successCount++
-      } catch (err) {
-        Logger.error(`[LibraryItemController] Batch move failed for item "${libraryItem.media.title}"`, err)
+        const transaction = await Database.sequelize.transaction()
+        try {
+          await handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, transaction)
+          await transaction.commit()
+          successCount++
+        } catch (error) {
+          if (transaction) await transaction.rollback()
+          failCount++
+          errors.push({ id: libraryItem.id, error: error.message || 'Failed to move item' })
+        }
+      } catch (error) {
         failCount++
-        errors.push({ id: libraryItem.id, title: libraryItem.media.title, error: err.message })
+        errors.push({ id: libraryItem.id, error: error.message || 'Unknown error' })
       }
+    }
+
+    // Reset filter data and clear caches once after batch move
+    for (const sourceLibraryId of sourceLibraryIds) {
+      await Database.resetLibraryIssuesFilterData(sourceLibraryId)
+      if (Database.libraryFilterData[sourceLibraryId]) delete Database.libraryFilterData[sourceLibraryId]
+    }
+    await Database.resetLibraryIssuesFilterData(targetLibrary.id)
+    if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+
+    const firstItem = libraryItems[0]
+    if (firstItem.isBook) {
+      libraryItemsBookFilters.clearCountCache('batch_move_items')
+    } else if (firstItem.isPodcast) {
+      libraryItemsPodcastFilters.clearCountCache('podcast', 'batch_move_items')
     }
 
     res.json({
@@ -1538,7 +1565,26 @@ class LibraryItemController {
     }
 
     try {
-      await handleMoveLibraryItem(req.libraryItem, targetLibrary, targetFolder)
+      const transaction = await Database.sequelize.transaction()
+      try {
+        await handleMoveLibraryItem(req.libraryItem, targetLibrary, targetFolder, transaction)
+        await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+
+      await Database.resetLibraryIssuesFilterData(sourceLibrary.id)
+      await Database.resetLibraryIssuesFilterData(targetLibrary.id)
+
+      if (Database.libraryFilterData[sourceLibrary.id]) delete Database.libraryFilterData[sourceLibrary.id]
+      if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+
+      if (req.libraryItem.isBook) {
+        libraryItemsBookFilters.clearCountCache('move_item')
+      } else if (req.libraryItem.isPodcast) {
+        libraryItemsPodcastFilters.clearCountCache('podcast', 'move_item')
+      }
 
       res.json({
         success: true,
