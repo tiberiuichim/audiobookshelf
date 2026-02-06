@@ -189,6 +189,14 @@ export default {
         })
       }
 
+      // Move to library option - only show if user has delete permission (same as delete)
+      if (this.userCanDelete) {
+        options.push({
+          text: this.$strings.LabelMoveToLibrary,
+          action: 'move-to-library'
+        })
+      }
+
       return options
     }
   },
@@ -226,7 +234,13 @@ export default {
         this.batchRescan()
       } else if (action === 'download') {
         this.batchDownload()
+      } else if (action === 'move-to-library') {
+        this.batchMoveToLibrary()
       }
+    },
+    batchMoveToLibrary() {
+      // Open the move to library modal - it will pick up items from selectedMediaItems
+      this.$store.commit('globals/setShowMoveToLibraryModal', true)
     },
     async batchRescan() {
       const payload = {

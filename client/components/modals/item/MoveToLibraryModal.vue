@@ -6,10 +6,11 @@
       </div>
     </template>
     <div class="px-6 py-8 w-full text-sm rounded-lg bg-bg shadow-lg border border-black-300 overflow-y-auto overflow-x-hidden" style="max-height: 80vh">
-      <template v-if="libraryItem">
+      <template v-if="hasItems">
         <div class="w-full mb-4">
-          <p class="text-gray-300 mb-2">{{ $strings.LabelMovingItem }}:</p>
-          <p class="text-lg font-semibold text-white">{{ itemTitle }}</p>
+          <p class="text-gray-300 mb-2">{{ isBatchMode ? $strings.LabelMovingItems : $strings.LabelMovingItem }}:</p>
+          <p v-if="isBatchMode" class="text-lg font-semibold text-white">{{ $getString('MessageItemsSelected', [selectedItems.length]) }}</p>
+          <p v-else class="text-lg font-semibold text-white">{{ itemTitle }}</p>
         </div>
 
         <template v-if="targetLibraries.length">
@@ -33,7 +34,7 @@
 
       <div class="flex items-center pt-4">
         <div class="grow" />
-        <ui-btn v-if="targetLibraries.length" color="success" :disabled="!selectedLibraryId" small @click="moveItem">{{ $strings.ButtonMove }}</ui-btn>
+        <ui-btn v-if="targetLibraries.length && hasItems" color="success" :disabled="!selectedLibraryId" small @click="moveItems">{{ $strings.ButtonMove }}</ui-btn>
       </div>
     </div>
   </modals-modal>
@@ -74,13 +75,28 @@ export default {
         this.$store.commit('globals/setShowMoveToLibraryModal', val)
       }
     },
+    // Single item mode (from context menu on a single item)
     libraryItem() {
       return this.$store.state.selectedLibraryItem
+    },
+    // Batch mode (from batch selection)
+    selectedItems() {
+      return this.$store.state.globals.selectedMediaItems || []
+    },
+    isBatchMode() {
+      // Use batch mode if we have multiple selected items OR no single item selected
+      return this.selectedItems.length > 0 && !this.libraryItem
+    },
+    hasItems() {
+      return this.isBatchMode ? this.selectedItems.length > 0 : !!this.libraryItem
     },
     itemTitle() {
       return this.libraryItem?.media?.title || this.libraryItem?.media?.metadata?.title || ''
     },
     currentLibraryId() {
+      if (this.isBatchMode && this.selectedItems.length > 0) {
+        return this.selectedItems[0].libraryId
+      }
       return this.libraryItem?.libraryId
     },
     currentMediaType() {
@@ -112,7 +128,7 @@ export default {
     }
   },
   methods: {
-    async moveItem() {
+    async moveItems() {
       if (!this.selectedLibraryId) return
 
       const payload = {
@@ -125,13 +141,28 @@ export default {
 
       this.processing = true
       try {
-        const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
-        if (response.success) {
-          this.$toast.success(this.$strings.ToastItemMoved)
-          this.show = false
+        if (this.isBatchMode) {
+          // Batch move
+          payload.libraryItemIds = this.selectedItems.map((i) => i.id)
+          const response = await this.$axios.$post('/api/items/batch/move', payload)
+          if (response.successCount > 0) {
+            this.$toast.success(this.$getString('ToastItemsMoved', [response.successCount]))
+          }
+          if (response.failCount > 0) {
+            this.$toast.warning(this.$getString('ToastItemsMoveFailed', [response.failCount]))
+          }
+          // Clear selection after batch move
+          this.$store.commit('globals/resetSelectedMediaItems')
+        } else {
+          // Single item move
+          const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
+          if (response.success) {
+            this.$toast.success(this.$strings.ToastItemMoved)
+          }
         }
+        this.show = false
       } catch (error) {
-        console.error('Failed to move item', error)
+        console.error('Failed to move item(s)', error)
         const errorMsg = error.response?.data || this.$strings.ToastItemMoveFailed
         this.$toast.error(errorMsg)
       } finally {
@@ -150,3 +181,4 @@ export default {
   mounted() {}
 }
 </script>
+
