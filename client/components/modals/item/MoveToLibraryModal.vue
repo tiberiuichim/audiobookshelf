@@ -158,6 +158,7 @@ export default {
           const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
           if (response.success) {
             this.$toast.success(this.$strings.ToastItemMoved)
+            this.$store.commit('setSelectedLibraryItem', null)
           }
         }
         this.show = false

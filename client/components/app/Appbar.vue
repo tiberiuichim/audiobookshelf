@@ -239,6 +239,8 @@ export default {
       }
     },
     batchMoveToLibrary() {
+      // Clear any single library item that might be lingering
+      this.$store.commit('setSelectedLibraryItem', null)
       // Open the move to library modal - it will pick up items from selectedMediaItems
       this.$store.commit('globals/setShowMoveToLibraryModal', true)
     },
