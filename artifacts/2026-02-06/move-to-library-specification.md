@@ -72,6 +72,8 @@ POST /api/items/batch/move
 | `client/pages/item/_id/index.vue`                      | Single item page context menu integration        |
 | `client/layouts/default.vue`                           | Modal registration                               |
 | `client/strings/en-us.json`                            | Localization strings                             |
+| `client/components/app/LazyBookshelf.vue`             | Enhanced selection payload (added libraryId)      |
+| `client/components/app/BookShelfCategorized.vue`      | Enhanced selection payload (added libraryId)      |
 
 ### Localization Strings Added
 
@@ -159,6 +161,13 @@ Following the initial implementation, several critical areas were improved:
 ### 7. Incomplete Path Updates - FIXED
 - **Issue**: Nested paths like `media.coverPath` and `libraryFiles.metadata.relPath` were not being updated during moves.
 - **Fix**: Improved `handleMoveLibraryItem` to perform recursive path replacement on all associated metadata objects.
+
+### 8. Improved Library Picker Filtering - FIXED
+- **Issue**: The "Move to Library" dialog showed all libraries of the same type, including the source library itself, which was redundant and confusing.
+- **Fix**: 
+  - Updated selection logic in `LazyBookshelf.vue` and `BookShelfCategorized.vue` to include the source `libraryId` in the selection payload.
+  - Refactored `MoveToLibraryModal.vue` to compare the source library with available targets and automatically omit the source from the dropdown list.
+  - Added robust media type detection in the modal to ensure compatibility even when items are moved from mixed-content views like search results.
 
 ---
 

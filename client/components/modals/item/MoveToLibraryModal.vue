@@ -97,12 +97,13 @@ export default {
       if (this.isBatchMode && this.selectedItems.length > 0) {
         return this.selectedItems[0].libraryId
       }
-      return this.libraryItem?.libraryId
+      return this.libraryItem?.libraryId || this.$store.state.libraries.currentLibraryId
     },
     currentMediaType() {
-      // Get media type from the current library
-      const currentLibrary = this.$store.state.libraries.libraries.find((l) => l.id === this.currentLibraryId)
-      return currentLibrary?.mediaType || 'book'
+      if (this.isBatchMode && this.selectedItems.length > 0) {
+        return this.selectedItems[0].mediaType
+      }
+      return this.libraryItem?.mediaType || 'book'
     },
     targetLibraries() {
       // Filter libraries to only show compatible ones (same media type, different library)
