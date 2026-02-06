@@ -695,6 +695,7 @@ export default {
       }
 
       this.libraryItem = libraryItem
+      this.selected = this.store.state.globals.selectedMediaItems.some((i) => i.id === this.libraryItemId)
 
       this.$nextTick(() => {
         if (this.$refs.displayTitle) {

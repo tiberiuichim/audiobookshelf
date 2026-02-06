@@ -13,6 +13,10 @@ const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUti
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
+const Watcher = require('../Watcher')
+
+const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilters')
+const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 
 const RssFeedManager = require('../managers/RssFeedManager')
 const CacheManager = require('../managers/CacheManager')
@@ -35,6 +39,241 @@ const ShareManager = require('../managers/ShareManager')
  *
  * @typedef {RequestWithUser & RequestEntityObject & RequestLibraryFileObject} LibraryItemControllerRequestWithFile
  */
+
+/**
+ * Internal helper to move a single library item to a target library/folder
+ *
+ * @param {import('../models/LibraryItem')} libraryItem
+ * @param {import('../models/Library')} targetLibrary
+ * @param {import('../models/LibraryFolder')} targetFolder
+ */
+async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
+  const oldPath = libraryItem.path
+  const oldLibraryId = libraryItem.libraryId
+
+  // Calculate new paths
+  const itemFolderName = Path.basename(libraryItem.path)
+  const newPath = Path.join(targetFolder.path, itemFolderName)
+  const newRelPath = itemFolderName
+
+  // Check if destination already exists
+  const destinationExists = await fs.pathExists(newPath)
+  if (destinationExists) {
+    throw new Error(`Destination already exists: ${newPath}`)
+  }
+
+  try {
+    Watcher.addIgnoreDir(oldPath)
+    Watcher.addIgnoreDir(newPath)
+
+    const oldRelPath = libraryItem.relPath
+
+    // Move files on disk
+    Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
+    await fs.move(oldPath, newPath)
+
+    // Update database within a transaction
+    const transaction = await Database.sequelize.transaction()
+    try {
+      // Update library item in database
+      libraryItem.libraryId = targetLibrary.id
+      libraryItem.libraryFolderId = targetFolder.id
+      libraryItem.path = newPath
+      libraryItem.relPath = newRelPath
+      libraryItem.isMissing = false
+      libraryItem.isInvalid = false
+      libraryItem.changed('updatedAt', true)
+      await libraryItem.save({ transaction })
+
+      // Update library files paths
+      if (libraryItem.libraryFiles?.length) {
+        libraryItem.libraryFiles = libraryItem.libraryFiles.map((lf) => {
+          if (lf.metadata?.path) {
+            lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+          }
+          if (lf.metadata?.relPath) {
+            lf.metadata.relPath = lf.metadata.relPath.replace(oldRelPath, newRelPath)
+          }
+          return lf
+        })
+        libraryItem.changed('libraryFiles', true)
+        await libraryItem.save({ transaction })
+      }
+
+      // Update media file paths (audioFiles, ebookFile for books; podcastEpisodes for podcasts)
+      if (libraryItem.isBook) {
+        // Update audioFiles paths
+        if (libraryItem.media.audioFiles?.length) {
+          libraryItem.media.audioFiles = libraryItem.media.audioFiles.map((af) => {
+            if (af.metadata?.path) {
+              af.metadata.path = af.metadata.path.replace(oldPath, newPath)
+            }
+            if (af.metadata?.relPath) {
+              af.metadata.relPath = af.metadata.relPath.replace(oldRelPath, newRelPath)
+            }
+            return af
+          })
+          libraryItem.media.changed('audioFiles', true)
+        }
+        // Update ebookFile path
+        if (libraryItem.media.ebookFile?.metadata?.path) {
+          libraryItem.media.ebookFile.metadata.path = libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
+          if (libraryItem.media.ebookFile.metadata?.relPath) {
+            libraryItem.media.ebookFile.metadata.relPath = libraryItem.media.ebookFile.metadata.relPath.replace(oldRelPath, newRelPath)
+          }
+          libraryItem.media.changed('ebookFile', true)
+        }
+        // Update coverPath
+        if (libraryItem.media.coverPath) {
+          libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
+        }
+        await libraryItem.media.save({ transaction })
+      } else if (libraryItem.isPodcast) {
+        // Update coverPath
+        if (libraryItem.media.coverPath) {
+          libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
+        }
+        await libraryItem.media.save({ transaction })
+        // Update podcast episode audio file paths
+        for (const episode of libraryItem.media.podcastEpisodes || []) {
+          let episodeUpdated = false
+          if (episode.audioFile?.metadata?.path) {
+            episode.audioFile.metadata.path = episode.audioFile.metadata.path.replace(oldPath, newPath)
+            episodeUpdated = true
+          }
+          if (episode.audioFile?.metadata?.relPath) {
+            episode.audioFile.metadata.relPath = episode.audioFile.metadata.relPath.replace(oldRelPath, newRelPath)
+            episodeUpdated = true
+          }
+          if (episodeUpdated) {
+            episode.changed('audioFile', true)
+            await episode.save({ transaction })
+          }
+        }
+      }
+
+      // Handle Series and Authors when moving a book
+      if (libraryItem.isBook) {
+        // Handle Series
+        const bookSeries = await Database.bookSeriesModel.findAll({
+          where: { bookId: libraryItem.media.id },
+          transaction
+        })
+        for (const bs of bookSeries) {
+          const sourceSeries = await Database.seriesModel.findByPk(bs.seriesId, { transaction })
+          if (sourceSeries) {
+            const targetSeries = await Database.seriesModel.findOrCreateByNameAndLibrary(sourceSeries.name, targetLibrary.id, transaction)
+
+            // If target series doesn't have a description but source does, copy it
+            if (!targetSeries.description && sourceSeries.description) {
+              targetSeries.description = sourceSeries.description
+              await targetSeries.save({ transaction })
+            }
+
+            // Update link
+            bs.seriesId = targetSeries.id
+            await bs.save({ transaction })
+
+            // Check if source series is now empty
+            const sourceSeriesBooksCount = await Database.bookSeriesModel.count({ where: { seriesId: sourceSeries.id }, transaction })
+            if (sourceSeriesBooksCount === 0) {
+              Logger.info(`[LibraryItemController] Source series "${sourceSeries.name}" in library ${oldLibraryId} is now empty. Deleting.`)
+              await sourceSeries.destroy({ transaction })
+              Database.removeSeriesFromFilterData(oldLibraryId, sourceSeries.id)
+
+              SocketAuthority.emitter('series_removed', { id: sourceSeries.id, libraryId: oldLibraryId })
+            }
+          }
+        }
+
+        // Handle Authors
+        const bookAuthors = await Database.bookAuthorModel.findAll({
+          where: { bookId: libraryItem.media.id },
+          transaction
+        })
+        for (const ba of bookAuthors) {
+          const sourceAuthor = await Database.authorModel.findByPk(ba.authorId, { transaction })
+          if (sourceAuthor) {
+            const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
+
+            // Copy description and ASIN if target doesn't have them
+            let targetAuthorUpdated = false
+            if (!targetAuthor.description && sourceAuthor.description) {
+              targetAuthor.description = sourceAuthor.description
+              targetAuthorUpdated = true
+            }
+            if (!targetAuthor.asin && sourceAuthor.asin) {
+              targetAuthor.asin = sourceAuthor.asin
+              targetAuthorUpdated = true
+            }
+
+            // Copy image if target doesn't have one
+            if (!targetAuthor.imagePath && sourceAuthor.imagePath && (await fs.pathExists(sourceAuthor.imagePath))) {
+              const ext = Path.extname(sourceAuthor.imagePath)
+              const newImagePath = Path.posix.join(Path.join(global.MetadataPath, 'authors'), targetAuthor.id + ext)
+              try {
+                await fs.copy(sourceAuthor.imagePath, newImagePath)
+                targetAuthor.imagePath = newImagePath
+                targetAuthorUpdated = true
+              } catch (err) {
+                Logger.error(`[LibraryItemController] Failed to copy author image`, err)
+              }
+            }
+
+            if (targetAuthorUpdated) await targetAuthor.save({ transaction })
+
+            // Update link
+            ba.authorId = targetAuthor.id
+            await ba.save({ transaction })
+
+            // Check if source author is now empty
+            const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id, transaction)
+            if (sourceAuthorBooksCount === 0) {
+              Logger.info(`[LibraryItemController] Source author "${sourceAuthor.name}" in library ${oldLibraryId} is now empty. Deleting.`)
+              if (sourceAuthor.imagePath) {
+                await fs.remove(sourceAuthor.imagePath).catch((err) => Logger.error(`[LibraryItemController] Failed to remove source author image`, err))
+              }
+              await sourceAuthor.destroy({ transaction })
+              Database.removeAuthorFromFilterData(oldLibraryId, sourceAuthor.id)
+
+              SocketAuthority.emitter('author_removed', { id: sourceAuthor.id, libraryId: oldLibraryId })
+            }
+          }
+        }
+      }
+
+      await transaction.commit()
+    } catch (dbError) {
+      if (transaction) await transaction.rollback()
+      throw dbError
+    }
+
+    // Emit socket events for UI updates
+    SocketAuthority.emitter('item_removed', {
+      id: libraryItem.id,
+      libraryId: oldLibraryId
+    })
+    SocketAuthority.libraryItemEmitter('item_added', libraryItem)
+
+    Logger.info(`[LibraryItemController] Successfully moved item "${libraryItem.media.title}" to library "${targetLibrary.name}"`)
+  } catch (error) {
+    Logger.error(`[LibraryItemController] Failed to move item "${libraryItem.media.title}"`, error)
+
+    // Attempt to rollback file move if database update failed
+    if (await fs.pathExists(newPath)) {
+      try {
+        await fs.move(newPath, oldPath)
+        Logger.info(`[LibraryItemController] Rolled back file move for item "${libraryItem.media.title}"`)
+      } catch (rollbackError) {
+        Logger.error(`[LibraryItemController] Failed to rollback file move`, rollbackError)
+      }
+    }
+    throw error
+  } finally {
+    Watcher.removeIgnoreDir(oldPath)
+    Watcher.removeIgnoreDir(newPath)
+  }
+}
 
 class LibraryItemController {
   constructor() {}
@@ -798,6 +1037,116 @@ class LibraryItemController {
   }
 
   /**
+   * POST: /api/items/batch/move
+   * Move multiple library items to a different library
+   *
+   * @this {import('../routers/ApiRouter')}
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchMove(req, res) {
+    if (!req.user.canDelete) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to batch move items without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { libraryItemIds, targetLibraryId, targetFolderId } = req.body
+
+    if (!libraryItemIds?.length || !Array.isArray(libraryItemIds)) {
+      return res.status(400).send('libraryItemIds must be an array')
+    }
+    if (!targetLibraryId) {
+      return res.status(400).send('targetLibraryId is required')
+    }
+
+    const targetLibrary = await Database.libraryModel.findByIdWithFolders(targetLibraryId)
+    if (!targetLibrary) {
+      return res.status(404).send('Target library not found')
+    }
+
+    let targetFolder = null
+    if (targetFolderId) {
+      targetFolder = targetLibrary.libraryFolders.find((f) => f.id === targetFolderId)
+      if (!targetFolder) {
+        return res.status(400).send('Target folder not found in library')
+      }
+    } else {
+      targetFolder = targetLibrary.libraryFolders[0]
+    }
+    if (!targetFolder) {
+      return res.status(400).send('Target library has no folders')
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: libraryItemIds
+    })
+
+    if (!libraryItems.length) {
+      return res.sendStatus(404)
+    }
+
+    let successCount = 0
+    let failCount = 0
+    const errors = []
+
+    const sourceLibraryIds = new Set()
+
+    for (const libraryItem of libraryItems) {
+      try {
+        if (libraryItem.libraryId === targetLibrary.id) {
+          Logger.warn(`[LibraryItemController] Item "${libraryItem.media.title}" is already in library ${targetLibrary.id}`)
+          continue
+        }
+
+        const sourceLibrary = await Database.libraryModel.findByPk(libraryItem.libraryId)
+        if (!sourceLibrary) {
+          Logger.error(`[LibraryItemController] Source library not found for item ${libraryItem.id}`)
+          failCount++
+          errors.push({ id: libraryItem.id, error: 'Source library not found' })
+          continue
+        }
+        sourceLibraryIds.add(sourceLibrary.id)
+
+        if (sourceLibrary.mediaType !== targetLibrary.mediaType) {
+          Logger.warn(`[LibraryItemController] Cannot move ${sourceLibrary.mediaType} to ${targetLibrary.mediaType} library`)
+          failCount++
+          errors.push({ id: libraryItem.id, error: 'Incompatible media type' })
+          continue
+        }
+
+        await handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder)
+        successCount++
+      } catch (error) {
+        failCount++
+        errors.push({ id: libraryItem.id, error: error.message || 'Failed to move item' })
+      }
+    }
+
+    // Reset filter data and clear caches once after batch move
+    for (const sourceLibraryId of sourceLibraryIds) {
+      await Database.resetLibraryIssuesFilterData(sourceLibraryId)
+      if (Database.libraryFilterData[sourceLibraryId]) delete Database.libraryFilterData[sourceLibraryId]
+    }
+    await Database.resetLibraryIssuesFilterData(targetLibrary.id)
+    if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+
+    const firstItem = libraryItems[0]
+    if (firstItem.isBook) {
+      libraryItemsBookFilters.clearCountCache('batch_move_items')
+    } else if (firstItem.isPodcast) {
+      libraryItemsPodcastFilters.clearCountCache('podcast', 'batch_move_items')
+    }
+
+    res.json({
+      success: true,
+      successCount,
+      failCount,
+      errors
+    })
+  }
+
+  /**
    * POST: /api/items/:id/scan
    *
    * @param {LibraryItemControllerRequest} req
@@ -1184,7 +1533,7 @@ class LibraryItemController {
     }
 
     // Validate media type compatibility
-    const sourceLibrary = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
+    const sourceLibrary = await Database.libraryModel.findByPk(req.libraryItem.libraryId)
     if (!sourceLibrary) {
       Logger.error(`[LibraryItemController] Source library not found for item ${req.libraryItem.id}`)
       return res.status(500).send('Source library not found')
@@ -1215,187 +1564,27 @@ class LibraryItemController {
       return res.status(400).send('Target library has no folders')
     }
 
-    // Calculate new paths
-    const itemFolderName = Path.basename(req.libraryItem.path)
-    const newPath = Path.join(targetFolder.path, itemFolderName)
-    const newRelPath = itemFolderName
-
-    // Check if destination already exists
-    const destinationExists = await fs.pathExists(newPath)
-    if (destinationExists) {
-      return res.status(400).send(`Destination already exists: ${newPath}`)
-    }
-
-    const oldPath = req.libraryItem.path
-    const oldLibraryId = req.libraryItem.libraryId
-
     try {
-      // Move files on disk
-      Logger.info(`[LibraryItemController] Moving item "${req.libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
-      await fs.move(oldPath, newPath)
+      await handleMoveLibraryItem(req.libraryItem, targetLibrary, targetFolder)
 
-      // Update library item in database
-      req.libraryItem.libraryId = targetLibrary.id
-      req.libraryItem.libraryFolderId = targetFolder.id
-      req.libraryItem.path = newPath
-      req.libraryItem.relPath = newRelPath
-      req.libraryItem.changed('updatedAt', true)
-      await req.libraryItem.save()
-
-      // Update library files paths
-      if (req.libraryItem.libraryFiles?.length) {
-        req.libraryItem.libraryFiles = req.libraryItem.libraryFiles.map((lf) => {
-          lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
-          return lf
-        })
-        req.libraryItem.changed('libraryFiles', true)
-        await req.libraryItem.save()
-      }
-
-      // Update media file paths (audioFiles, ebookFile for books; podcastEpisodes for podcasts)
-      if (req.libraryItem.isBook) {
-        // Update audioFiles paths
-        if (req.libraryItem.media.audioFiles?.length) {
-          req.libraryItem.media.audioFiles = req.libraryItem.media.audioFiles.map((af) => {
-            if (af.metadata?.path) {
-              af.metadata.path = af.metadata.path.replace(oldPath, newPath)
-            }
-            return af
-          })
-          req.libraryItem.media.changed('audioFiles', true)
-        }
-        // Update ebookFile path
-        if (req.libraryItem.media.ebookFile?.metadata?.path) {
-          req.libraryItem.media.ebookFile.metadata.path = req.libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
-          req.libraryItem.media.changed('ebookFile', true)
-        }
-        await req.libraryItem.media.save()
-      } else if (req.libraryItem.isPodcast) {
-        // Update podcast episode audio file paths
-        for (const episode of req.libraryItem.media.podcastEpisodes || []) {
-          if (episode.audioFile?.metadata?.path) {
-            episode.audioFile.metadata.path = episode.audioFile.metadata.path.replace(oldPath, newPath)
-            episode.changed('audioFile', true)
-            await episode.save()
-          }
-        }
-      }
-
-      // Handle Series and Authors when moving a book
-      if (req.libraryItem.isBook) {
-        // Handle Series
-        const bookSeries = await Database.bookSeriesModel.findAll({
-          where: { bookId: req.libraryItem.media.id }
-        })
-        for (const bs of bookSeries) {
-          const sourceSeries = await Database.seriesModel.findByPk(bs.seriesId)
-          if (sourceSeries) {
-            const targetSeries = await Database.seriesModel.findOrCreateByNameAndLibrary(sourceSeries.name, targetLibrary.id)
-
-            // If target series doesn't have a description but source does, copy it
-            if (!targetSeries.description && sourceSeries.description) {
-              targetSeries.description = sourceSeries.description
-              await targetSeries.save()
-            }
-
-            // Update link
-            bs.seriesId = targetSeries.id
-            await bs.save()
-
-            // Check if source series is now empty
-            const sourceSeriesBooksCount = await Database.bookSeriesModel.count({ where: { seriesId: sourceSeries.id } })
-            if (sourceSeriesBooksCount === 0) {
-              Logger.info(`[LibraryItemController] Source series "${sourceSeries.name}" in library ${oldLibraryId} is now empty. Deleting.`)
-              await sourceSeries.destroy()
-              Database.removeSeriesFromFilterData(oldLibraryId, sourceSeries.id)
-            }
-          }
-        }
-
-        // Handle Authors
-        const bookAuthors = await Database.bookAuthorModel.findAll({
-          where: { bookId: req.libraryItem.media.id }
-        })
-        for (const ba of bookAuthors) {
-          const sourceAuthor = await Database.authorModel.findByPk(ba.authorId)
-          if (sourceAuthor) {
-            const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id)
-
-            // Copy description and ASIN if target doesn't have them
-            let targetAuthorUpdated = false
-            if (!targetAuthor.description && sourceAuthor.description) {
-              targetAuthor.description = sourceAuthor.description
-              targetAuthorUpdated = true
-            }
-            if (!targetAuthor.asin && sourceAuthor.asin) {
-              targetAuthor.asin = sourceAuthor.asin
-              targetAuthorUpdated = true
-            }
-
-            // Copy image if target doesn't have one
-            if (!targetAuthor.imagePath && sourceAuthor.imagePath && (await fs.pathExists(sourceAuthor.imagePath))) {
-              const ext = Path.extname(sourceAuthor.imagePath)
-              const newImagePath = Path.posix.join(Path.join(global.MetadataPath, 'authors'), targetAuthor.id + ext)
-              try {
-                await fs.copy(sourceAuthor.imagePath, newImagePath)
-                targetAuthor.imagePath = newImagePath
-                targetAuthorUpdated = true
-              } catch (err) {
-                Logger.error(`[LibraryItemController] Failed to copy author image`, err)
-              }
-            }
-
-            if (targetAuthorUpdated) await targetAuthor.save()
-
-            // Update link
-            ba.authorId = targetAuthor.id
-            await ba.save()
-
-            // Check if source author is now empty
-            const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id)
-            if (sourceAuthorBooksCount === 0) {
-              Logger.info(`[LibraryItemController] Source author "${sourceAuthor.name}" in library ${oldLibraryId} is now empty. Deleting.`)
-              if (sourceAuthor.imagePath) {
-                await fs.remove(sourceAuthor.imagePath).catch((err) => Logger.error(`[LibraryItemController] Failed to remove source author image`, err))
-              }
-              await sourceAuthor.destroy()
-              Database.removeAuthorFromFilterData(oldLibraryId, sourceAuthor.id)
-            }
-          }
-        }
-      }
-
-      // Emit socket events for UI updates
-      SocketAuthority.emitter('item_removed', {
-        id: req.libraryItem.id,
-        libraryId: oldLibraryId
-      })
-      SocketAuthority.libraryItemEmitter('item_added', req.libraryItem)
-
-      // Reset library filter data for both libraries
-      await Database.resetLibraryIssuesFilterData(oldLibraryId)
+      await Database.resetLibraryIssuesFilterData(sourceLibrary.id)
       await Database.resetLibraryIssuesFilterData(targetLibrary.id)
 
-      Logger.info(`[LibraryItemController] Successfully moved item "${req.libraryItem.media.title}" to library "${targetLibrary.name}"`)
+      if (Database.libraryFilterData[sourceLibrary.id]) delete Database.libraryFilterData[sourceLibrary.id]
+      if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+
+      if (req.libraryItem.isBook) {
+        libraryItemsBookFilters.clearCountCache('move_item')
+      } else if (req.libraryItem.isPodcast) {
+        libraryItemsPodcastFilters.clearCountCache('podcast', 'move_item')
+      }
 
       res.json({
         success: true,
         libraryItem: req.libraryItem.toOldJSONExpanded()
       })
     } catch (error) {
-      Logger.error(`[LibraryItemController] Failed to move item "${req.libraryItem.media.title}"`, error)
-
-      // Attempt to rollback file move if database update failed
-      if (await fs.pathExists(newPath)) {
-        try {
-          await fs.move(newPath, oldPath)
-          Logger.info(`[LibraryItemController] Rolled back file move for item "${req.libraryItem.media.title}"`)
-        } catch (rollbackError) {
-          Logger.error(`[LibraryItemController] Failed to rollback file move`, rollbackError)
-        }
-      }
-
-      return res.status(500).send('Failed to move item')
+      return res.status(500).send(error.message || 'Failed to move item')
     }
   }
 

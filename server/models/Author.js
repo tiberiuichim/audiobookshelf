@@ -50,16 +50,18 @@ class Author extends Model {
    *
    * @param {string} authorName
    * @param {string} libraryId
+   * @param {import('sequelize').Transaction} [transaction]
    * @returns {Promise<Author>}
    */
-  static async getByNameAndLibrary(authorName, libraryId) {
+  static async getByNameAndLibrary(authorName, libraryId, transaction = null) {
     return this.findOne({
       where: [
         where(fn('lower', col('name')), authorName.toLowerCase()),
         {
           libraryId
         }
-      ]
+      ],
+      transaction
     })
   }
 
@@ -111,16 +113,20 @@ class Author extends Model {
    *
    * @param {string} name
    * @param {string} libraryId
+   * @param {import('sequelize').Transaction} [transaction]
    * @returns {Promise<Author>}
    */
-  static async findOrCreateByNameAndLibrary(name, libraryId) {
-    const author = await this.getByNameAndLibrary(name, libraryId)
+  static async findOrCreateByNameAndLibrary(name, libraryId, transaction = null) {
+    const author = await this.getByNameAndLibrary(name, libraryId, transaction)
     if (author) return author
-    return this.create({
-      name,
-      lastFirst: this.getLastFirst(name),
-      libraryId
-    })
+    return this.create(
+      {
+        name,
+        lastFirst: this.getLastFirst(name),
+        libraryId
+      },
+      { transaction }
+    )
   }
 
   /**

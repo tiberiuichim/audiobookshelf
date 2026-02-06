@@ -135,6 +135,7 @@ export default {
           if (thisEntity) {
             const mediaItem = {
               id: thisEntity.id,
+              libraryId: thisEntity.libraryId,
               mediaType: thisEntity.mediaType,
               hasTracks: thisEntity.mediaType === 'podcast' || thisEntity.media.audioFile || thisEntity.media.numTracks || (thisEntity.media.tracks && thisEntity.media.tracks.length)
             }
@@ -146,6 +147,7 @@ export default {
       } else {
         const mediaItem = {
           id: entity.id,
+          libraryId: entity.libraryId,
           mediaType: entity.mediaType,
           hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
         }
