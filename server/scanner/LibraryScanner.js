@@ -659,6 +659,7 @@ function isSingleMediaFile(fileUpdateGroup, itemDir) {
 }
 
 async function findLibraryItemByItemToItemInoMatch(libraryId, fullPath) {
+  if (!(await fs.pathExists(fullPath))) return null
   const ino = await fileUtils.getIno(fullPath)
   if (!ino) return null
   const existingLibraryItem = await Database.libraryItemModel.findOneExpanded({
@@ -672,6 +673,7 @@ async function findLibraryItemByItemToItemInoMatch(libraryId, fullPath) {
 async function findLibraryItemByItemToFileInoMatch(libraryId, fullPath, isSingleMedia) {
   if (!isSingleMedia) return null
   // check if it was moved from another folder by comparing the ino to the library files
+  if (!(await fs.pathExists(fullPath))) return null
   const ino = await fileUtils.getIno(fullPath)
   if (!ino) return null
   const existingLibraryItem = await Database.libraryItemModel.findOneExpanded(
@@ -696,8 +698,11 @@ async function findLibraryItemByFileToItemInoMatch(libraryId, fullPath, isSingle
   // check if it was moved from the root folder by comparing the ino to the ino of the scanned files
   let itemFileInos = []
   for (const itemFile of itemFiles) {
-    const ino = await fileUtils.getIno(Path.posix.join(fullPath, itemFile))
-    if (ino) itemFileInos.push(ino)
+    const filePath = Path.posix.join(fullPath, itemFile)
+    if (await fs.pathExists(filePath)) {
+      const ino = await fileUtils.getIno(filePath)
+      if (ino) itemFileInos.push(ino)
+    }
   }
   if (!itemFileInos.length) return null
   const existingLibraryItem = await Database.libraryItemModel.findOneExpanded({

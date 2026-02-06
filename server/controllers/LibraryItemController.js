@@ -13,6 +13,10 @@ const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUti
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
+const Watcher = require('../Watcher')
+
+const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilters')
+const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 
 const RssFeedManager = require('../managers/RssFeedManager')
 const CacheManager = require('../managers/CacheManager')
@@ -59,6 +63,11 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
   }
 
   try {
+    Watcher.addIgnoreDir(oldPath)
+    Watcher.addIgnoreDir(newPath)
+
+    const oldRelPath = libraryItem.relPath
+
     // Move files on disk
     Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
     await fs.move(oldPath, newPath)
@@ -68,13 +77,20 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
     libraryItem.libraryFolderId = targetFolder.id
     libraryItem.path = newPath
     libraryItem.relPath = newRelPath
+    libraryItem.isMissing = false
+    libraryItem.isInvalid = false
     libraryItem.changed('updatedAt', true)
     await libraryItem.save()
 
     // Update library files paths
     if (libraryItem.libraryFiles?.length) {
       libraryItem.libraryFiles = libraryItem.libraryFiles.map((lf) => {
-        lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+        if (lf.metadata?.path) {
+          lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+        }
+        if (lf.metadata?.relPath) {
+          lf.metadata.relPath = lf.metadata.relPath.replace(oldRelPath, newRelPath)
+        }
         return lf
       })
       libraryItem.changed('libraryFiles', true)
@@ -89,6 +105,9 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
           if (af.metadata?.path) {
             af.metadata.path = af.metadata.path.replace(oldPath, newPath)
           }
+          if (af.metadata?.relPath) {
+            af.metadata.relPath = af.metadata.relPath.replace(oldRelPath, newRelPath)
+          }
           return af
         })
         libraryItem.media.changed('audioFiles', true)
@@ -96,14 +115,34 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
       // Update ebookFile path
       if (libraryItem.media.ebookFile?.metadata?.path) {
         libraryItem.media.ebookFile.metadata.path = libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
+        if (libraryItem.media.ebookFile.metadata?.relPath) {
+          libraryItem.media.ebookFile.metadata.relPath = libraryItem.media.ebookFile.metadata.relPath.replace(oldRelPath, newRelPath)
+        }
         libraryItem.media.changed('ebookFile', true)
+      }
+      // Update coverPath
+      if (libraryItem.media.coverPath) {
+        libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
       }
       await libraryItem.media.save()
     } else if (libraryItem.isPodcast) {
+      // Update coverPath
+      if (libraryItem.media.coverPath) {
+        libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
+      }
+      await libraryItem.media.save()
       // Update podcast episode audio file paths
       for (const episode of libraryItem.media.podcastEpisodes || []) {
+        let episodeUpdated = false
         if (episode.audioFile?.metadata?.path) {
           episode.audioFile.metadata.path = episode.audioFile.metadata.path.replace(oldPath, newPath)
+          episodeUpdated = true
+        }
+        if (episode.audioFile?.metadata?.relPath) {
+          episode.audioFile.metadata.relPath = episode.audioFile.metadata.relPath.replace(oldRelPath, newRelPath)
+          episodeUpdated = true
+        }
+        if (episodeUpdated) {
           episode.changed('audioFile', true)
           await episode.save()
         }
@@ -205,6 +244,17 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
     await Database.resetLibraryIssuesFilterData(oldLibraryId)
     await Database.resetLibraryIssuesFilterData(targetLibrary.id)
 
+    // Clear filter data cache for both libraries to ensure authors/series/genres are updated
+    if (Database.libraryFilterData[oldLibraryId]) delete Database.libraryFilterData[oldLibraryId]
+    if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+
+    // Clear count cache to ensure the library page shows the correct item count
+    if (libraryItem.isBook) {
+      libraryItemsBookFilters.clearCountCache('move_item')
+    } else if (libraryItem.isPodcast) {
+      libraryItemsPodcastFilters.clearCountCache('podcast', 'move_item')
+    }
+
     Logger.info(`[LibraryItemController] Successfully moved item "${libraryItem.media.title}" to library "${targetLibrary.name}"`)
   } catch (error) {
     Logger.error(`[LibraryItemController] Failed to move item "${libraryItem.media.title}"`, error)
@@ -219,6 +269,9 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
       }
     }
     throw error
+  } finally {
+    Watcher.removeIgnoreDir(oldPath)
+    Watcher.removeIgnoreDir(newPath)
   }
 }
 
