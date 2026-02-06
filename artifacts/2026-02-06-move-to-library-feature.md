@@ -81,9 +81,13 @@ POST /api/items/:id/move
 11. Update `audioFiles` paths in Book model (for playback to work)
 12. Update `ebookFile` path in Book model (if present)
 13. Update `podcastEpisodes` audio file paths for Podcasts
-14. Emit socket events: `item_removed` (old library), `item_added` (new library)
-15. Reset filter data for both libraries
-16. On error: rollback file move if possible
+14. Handle Series and Authors:
+    - Moves/merges series and authors to target library
+    - Copies metadata (description, ASIN) and images if necessary
+    - Deletes source series/authors if they become empty
+15. Emit socket events: `item_removed` (old library), `item_added` (new library)
+16. Reset filter data for both libraries
+17. On error: rollback file move if possible
 
 ### Frontend Flow
 

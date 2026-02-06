@@ -1281,6 +1281,90 @@ class LibraryItemController {
         }
       }
 
+      // Handle Series and Authors when moving a book
+      if (req.libraryItem.isBook) {
+        // Handle Series
+        const bookSeries = await Database.bookSeriesModel.findAll({
+          where: { bookId: req.libraryItem.media.id }
+        })
+        for (const bs of bookSeries) {
+          const sourceSeries = await Database.seriesModel.findByPk(bs.seriesId)
+          if (sourceSeries) {
+            const targetSeries = await Database.seriesModel.findOrCreateByNameAndLibrary(sourceSeries.name, targetLibrary.id)
+
+            // If target series doesn't have a description but source does, copy it
+            if (!targetSeries.description && sourceSeries.description) {
+              targetSeries.description = sourceSeries.description
+              await targetSeries.save()
+            }
+
+            // Update link
+            bs.seriesId = targetSeries.id
+            await bs.save()
+
+            // Check if source series is now empty
+            const sourceSeriesBooksCount = await Database.bookSeriesModel.count({ where: { seriesId: sourceSeries.id } })
+            if (sourceSeriesBooksCount === 0) {
+              Logger.info(`[LibraryItemController] Source series "${sourceSeries.name}" in library ${oldLibraryId} is now empty. Deleting.`)
+              await sourceSeries.destroy()
+              Database.removeSeriesFromFilterData(oldLibraryId, sourceSeries.id)
+            }
+          }
+        }
+
+        // Handle Authors
+        const bookAuthors = await Database.bookAuthorModel.findAll({
+          where: { bookId: req.libraryItem.media.id }
+        })
+        for (const ba of bookAuthors) {
+          const sourceAuthor = await Database.authorModel.findByPk(ba.authorId)
+          if (sourceAuthor) {
+            const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id)
+
+            // Copy description and ASIN if target doesn't have them
+            let targetAuthorUpdated = false
+            if (!targetAuthor.description && sourceAuthor.description) {
+              targetAuthor.description = sourceAuthor.description
+              targetAuthorUpdated = true
+            }
+            if (!targetAuthor.asin && sourceAuthor.asin) {
+              targetAuthor.asin = sourceAuthor.asin
+              targetAuthorUpdated = true
+            }
+
+            // Copy image if target doesn't have one
+            if (!targetAuthor.imagePath && sourceAuthor.imagePath && (await fs.pathExists(sourceAuthor.imagePath))) {
+              const ext = Path.extname(sourceAuthor.imagePath)
+              const newImagePath = Path.posix.join(Path.join(global.MetadataPath, 'authors'), targetAuthor.id + ext)
+              try {
+                await fs.copy(sourceAuthor.imagePath, newImagePath)
+                targetAuthor.imagePath = newImagePath
+                targetAuthorUpdated = true
+              } catch (err) {
+                Logger.error(`[LibraryItemController] Failed to copy author image`, err)
+              }
+            }
+
+            if (targetAuthorUpdated) await targetAuthor.save()
+
+            // Update link
+            ba.authorId = targetAuthor.id
+            await ba.save()
+
+            // Check if source author is now empty
+            const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id)
+            if (sourceAuthorBooksCount === 0) {
+              Logger.info(`[LibraryItemController] Source author "${sourceAuthor.name}" in library ${oldLibraryId} is now empty. Deleting.`)
+              if (sourceAuthor.imagePath) {
+                await fs.remove(sourceAuthor.imagePath).catch((err) => Logger.error(`[LibraryItemController] Failed to remove source author image`, err))
+              }
+              await sourceAuthor.destroy()
+              Database.removeAuthorFromFilterData(oldLibraryId, sourceAuthor.id)
+            }
+          }
+        }
+      }
+
       // Emit socket events for UI updates
       SocketAuthority.emitter('item_removed', {
         id: req.libraryItem.id,
