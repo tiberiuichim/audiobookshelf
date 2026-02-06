@@ -205,6 +205,44 @@ npm run dev
 
 The server will resolve all paths relative to the current working directory.
 
+## Artifact Specifications
+
+Each new feature or major change should be documented in an artifact specification file. These files serve as the planning and record of implementation for the feature.
+
+### Organization
+
+- **Location**: All artifact specifications are stored in the `artifacts/` directory.
+- **Dated Folders**: Specifications should be placed in a subfolder named by the current date (e.g., `artifacts/YYYY-MM-DD/`).
+- **Filename**: Use descriptive names for the specification files (e.g., `move-to-library-specification.md`).
+
+### Managing Folders
+
+A `Makefile` is provided in the `artifacts/` directory to quickly set up the folder for the current day:
+
+```bash
+cd artifacts
+make  # Runs the 'today' target to create the dated folder
+```
+
+### Purpose
+
+Artifact specifications should serve as a source of truth for the feature's lifecycle. A high-quality specification includes:
+
+1.  **Detailed Overview**: Clear summary of the user-facing functionality.
+2.  **API & Data Contracts**: Explicit documentation of new endpoints (methods, paths, payloads) and schema changes.
+3.  **Traceability (Files Modified)**: A table of all files touched in the implementation, categorized (e.g., Backend, Frontend, Docs).
+4.  **Architectural Decisions**: Explanation of *why* certain patterns were used (e.g., shared utility functions, state management choices).
+5.  **Localization**: Tracking of new string keys or translation updates.
+6.  **Verification Plan**: Concrete testing steps (manual or automated) to verify the implementation.
+7.  **Limitations & Future Work**: Explicitly stating what is *not* supported or known edge cases that weren't addressed.
+
+### Best Practices
+
+- **Update as you go**: The artifact should be updated during implementation if the plan changes.
+- **Be Specific**: Avoid vague descriptions. If a function is moved to a controller, name the function and the controller.
+- **Use Tables**: Tables are great for listing files or comparing before/after states.
+- **Include Code Snippets**: For API definitions or complex logic flows, short code/JSON snippets are highly encouraged.
+
 ## Related Documentation
 
 - [Main Documentation](https://audiobookshelf.org/docs)
