@@ -84,6 +84,7 @@ class ApiRouter {
     this.router.get('/libraries/:id/search', LibraryController.middleware.bind(this), LibraryController.search.bind(this))
     this.router.get('/libraries/:id/stats', LibraryController.middleware.bind(this), LibraryController.stats.bind(this))
     this.router.get('/libraries/:id/authors', LibraryController.middleware.bind(this), LibraryController.getAuthors.bind(this))
+    this.router.delete('/libraries/:id/authors/cleanup', LibraryController.middleware.bind(this), LibraryController.cleanupAuthorsWithNoBooks.bind(this))
     this.router.get('/libraries/:id/narrators', LibraryController.middleware.bind(this), LibraryController.getNarrators.bind(this))
     this.router.patch('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.updateNarrator.bind(this))
     this.router.delete('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.removeNarrator.bind(this))
@@ -104,6 +105,7 @@ class ApiRouter {
     this.router.post('/items/batch/get', LibraryItemController.batchGet.bind(this))
     this.router.post('/items/batch/quickmatch', LibraryItemController.batchQuickMatch.bind(this))
     this.router.post('/items/batch/scan', LibraryItemController.batchScan.bind(this))
+    this.router.post('/items/batch/move', LibraryItemController.batchMove.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
@@ -463,29 +465,38 @@ class ApiRouter {
    * @param {string[]} authorIds
    * @returns {Promise<void>}
    */
-  async checkRemoveAuthorsWithNoBooks(authorIds) {
+  async checkRemoveAuthorsWithNoBooks(authorIds, force = false) {
     if (!authorIds?.length) return
 
     const transaction = await Database.sequelize.transaction()
     try {
+      const where = [
+        sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)
+      ]
+
+      if (!force) {
+        where.push({
+          id: authorIds,
+          asin: {
+            [sequelize.Op.or]: [null, '']
+          },
+          description: {
+            [sequelize.Op.or]: [null, '']
+          },
+          imagePath: {
+            [sequelize.Op.or]: [null, '']
+          }
+        })
+      } else {
+        where.push({
+          id: authorIds
+        })
+      }
+
       // Select authors with locking to prevent concurrent updates
       const bookAuthorsToRemove = (
         await Database.authorModel.findAll({
-          where: [
-            {
-              id: authorIds,
-              asin: {
-                [sequelize.Op.or]: [null, '']
-              },
-              description: {
-                [sequelize.Op.or]: [null, '']
-              },
-              imagePath: {
-                [sequelize.Op.or]: [null, '']
-              }
-            },
-            sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)
-          ],
+          where,
           attributes: ['id', 'name', 'libraryId'],
           raw: true,
           transaction

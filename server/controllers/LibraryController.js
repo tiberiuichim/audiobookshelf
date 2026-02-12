@@ -1413,6 +1413,57 @@ class LibraryController {
   }
 
   /**
+   * DELETE: /api/libraries/:id/authors/cleanup
+   * Remove authors with no books, no description and no image
+   *
+   * @this {import('../routers/ApiRouter')}
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async cleanupAuthorsWithNoBooks(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to cleanup authors`)
+      return res.sendStatus(403)
+    }
+
+    const force = req.query.force === '1'
+
+    const authors = await Database.authorModel.findAll({
+      where: {
+        libraryId: req.library.id
+      },
+      attributes: ['id']
+    })
+
+    if (!authors.length) {
+      return res.json({
+        removed: 0
+      })
+    }
+
+    const authorIds = authors.map((a) => a.id)
+    const initialCount = authorIds.length
+
+    // This method is defined on ApiRouter
+    await this.checkRemoveAuthorsWithNoBooks(authorIds, force)
+
+    // Check how many are left
+    const remainingCount = await Database.authorModel.count({
+      where: {
+        id: authorIds
+      }
+    })
+
+    const removed = initialCount - remainingCount
+    Logger.info(`[LibraryController] Cleaned up ${removed} authors (force=${force}) with no books for library "${req.library.name}"`)
+
+    res.json({
+      removed
+    })
+  }
+
+  /**
    * GET: /api/library/:id/download
    * Downloads multiple library items
    *
