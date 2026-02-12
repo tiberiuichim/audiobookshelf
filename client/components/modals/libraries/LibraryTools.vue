@@ -13,6 +13,18 @@
         </div>
       </div>
     </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelRemoveItemsWithIssues }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelRemoveItemsWithIssuesHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="removeItemsWithIssuesClick">{{ $strings.ButtonRemove }}</ui-btn>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -70,6 +82,34 @@ export default {
         .catch((error) => {
           console.error('Failed to remove metadata files', error)
           this.$toast.error(this.$getString('ToastMetadataFilesRemovedError', [ext]))
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    removeItemsWithIssuesClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmRemoveItemsWithIssues,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.removeItemsWithIssuesInLibrary()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    removeItemsWithIssuesInLibrary() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$delete(`/api/libraries/${this.libraryId}/issues`)
+        .then(() => {
+          this.$toast.success(this.$strings.ToastLibraryItemsWithIssuesRemoved)
+        })
+        .catch((error) => {
+          console.error('Failed to remove items with issues', error)
+          this.$toast.error(this.$strings.ToastLibraryItemsWithIssuesRemoveFailed)
         })
         .finally(() => {
           this.$emit('update:processing', false)
