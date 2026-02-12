@@ -25,6 +25,18 @@
         </div>
       </div>
     </div>
+    <div v-if="isBookLibrary" class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelCleanupAuthors }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelCleanupAuthorsHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="cleanupAuthorsClick">{{ $strings.ButtonRemove }}</ui-btn>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -110,6 +122,38 @@ export default {
         .catch((error) => {
           console.error('Failed to remove items with issues', error)
           this.$toast.error(this.$strings.ToastLibraryItemsWithIssuesRemoveFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    cleanupAuthorsClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmCleanupAuthors,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.cleanupAuthors()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    cleanupAuthors() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$delete(`/api/libraries/${this.libraryId}/authors/cleanup?force=1`)
+        .then((data) => {
+          if (data.removed) {
+            this.$toast.success(this.$getString('ToastCleanupAuthorsSuccess', [data.removed]))
+          } else {
+            this.$toast.info(this.$strings.ToastCleanupAuthorsNoAuthors)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to cleanup authors', error)
+          this.$toast.error(this.$strings.ToastCleanupAuthorsFailed)
         })
         .finally(() => {
           this.$emit('update:processing', false)
