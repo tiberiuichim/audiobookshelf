@@ -1588,6 +1588,189 @@ class LibraryItemController {
     }
   }
 
+
+  /**
+   * POST: /api/items/batch/merge
+   * Merge multiple library items into one
+   *
+   * @this {import('../routers/ApiRouter')}
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchMerge(req, res) {
+    if (!req.user.canDelete) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to batch merge items without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { libraryItemIds } = req.body
+    if (!libraryItemIds?.length || !Array.isArray(libraryItemIds) || libraryItemIds.length < 2) {
+      return res.status(400).send('Invalid request body. Must select at least 2 items.')
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: libraryItemIds
+    })
+
+    if (libraryItems.length !== libraryItemIds.length) {
+      return res.status(404).send('Some library items not found')
+    }
+
+    const libraryId = libraryItems[0].libraryId
+
+    // Validate all items are in the same library and are books
+    const invalidItem = libraryItems.find((li) => li.libraryId !== libraryId || li.mediaType !== 'book')
+    if (invalidItem) {
+      return res.status(400).send('All items must be books in the same library')
+    }
+
+    // Sort items by ID to be deterministic, user selection order is lost in findAllExpandedWhere
+    // To preserve user selection order, we map libraryItemIds to objects
+    const orderedLibraryItems = libraryItemIds.map((id) => libraryItems.find((li) => li.id === id)).filter((li) => li)
+    const primaryItem = orderedLibraryItems[0]
+    const otherItems = orderedLibraryItems.slice(1)
+
+    const primaryItemPath = primaryItem.path
+    // If primary item is file, its dir is dirname. If folder, its dir is path.
+    const primaryItemDir = primaryItem.isFile ? Path.dirname(primaryItemPath) : primaryItemPath
+
+    const library = await Database.libraryModel.findByIdWithFolders(libraryId)
+    const libraryFolder = library.libraryFolders.find((lf) => primaryItemPath.startsWith(lf.path))
+
+    if (!libraryFolder) {
+      Logger.error(`[LibraryItemController] Library folder not found for primary item "${primaryItem.media.title}" path "${primaryItemPath}"`)
+      return res.status(500).send('Library folder not found for primary item')
+    }
+
+    let targetDirPath = primaryItemDir
+
+    // If primary item is a single file in the root of the library folder,
+    // create a new folder for the merged book.
+    // primaryItemDir check:
+    // If primaryItem.isFile is true, primaryItemDir is parent dir.
+    // If primaryItemDir == libraryFolder.path, it means it's in the root of library folder.
+    const isPrimaryInRoot = primaryItemDir === libraryFolder.path
+
+    if (isPrimaryInRoot) {
+      // Create a new folder for the merged book
+      const author = primaryItem.media.authors?.[0]?.name || 'Unknown Author'
+      const title = primaryItem.media.title || 'Unknown Title'
+      // Simple sanitization
+      const folderName = `${author} - ${title}`.replace(/[/\\?%*:|"<>]/g, '').trim()
+      targetDirPath = Path.join(libraryFolder.path, folderName)
+
+      if (await fs.pathExists(targetDirPath)) {
+        // Directory already exists, append timestamp to avoid conflict
+        targetDirPath += ` (${Date.now()})`
+      }
+      await fs.ensureDir(targetDirPath)
+
+      // Move primary item file to new folder
+      const newPrimaryPath = Path.join(targetDirPath, Path.basename(primaryItemPath))
+      await fs.move(primaryItemPath, newPrimaryPath)
+
+      // Update primary item path in memory (DB update will happen on scan)
+      primaryItem.path = newPrimaryPath
+      primaryItem.relPath = Path.relative(libraryFolder.path, newPrimaryPath)
+    }
+
+    Logger.info(`[LibraryItemController] Merging ${otherItems.length} items into "${primaryItem.media.title}" at "${targetDirPath}"`)
+
+    const successIds = []
+    const failIds = []
+    const failedItems = []
+
+    for (const item of otherItems) {
+      try {
+        const itemPath = item.path
+        if (item.isFile) {
+          const filename = Path.basename(itemPath)
+          let destPath = Path.join(targetDirPath, filename)
+
+          // Handle collision
+          if (await fs.pathExists(destPath)) {
+            const name = Path.parse(filename).name
+            const ext = Path.parse(filename).ext
+            destPath = Path.join(targetDirPath, `${name}_${Date.now()}${ext}`)
+          }
+          await fs.move(itemPath, destPath)
+        } else {
+          // It's a directory
+          // Move all files from this directory to target directory
+          const files = await fs.readdir(itemPath)
+          for (const file of files) {
+            const srcFile = Path.join(itemPath, file)
+            let destFile = Path.join(targetDirPath, file)
+
+            if (await fs.pathExists(destFile)) {
+              const name = Path.parse(file).name
+              const ext = Path.parse(file).ext
+              destFile = Path.join(targetDirPath, `${name}_${Date.now()}${ext}`)
+            }
+
+            // If it's a directory inside, move recursively?
+            // Users shouldn't have nested books usually. fs.move works for dirs too.
+            await fs.move(srcFile, destFile)
+          }
+          // Remove the now empty directory
+          await fs.remove(itemPath)
+        }
+
+        // Delete the library item from DB
+        // We pass empty array for mediaItemIds because we moved the files, so we don't want to delete them if they were linked.
+        // Actually handleDeleteLibraryItem deletes from DB handling relationships.
+        // But we already moved the files.
+        // If hard delete was called, it would try to delete files. But we didn't call delete with hard=1 logic here.
+        // We manually moved files.
+        // Now we just need to remove the DB entry.
+
+        // However, handleDeleteLibraryItem removes media progress, playlists, etc.
+        await this.handleDeleteLibraryItem(item.id, [item.media.id])
+        successIds.push(item.id)
+      } catch (error) {
+        Logger.error(`[LibraryItemController] Failed to merge item ${item.id}`, error)
+        failIds.push(item.id)
+        failedItems.push({ id: item.id, error: error.message })
+      }
+    }
+
+    // Rescan the target folder
+    // If moved to folder, tell scanner 
+    if (isPrimaryInRoot) {
+      // We changed the structure of primary item
+      await LibraryItemScanner.scanLibraryItem(primaryItem.id, {
+        path: targetDirPath,
+        relPath: Path.relative(libraryFolder.path, targetDirPath),
+        isFile: false
+      })
+    } else {
+      // Just rescan content
+      await LibraryItemScanner.scanLibraryItem(primaryItem.id)
+    }
+
+    // Check remove empty authors/series for deleted items
+    // We can collect all author/series IDs from deleted items
+    const authorIdsToCheck = []
+    const seriesIdsToCheck = []
+    otherItems.forEach((item) => {
+      if (successIds.includes(item.id)) {
+        if (item.media.authors) authorIdsToCheck.push(...item.media.authors.map((a) => a.id))
+        if (item.media.series) seriesIdsToCheck.push(...item.media.series.map((s) => s.id))
+      }
+    })
+
+    if (authorIdsToCheck.length) await this.checkRemoveAuthorsWithNoBooks([...new Set(authorIdsToCheck)])
+    if (seriesIdsToCheck.length) await this.checkRemoveEmptySeries([...new Set(seriesIdsToCheck)])
+
+    res.json({
+      success: failIds.length === 0,
+      successIds,
+      failIds,
+      errors: failedItems
+    })
+  }
+
   /**
    *
    * @param {RequestWithUser} req

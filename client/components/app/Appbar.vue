@@ -36,6 +36,12 @@
           </ui-tooltip>
         </nuxt-link>
 
+        <nuxt-link v-if="userIsAdminOrUp && currentLibrary" :to="`/config/libraries?edit=${currentLibrary.id}`" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1">
+          <ui-tooltip :text="$strings.HeaderUpdateLibrary" direction="bottom" class="flex items-center">
+            <span class="material-symbols text-2xl" aria-label="Edit Library" role="button">&#xe3c9;</span>
+          </ui-tooltip>
+        </nuxt-link>
+
         <nuxt-link v-if="userIsAdminOrUp" to="/config" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1">
           <ui-tooltip :text="$strings.HeaderSettings" direction="bottom" class="flex items-center">
             <span class="material-symbols text-2xl" aria-label="System Settings" role="button">&#xe8b8;</span>
@@ -195,6 +201,14 @@ export default {
           text: this.$strings.LabelMoveToLibrary,
           action: 'move-to-library'
         })
+
+        // Merge option - only for books and if multiple selected
+        if (this.isBookLibrary && this.selectedMediaItems.length > 1) {
+          options.push({
+            text: this.$strings.LabelMerge,
+            action: 'merge'
+          })
+        }
       }
 
       return options
@@ -236,7 +250,40 @@ export default {
         this.batchDownload()
       } else if (action === 'move-to-library') {
         this.batchMoveToLibrary()
+      } else if (action === 'merge') {
+        this.batchMerge()
       }
+    },
+    batchMerge() {
+      const payload = {
+        message: this.$strings.MessageConfirmBatchMerge,
+        callback: (confirmed) => {
+          if (confirmed) {
+            const libraryItemIds = this.selectedMediaItems.map((i) => i.id)
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/merge', { libraryItemIds })
+              .then((data) => {
+                if (data.success) {
+                  this.$toast.success(this.$strings.ToastBatchMergeSuccess)
+                } else {
+                  this.$toast.warning(this.$strings.ToastBatchMergePartiallySuccess)
+                }
+                this.cancelSelectionMode()
+              })
+              .catch((error) => {
+                console.error('Batch merge failed', error)
+                const errorMsg = error.response.data || this.$strings.ToastBatchMergeFailed
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     },
     batchMoveToLibrary() {
       // Clear any single library item that might be lingering
