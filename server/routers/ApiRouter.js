@@ -107,6 +107,7 @@ class ApiRouter {
     this.router.post('/items/batch/scan', LibraryItemController.batchScan.bind(this))
     this.router.post('/items/batch/move', LibraryItemController.batchMove.bind(this))
     this.router.post('/items/batch/merge', LibraryItemController.batchMerge.bind(this))
+    this.router.post('/items/batch/consolidate', LibraryItemController.batchConsolidate.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
@@ -130,6 +131,7 @@ class ApiRouter {
     this.router.get('/items/:id/ebook/:fileid?', LibraryItemController.middleware.bind(this), LibraryItemController.getEBookFile.bind(this))
     this.router.patch('/items/:id/ebook/:fileid/status', LibraryItemController.middleware.bind(this), LibraryItemController.updateEbookFileStatus.bind(this))
     this.router.post('/items/:id/move', LibraryItemController.middleware.bind(this), LibraryItemController.move.bind(this))
+    this.router.post('/items/:id/consolidate', LibraryItemController.middleware.bind(this), LibraryItemController.consolidate.bind(this))
 
     //
     // User Routes
@@ -471,9 +473,7 @@ class ApiRouter {
 
     const transaction = await Database.sequelize.transaction()
     try {
-      const where = [
-        sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)
-      ]
+      const where = [sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)]
 
       if (!force) {
         where.push({

@@ -209,6 +209,13 @@ export default {
             action: 'merge'
           })
         }
+
+        if (this.isBookLibrary) {
+          options.push({
+            text: 'Consolidate',
+            action: 'consolidate'
+          })
+        }
       }
 
       return options
@@ -252,7 +259,37 @@ export default {
         this.batchMoveToLibrary()
       } else if (action === 'merge') {
         this.batchMerge()
+      } else if (action === 'consolidate') {
+        this.batchConsolidate()
       }
+    },
+    batchConsolidate() {
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.$getString('MessageItemsSelected', [this.numMediaItemsSelected]), 'Author - Title']),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/consolidate', {
+                libraryItemIds: this.selectedMediaItems.map((i) => i.id)
+              })
+              .then((data) => {
+                this.$toast.success(this.$strings.ToastBatchConsolidateSuccess)
+                this.cancelSelectionMode()
+              })
+              .catch((error) => {
+                console.error('Batch consolidation failed', error)
+                const errorMsg = error.response?.data || this.$strings.ToastBatchConsolidateFailed
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     },
     batchMerge() {
       const payload = {
@@ -266,10 +303,14 @@ export default {
               .then((data) => {
                 if (data.success) {
                   this.$toast.success(this.$strings.ToastBatchMergeSuccess)
+                  if (data.mergedItemId) {
+                    this.$router.push(`/item/${data.mergedItemId}`)
+                  }
                 } else {
                   this.$toast.warning(this.$strings.ToastBatchMergePartiallySuccess)
                 }
-                this.cancelSelectionMode()
+                this.$store.commit('globals/resetSelectedMediaItems', [])
+                this.$eventBus.$emit('bookshelf_clear_selection')
               })
               .catch((error) => {
                 console.error('Batch merge failed', error)

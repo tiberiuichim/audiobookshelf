@@ -565,6 +565,12 @@ export default {
           func: 'showEditModalMatch',
           text: this.$strings.HeaderMatch
         })
+        if (!this.isFile && !this.isPodcast) {
+          items.push({
+            func: 'consolidate',
+            text: 'Consolidate'
+          })
+        }
       }
       if ((this.userIsAdminOrUp || this.userCanDelete) && !this.isFile) {
         items.push({
@@ -798,6 +804,31 @@ export default {
     showEditModalMatch() {
       // More menu func
       this.$emit('edit', this.libraryItem, 'match')
+    },
+    consolidate() {
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.title, `${this.author} - ${this.title}`]),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            const axios = this.$axios || this.$nuxt.$axios
+            axios
+              .$post(`/api/items/${this.libraryItemId}/consolidate`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidate successful')
+              })
+              .catch((error) => {
+                console.error('Failed to consolidate', error)
+                this.$toast.error(error.response?.data || this.$strings.ToastConsolidateFailed || 'Consolidate failed')
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.store.commit('globals/setConfirmPrompt', payload)
     },
     sendToDevice(deviceName) {
       // More menu func

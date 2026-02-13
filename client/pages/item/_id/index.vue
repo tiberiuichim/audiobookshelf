@@ -428,6 +428,12 @@ export default {
           text: this.$strings.ButtonReScan,
           action: 'rescan'
         })
+        if (!this.isFile && !this.isPodcast) {
+          items.push({
+            text: 'Consolidate',
+            action: 'consolidate'
+          })
+        }
         items.push({
           text: this.$strings.ButtonMoveToLibrary,
           action: 'move'
@@ -786,6 +792,31 @@ export default {
           this.processing = false
         })
     },
+    consolidate() {
+      const author = this.authors?.[0]?.name || 'Unknown Author'
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.title, `${author} - ${this.title}`]),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            this.$axios
+              .$post(`/api/items/${this.libraryItemId}/consolidate`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastConsolidateSuccess)
+              })
+              .catch((error) => {
+                console.error('Failed to consolidate', error)
+                this.$toast.error(error.response?.data || this.$strings.ToastConsolidateFailed)
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
     contextMenuAction({ action, data }) {
       if (action === 'collections') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
@@ -806,6 +837,8 @@ export default {
       } else if (action === 'move') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
         this.$store.commit('globals/setShowMoveToLibraryModal', true)
+      } else if (action === 'consolidate') {
+        this.consolidate()
       } else if (action === 'sendToDevice') {
         this.sendToDevice(data)
       } else if (action === 'share') {

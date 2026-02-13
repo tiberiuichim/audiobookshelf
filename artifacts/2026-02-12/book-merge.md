@@ -88,11 +88,11 @@ I have implemented the "Merge Books" feature, which allows users to combine mult
 - **`server/routers/ApiRouter.js`**: Added `POST /api/items/batch/merge` route.
 
 ### Frontend
-
-- **`client/components/app/Appbar.vue`**: Added "Merge" option to the multi-select context menu.
-  - Enabled only when multiple books are selected.
-  - Shows a confirmation dialog before proceeding.
-- **`client/strings/en-us.json`**: Added localization strings for the new feature.
+-   **`client/components/app/Appbar.vue`**: Added "Merge" option to the multi-select context menu.
+    -   Enabled only when multiple books are selected.
+    -   Shows a confirmation dialog before proceeding.
+    -   Automatically navigates to the merged book upon success.
+-   **`client/strings/en-us.json`**: Added localization strings for the new feature.
 
 ## Verification
 

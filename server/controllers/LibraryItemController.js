@@ -9,7 +9,7 @@ const Database = require('../Database')
 const zipHelpers = require('../utils/zipHelpers')
 const { reqSupportsWebp } = require('../utils/index')
 const { ScanResult, AudioMimeType } = require('../utils/constants')
-const { getAudioMimeTypeFromExtname, encodeUriPath } = require('../utils/fileUtils')
+const { getAudioMimeTypeFromExtname, encodeUriPath, sanitizeFilename } = require('../utils/fileUtils')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
@@ -47,12 +47,12 @@ const ShareManager = require('../managers/ShareManager')
  * @param {import('../models/Library')} targetLibrary
  * @param {import('../models/LibraryFolder')} targetFolder
  */
-async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder) {
+async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, newItemFolderName = null) {
   const oldPath = libraryItem.path
   const oldLibraryId = libraryItem.libraryId
 
   // Calculate new paths
-  const itemFolderName = Path.basename(libraryItem.path)
+  const itemFolderName = newItemFolderName || Path.basename(libraryItem.path)
   const newPath = Path.join(targetFolder.path, itemFolderName)
   const newRelPath = itemFolderName
 
@@ -1588,6 +1588,122 @@ class LibraryItemController {
     }
   }
 
+  /**
+   * POST: /api/items/:id/consolidate
+   * Rename book folder to Author - Title and move to library root
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async consolidate(req, res) {
+    if (!req.libraryItem.isBook) {
+      return res.status(400).send('Consolidate only available for books')
+    }
+    if (req.libraryItem.isFile) {
+      return res.status(400).send('Consolidate only available for books in a folder')
+    }
+
+    const author = req.libraryItem.media.authors?.[0]?.name || 'Unknown Author'
+    const title = req.libraryItem.media.title || 'Unknown Title'
+    const newFolderName = `${author} - ${title}`
+    const sanitizedFolderName = sanitizeFilename(newFolderName)
+
+    const library = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
+    // Find the library folder that currently contains this item
+    const targetFolder = library.libraryFolders.find((f) => req.libraryItem.path.startsWith(f.path)) || library.libraryFolders[0]
+
+    try {
+      await handleMoveLibraryItem(req.libraryItem, library, targetFolder, sanitizedFolderName)
+
+      // Recursively remove empty parent directories
+      let parentDir = Path.dirname(req.libraryItem.path)
+      while (parentDir && parentDir !== targetFolder.path && parentDir !== Path.dirname(parentDir)) {
+        try {
+          const files = await fs.readdir(parentDir)
+          if (files.length === 0) {
+            await fs.remove(parentDir)
+            parentDir = Path.dirname(parentDir)
+          } else {
+            break
+          }
+        } catch (err) {
+          Logger.error(`[LibraryItemController] Failed to cleanup parent directory "${parentDir}"`, err)
+          break
+        }
+      }
+
+      res.json({
+        success: true,
+        libraryItem: req.libraryItem.toOldJSONExpanded()
+      })
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to consolidate item "${req.libraryItem.media.title}"`, error)
+      return res.status(500).send(error.message || 'Failed to consolidate item')
+    }
+  }
+
+  /**
+   * POST: /api/items/batch/consolidate
+   * Consolidate multiple library items
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchConsolidate(req, res) {
+    const { libraryItemIds } = req.body
+    if (!Array.isArray(libraryItemIds) || !libraryItemIds.length) {
+      return res.status(400).send('Invalid request')
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: libraryItemIds
+    })
+
+    const results = []
+    for (const libraryItem of libraryItems) {
+      if (libraryItem.mediaType !== 'book' || libraryItem.isFile) {
+        results.push({ id: libraryItem.id, success: false, error: 'Not a book in a folder' })
+        continue
+      }
+
+      try {
+        const author = libraryItem.media.authors?.[0]?.name || 'Unknown Author'
+        const title = libraryItem.media.title || 'Unknown Title'
+        const newFolderName = `${author} - ${title}`
+        const sanitizedFolderName = sanitizeFilename(newFolderName)
+
+        const library = await Database.libraryModel.findByIdWithFolders(libraryItem.libraryId)
+        const currentLibraryFolder = library.libraryFolders.find((lf) => libraryItem.path.startsWith(lf.path)) || library.libraryFolders[0]
+
+        const oldPath = libraryItem.path
+        await handleMoveLibraryItem(libraryItem, library, currentLibraryFolder, sanitizedFolderName)
+
+        // Recursively remove empty parent directories
+        let parentDir = Path.dirname(oldPath)
+        while (parentDir && parentDir !== currentLibraryFolder.path && parentDir !== Path.dirname(parentDir)) {
+          try {
+            const files = await fs.readdir(parentDir)
+            if (files.length === 0) {
+              await fs.remove(parentDir)
+              parentDir = Path.dirname(parentDir)
+            } else {
+              break
+            }
+          } catch (err) {
+            Logger.error(`[LibraryItemController] Failed to cleanup parent directory "${parentDir}"`, err)
+            break
+          }
+        }
+
+        results.push({ id: libraryItem.id, success: true })
+      } catch (error) {
+        Logger.error(`[LibraryItemController] Batch Consolidate: Failed to consolidate "${libraryItem.media?.title}"`, error)
+        results.push({ id: libraryItem.id, success: false, error: error.message })
+      }
+    }
+
+    res.json({ results })
+  }
 
   /**
    * POST: /api/items/batch/merge
@@ -1736,7 +1852,7 @@ class LibraryItemController {
     }
 
     // Rescan the target folder
-    // If moved to folder, tell scanner 
+    // If moved to folder, tell scanner
     if (isPrimaryInRoot) {
       // We changed the structure of primary item
       await LibraryItemScanner.scanLibraryItem(primaryItem.id, {
@@ -1765,6 +1881,7 @@ class LibraryItemController {
 
     res.json({
       success: failIds.length === 0,
+      mergedItemId: primaryItem.id,
       successIds,
       failIds,
       errors: failedItems
