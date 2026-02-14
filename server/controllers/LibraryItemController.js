@@ -756,6 +756,51 @@ class LibraryItemController {
   }
 
   /**
+   * POST /api/items/:id/reset-metadata
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async resetMetadata(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to reset metadata without permission`)
+      return res.sendStatus(403)
+    }
+
+    if (global.MetadataPath) {
+      const metadataPath = Path.join(global.MetadataPath, 'items', req.libraryItem.id, 'metadata.json')
+      if (await fs.pathExists(metadataPath)) {
+        Logger.info(`[LibraryItemController] Removing metadata file at "${metadataPath}"`)
+        await fs.remove(metadataPath)
+      }
+    }
+
+    if (req.libraryItem.path && !req.libraryItem.isFile) {
+      const localMetadataPath = Path.join(req.libraryItem.path, 'metadata.json')
+      if (await fs.pathExists(localMetadataPath)) {
+        Logger.info(`[LibraryItemController] Removing local metadata file at "${localMetadataPath}"`)
+        await fs.remove(localMetadataPath)
+      }
+    }
+
+    // Clear cover path to force re-scan of cover
+    if (req.libraryItem.media.coverPath) {
+      req.libraryItem.media.coverPath = null
+      await req.libraryItem.media.save()
+    }
+
+    // Trigger a scan ensuring we don't rely on cache/timestamps if possible
+    // scanLibraryItem checks mtime but since we deleted metadata.json which might have been the source,
+    // the "comparison" logic in BookScanner should now fallback to other sources (tags/folder).
+    // If those sources yield different data than DB, it updates.
+    const result = await LibraryItemScanner.scanLibraryItem(req.libraryItem.id)
+
+    // Respond with updated item
+    await req.libraryItem.reload()
+    res.json(req.libraryItem.toOldJSONExpanded())
+  }
+
+  /**
    * POST: /api/items/batch/delete
    * Batch delete library items. Will delete from database and file system if hard delete is requested.
    * Optional query params:

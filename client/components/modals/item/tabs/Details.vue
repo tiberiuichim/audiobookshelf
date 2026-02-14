@@ -13,6 +13,10 @@
 
         <ui-btn v-if="userIsAdminOrUp && !isFile" :loading="rescanning" :disabled="isLibraryScanning" color="bg-bg" type="button" class="h-full" small @click.stop.prevent="rescan">{{ $strings.ButtonReScan }}</ui-btn>
 
+        <ui-tooltip v-if="userIsAdminOrUp && !isFile" text="Reset metadata to file tags" direction="bottom" class="ml-2">
+          <ui-btn :loading="resetting" :disabled="isLibraryScanning" color="bg-error" type="button" class="h-full" small @click.stop.prevent="resetMetadata">Reset</ui-btn>
+        </ui-tooltip>
+
         <div class="grow" />
 
         <!-- desktop -->
@@ -37,6 +41,7 @@ export default {
   data() {
     return {
       resettingProgress: false,
+      resetting: false,
       isScrollable: false,
       rescanning: false,
       quickMatching: false
@@ -139,6 +144,39 @@ export default {
           console.error('Failed to scan library item', error)
           this.$toast.error(this.$strings.ToastScanFailed)
           this.rescanning = false
+        })
+    },
+    resetMetadata() {
+      const payload = {
+        message: 'Are you sure you want to reset metadata? This will remove the metadata file and re-scan the item from files.',
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.runResetMetadata()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    runResetMetadata() {
+      this.resetting = true
+      this.$axios
+        .$post(`/api/items/${this.libraryItemId}/reset-metadata`)
+        .then((data) => {
+          this.resetting = false
+          this.$toast.success('Metadata reset successfully')
+          // Update the library item in the parent component
+          if (data) {
+            this.$emit('submit', { updatePayload: {}, hasChanges: false }) // Just to close or maybe I should trigger an update event
+             // Currently saveAndClose emits 'close'.
+             // We probably want to just update the local view or close.
+             // If I close, the user sees the updated card in the library.
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to reset metadata', error)
+          this.$toast.error('Failed to reset metadata')
+          this.resetting = false
         })
     },
     async saveAndClose() {
