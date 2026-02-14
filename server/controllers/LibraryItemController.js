@@ -249,11 +249,15 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
     }
 
     // Emit socket events for UI updates
-    SocketAuthority.emitter('item_removed', {
-      id: libraryItem.id,
-      libraryId: oldLibraryId
-    })
-    SocketAuthority.libraryItemEmitter('item_added', libraryItem)
+    if (oldLibraryId !== targetLibrary.id) {
+      SocketAuthority.emitter('item_removed', {
+        id: libraryItem.id,
+        libraryId: oldLibraryId
+      })
+      SocketAuthority.libraryItemEmitter('item_added', libraryItem)
+    } else {
+      SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
+    }
 
     Logger.info(`[LibraryItemController] Successfully moved item "${libraryItem.media.title}" to library "${targetLibrary.name}"`)
   } catch (error) {

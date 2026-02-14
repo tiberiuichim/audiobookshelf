@@ -816,6 +816,7 @@ export default {
               .$post(`/api/items/${this.libraryItemId}/consolidate`)
               .then(() => {
                 this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidate successful')
+                this.$router.push(`/item/${this.libraryItemId}`)
               })
               .catch((error) => {
                 console.error('Failed to consolidate', error)

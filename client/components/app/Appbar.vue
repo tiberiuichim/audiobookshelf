@@ -275,6 +275,9 @@ export default {
               })
               .then((data) => {
                 this.$toast.success(this.$strings.ToastBatchConsolidateSuccess)
+                if (this.numMediaItemsSelected === 1) {
+                  this.$router.push(`/item/${this.selectedMediaItems[0].id}`)
+                }
                 this.cancelSelectionMode()
               })
               .catch((error) => {
