@@ -83,8 +83,14 @@ export const getters = {
 
 export const actions = {
   // When changing libraries make sure sort and filter is still valid
-  checkUpdateLibrarySortFilter({ state, dispatch, commit }, mediaType) {
+  checkUpdateLibrarySortFilter({ state, dispatch, commit }, { mediaType, libraryChanging }) {
     const settingsUpdate = {}
+
+    if (libraryChanging) {
+      settingsUpdate.filterBy = 'all'
+      settingsUpdate.seriesFilterBy = 'all'
+    }
+
     if (mediaType == 'podcast') {
       if (state.settings.orderBy == 'media.metadata.authorName' || state.settings.orderBy == 'media.metadata.authorNameLF') {
         settingsUpdate.orderBy = 'media.metadata.author'

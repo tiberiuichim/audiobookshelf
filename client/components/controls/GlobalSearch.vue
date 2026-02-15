@@ -128,6 +128,13 @@ export default {
       return this.bookResults.length + this.seriesResults.length + this.authorResults.length + this.tagResults.length + this.genreResults.length + this.podcastResults.length + this.narratorResults.length + this.episodeResults.length
     }
   },
+  watch: {
+    currentLibraryId(newVal, oldVal) {
+      if (newVal && oldVal && newVal !== oldVal) {
+        this.clearResults()
+      }
+    }
+  },
   methods: {
     clickOption() {
       this.clearResults()
