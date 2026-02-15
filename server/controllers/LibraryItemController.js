@@ -1939,6 +1939,66 @@ class LibraryItemController {
   }
 
   /**
+   * POST: /api/items/batch/reset-metadata
+   * Reset metadata for multiple library items
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchResetMetadata(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to batch reset metadata without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { libraryItemIds } = req.body
+    if (!Array.isArray(libraryItemIds) || !libraryItemIds.length) {
+      return res.status(400).send('Invalid request')
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: libraryItemIds
+    })
+
+    const results = []
+    for (const libraryItem of libraryItems) {
+      try {
+        if (global.MetadataPath) {
+          const metadataPath = Path.join(global.MetadataPath, 'items', libraryItem.id, 'metadata.json')
+          if (await fs.pathExists(metadataPath)) {
+            Logger.info(`[LibraryItemController] Removing metadata file at "${metadataPath}"`)
+            await fs.remove(metadataPath)
+          }
+        }
+
+        if (libraryItem.path && !libraryItem.isFile) {
+          const localMetadataPath = Path.join(libraryItem.path, 'metadata.json')
+          if (await fs.pathExists(localMetadataPath)) {
+            Logger.info(`[LibraryItemController] Removing local metadata file at "${localMetadataPath}"`)
+            await fs.remove(localMetadataPath)
+          }
+        }
+
+        // Clear cover path to force re-scan of cover
+        if (libraryItem.media.coverPath) {
+          libraryItem.media.coverPath = null
+          await libraryItem.media.save()
+        }
+
+        // Trigger a scan ensuring we don't rely on cache/timestamps if possible
+        await LibraryItemScanner.scanLibraryItem(libraryItem.id)
+
+        results.push({ id: libraryItem.id, success: true })
+      } catch (error) {
+        Logger.error(`[LibraryItemController] Batch Reset Metadata: Failed to reset "${libraryItem.media?.title}"`, error)
+        results.push({ id: libraryItem.id, success: false, error: error.message })
+      }
+    }
+
+    res.json({ results })
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res

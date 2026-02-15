@@ -140,6 +140,17 @@ export default {
         instance.setSelectionMode(true)
         if ((instance.libraryItemId && this.selectedMediaItems.some((i) => i.id === instance.libraryItemId)) || this.isSelectAll) {
           instance.selected = true
+          
+          if (this.isSelectAll && instance.libraryItemId && !this.selectedMediaItems.some((i) => i.id === instance.libraryItemId)) {
+            const entity = this.entities[index]
+            const mediaItem = {
+              id: entity.id,
+              libraryId: entity.libraryId,
+              mediaType: entity.mediaType,
+              hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+            }
+            this.$store.commit('globals/setMediaItemSelected', { item: mediaItem, selected: true })
+          }
         }
       }
     }

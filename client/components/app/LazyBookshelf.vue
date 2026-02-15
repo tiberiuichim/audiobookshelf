@@ -83,7 +83,8 @@ export default {
       lastTimestamp: 0,
       postScrollTimeout: null,
       currFirstEntityIndex: -1,
-      currLastEntityIndex: -1
+      currLastEntityIndex: -1,
+      isSelectAll: false
     }
   },
   watch: {
@@ -246,17 +247,48 @@ export default {
       }
     },
     clearSelectedEntities() {
+      this.isSelectAll = false
       this.updateBookSelectionMode(false)
       this.isSelectionMode = false
+    },
+    selectAll() {
+      if (this.entityName !== 'items' && this.entityName !== 'series-books' && this.entityName !== 'collections' && this.entityName !== 'playlists') {
+        return
+      }
+
+      this.isSelectAll = true
+      this.isSelectionMode = true
+
+      const itemsToSelect = []
+      this.entities.forEach((entity) => {
+        if (entity && !entity.collapsedSeries) {
+          const mediaItem = {
+            id: entity.id,
+            libraryId: entity.libraryId,
+            mediaType: entity.mediaType,
+            hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
+          }
+          itemsToSelect.push(mediaItem)
+        }
+      })
+
+      if (itemsToSelect.length) {
+        this.$store.commit('globals/addBatchMediaItemsSelected', itemsToSelect)
+      }
+
+      this.updateBookSelectionMode(true)
     },
     selectEntity(entity, shiftKey) {
       if (this.entityName === 'items' || this.entityName === 'series-books') {
         const indexOf = this.entities.findIndex((ent) => ent && ent.id === entity.id)
         const lastLastItemIndexSelected = this.lastItemIndexSelected
-        if (!this.selectedMediaItems.some((i) => i.id === entity.id)) {
+        const alreadySelected = this.selectedMediaItems.some((i) => i.id === entity.id)
+
+        if (!alreadySelected) {
           this.lastItemIndexSelected = indexOf
         } else {
           this.lastItemIndexSelected = -1
+          this.isSelectAll = false // Deselecting an item turns off "Select All" mode
         }
 
         if (shiftKey && lastLastItemIndexSelected >= 0) {
@@ -322,7 +354,11 @@ export default {
     updateBookSelectionMode(isSelectionMode) {
       for (const key in this.entityComponentRefs) {
         if (this.entityIndexesMounted.includes(Number(key))) {
-          this.entityComponentRefs[key].setSelectionMode(isSelectionMode)
+          const component = this.entityComponentRefs[key]
+          component.setSelectionMode(isSelectionMode)
+          if (isSelectionMode && this.isSelectAll) {
+            component.selected = true
+          }
         }
       }
       if (!isSelectionMode) {
@@ -780,8 +816,19 @@ export default {
     windowResize() {
       this.executeRebuild()
     },
+    handleKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        // Only trigger if no input/textarea is focused
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+          return
+        }
+        e.preventDefault()
+        this.selectAll()
+      }
+    },
     initListeners() {
       window.addEventListener('resize', this.windowResize)
+      window.addEventListener('keydown', this.handleKeyDown)
 
       this.$nextTick(() => {
         var bookshelf = document.getElementById('bookshelf')
@@ -817,6 +864,7 @@ export default {
     },
     removeListeners() {
       window.removeEventListener('resize', this.windowResize)
+      window.removeEventListener('keydown', this.handleKeyDown)
       var bookshelf = document.getElementById('bookshelf')
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)

@@ -108,6 +108,7 @@ class ApiRouter {
     this.router.post('/items/batch/move', LibraryItemController.batchMove.bind(this))
     this.router.post('/items/batch/merge', LibraryItemController.batchMerge.bind(this))
     this.router.post('/items/batch/consolidate', LibraryItemController.batchConsolidate.bind(this))
+    this.router.post('/items/batch/reset-metadata', LibraryItemController.batchResetMetadata.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))

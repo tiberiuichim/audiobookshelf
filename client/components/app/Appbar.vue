@@ -186,6 +186,11 @@ export default {
         action: 'rescan'
       })
 
+      options.push({
+        text: 'Reset Metadata',
+        action: 'reset-metadata'
+      })
+
       // The limit of 50 is introduced because of the URL length. Each id has 36 chars, so 36 * 40 = 1440
       // + 40 , separators = 1480 chars + base path 280 chars = 1760 chars. This keeps the URL under 2000 chars even with longer domains
       if (this.selectedMediaItems.length <= 40) {
@@ -261,6 +266,8 @@ export default {
         this.batchMerge()
       } else if (action === 'consolidate') {
         this.batchConsolidate()
+      } else if (action === 'reset-metadata') {
+        this.batchResetMetadata()
       }
     },
     batchConsolidate() {
@@ -283,6 +290,34 @@ export default {
               .catch((error) => {
                 console.error('Batch consolidation failed', error)
                 const errorMsg = error.response?.data || this.$strings.ToastBatchConsolidateFailed
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    batchResetMetadata() {
+      const payload = {
+        message: `Are you sure you want to reset metadata for ${this.numMediaItemsSelected} items? This will remove metadata files and re-scan the items from files.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/reset-metadata', {
+                libraryItemIds: this.selectedMediaItems.map((i) => i.id)
+              })
+              .then(() => {
+                this.$toast.success('Batch reset metadata successful')
+                this.cancelSelectionMode()
+              })
+              .catch((error) => {
+                console.error('Batch reset metadata failed', error)
+                const errorMsg = error.response?.data || 'Batch reset metadata failed'
                 this.$toast.error(errorMsg)
               })
               .finally(() => {

@@ -225,5 +225,12 @@ export const mutations = {
     } else if (selected && !isAlreadySelected) {
       state.selectedMediaItems.push(item)
     }
+  },
+  addBatchMediaItemsSelected(state, items) {
+    items.forEach((item) => {
+      if (!state.selectedMediaItems.some((i) => i.id === item.id)) {
+        state.selectedMediaItems.push(item)
+      }
+    })
   }
 }
