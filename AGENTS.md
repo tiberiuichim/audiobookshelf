@@ -238,6 +238,9 @@ Artifact specifications should serve as a source of truth for the feature's life
 
 ### Best Practices
 
+- **Use for Every Feature**: For *every* new feature or significant development, start by creating a specification file in today's dated folder.
+- **Initialization**: Always run `make` (or `make today`) in the `artifacts/` directory before starting work on a new specification to ensure the correct dated folder exists.
+- **Relevant Naming**: Name the specification file according to the task/feature (e.g., `feature_name_specification.md`).
 - **Update as you go**: The artifact should be updated during implementation if the plan changes.
 - **Be Specific**: Avoid vague descriptions. If a function is moved to a controller, name the function and the controller.
 - **Use Tables**: Tables are great for listing files or comparing before/after states.

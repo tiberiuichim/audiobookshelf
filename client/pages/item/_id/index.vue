@@ -29,6 +29,11 @@
                   {{ title }}
                   <widgets-explicit-indicator v-if="isExplicit" />
                   <widgets-abridged-indicator v-if="isAbridged" />
+                  <ui-tooltip v-if="isNotConsolidated" text="Not Consolidated" direction="bottom" class="ml-2">
+                    <div class="rounded-full bg-warning flex items-center justify-center border border-black/20 shadow-sm w-6 h-6">
+                      <span class="material-symbols text-black text-sm">folder_open</span>
+                    </div>
+                  </ui-tooltip>
                 </div>
               </h1>
 
@@ -106,6 +111,10 @@
 
             <ui-tooltip v-if="!isPodcast" :text="userIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="top">
               <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
+            </ui-tooltip>
+
+            <ui-tooltip v-if="userCanUpdate && !isFile && !isPodcast" :text="isNotConsolidated ? 'Consolidate' : 'Already Consolidated'" direction="top">
+              <ui-icon-btn icon="folder_open" class="mx-0.5" :class="isNotConsolidated ? 'text-warning' : 'opacity-50'" :disabled="!isNotConsolidated" @click="consolidate" />
             </ui-tooltip>
 
             <!-- Only admin or root user can download new episodes -->
@@ -221,6 +230,9 @@ export default {
     },
     isInvalid() {
       return this.libraryItem.isInvalid
+    },
+    isNotConsolidated() {
+      return !!this.libraryItem.isNotConsolidated
     },
     isExplicit() {
       return !!this.mediaMetadata.explicit
@@ -428,12 +440,6 @@ export default {
           text: this.$strings.ButtonReScan,
           action: 'rescan'
         })
-        if (!this.isFile && !this.isPodcast) {
-          items.push({
-            text: 'Consolidate',
-            action: 'consolidate'
-          })
-        }
         items.push({
           text: this.$strings.ButtonMoveToLibrary,
           action: 'move'
@@ -837,8 +843,6 @@ export default {
       } else if (action === 'move') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
         this.$store.commit('globals/setShowMoveToLibraryModal', true)
-      } else if (action === 'consolidate') {
-        this.consolidate()
       } else if (action === 'sendToDevice') {
         this.sendToDevice(data)
       } else if (action === 'share') {

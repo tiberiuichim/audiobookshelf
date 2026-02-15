@@ -3,7 +3,7 @@ const { DataTypes, Model } = require('sequelize')
 const fsExtra = require('../libs/fsExtra')
 const Logger = require('../Logger')
 const libraryFilters = require('../utils/queries/libraryFilters')
-const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
+const { filePathToPOSIX, getFileTimestampsWithIno, sanitizeFilename } = require('../utils/fileUtils')
 const LibraryFile = require('../objects/files/LibraryFile')
 const Book = require('./Book')
 const Podcast = require('./Podcast')
@@ -916,6 +916,14 @@ class LibraryItem extends Model {
     return this.libraryFiles.map((lf) => new LibraryFile(lf).toJSON())
   }
 
+  checkIsNotConsolidated() {
+    if (this.isFile || this.mediaType !== 'book' || !this.media) return false
+    const author = this.media.authors?.[0]?.name || 'Unknown Author'
+    const title = this.media.title || 'Unknown Title'
+    const folderName = sanitizeFilename(`${author} - ${title}`)
+    return Path.basename(this.path) !== folderName
+  }
+
   toOldJSON() {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
@@ -939,6 +947,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: this.checkIsNotConsolidated(),
       mediaType: this.mediaType,
       media: this.media.toOldJSON(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
@@ -967,6 +976,7 @@ class LibraryItem extends Model {
       updatedAt: this.updatedAt.valueOf(),
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: this.checkIsNotConsolidated(),
       mediaType: this.mediaType,
       media: this.media.toOldJSONMinified(),
       numFiles: this.libraryFiles.length,
@@ -993,6 +1003,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: this.checkIsNotConsolidated(),
       mediaType: this.mediaType,
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database

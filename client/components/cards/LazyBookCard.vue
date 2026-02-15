@@ -115,6 +115,13 @@
         <div cy-id="numEpisodesIncomplete" v-else-if="numEpisodesIncomplete && !isHovering && !isSelectionMode" class="absolute rounded-full bg-yellow-400 text-black font-semibold box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', width: 1.25 + 'em', height: 1.25 + 'em' }">
           <p :style="{ fontSize: 0.8 + 'em' }">{{ numEpisodesIncomplete }}</p>
         </div>
+
+        <!-- Not Consolidated Badge -->
+        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode && !isHovering" text="Not Consolidated" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: 0.375 + 'em' }">
+          <div class="rounded-full bg-warning flex items-center justify-center border border-black/20 shadow-sm" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }">
+            <span class="material-symbols text-black" :style="{ fontSize: 0.9 + 'em' }">folder_open</span>
+          </div>
+        </ui-tooltip>
       </div>
     </div>
 
@@ -446,6 +453,9 @@ export default {
     },
     isInvalid() {
       return this._libraryItem.isInvalid
+    },
+    isNotConsolidated() {
+      return !!this._libraryItem.isNotConsolidated
     },
     errorText() {
       if (this.isMissing) return 'Item directory is missing!'
