@@ -382,8 +382,12 @@ class BookScanner {
     }
 
     existingLibraryItem.media = media
-
     let libraryItemUpdated = false
+    const isNotConsolidated = existingLibraryItem.checkIsNotConsolidated()
+    if (existingLibraryItem.isNotConsolidated !== isNotConsolidated) {
+      existingLibraryItem.isNotConsolidated = isNotConsolidated
+      libraryItemUpdated = true
+    }
 
     // Save Book changes to db
     if (hasMediaChanges) {
@@ -560,6 +564,7 @@ class BookScanner {
     }
 
     libraryItemObj.book = bookObject
+    libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.bookModel,

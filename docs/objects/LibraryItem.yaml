@@ -53,6 +53,9 @@ components:
         isInvalid:
           description: Whether the library item was scanned and no longer has media files.
           type: boolean
+        isNotConsolidated:
+          description: Whether the library item folder name does not match the "Author - Title" format.
+          type: boolean
         mediaType:
           $ref: './mediaTypes/media.yaml#/components/schemas/mediaType'
     libraryItemMinified:

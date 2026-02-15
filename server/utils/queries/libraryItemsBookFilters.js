@@ -239,6 +239,8 @@ module.exports = {
       mediaWhere = Sequelize.where(Sequelize.literal('CAST(publishedYear AS INTEGER)'), {
         [Sequelize.Op.between]: [startYear, endYear]
       })
+    } else if (group === 'consolidated') {
+      // This is handled in libraryItemWhere in getFilteredLibraryItems
     }
 
     return { mediaWhere, replacements }
@@ -531,6 +533,8 @@ module.exports = {
       libraryItemWhere['createdAt'] = {
         [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
       }
+    } else if (filterGroup === 'consolidated') {
+      libraryItemWhere['isNotConsolidated'] = filterValue === 'not-consolidated'
     }
 
     // When sorting by progress but not filtering by progress, include media progresses

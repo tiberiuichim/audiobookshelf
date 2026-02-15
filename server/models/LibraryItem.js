@@ -688,7 +688,11 @@ class LibraryItem extends Model {
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
         authorNamesFirstLast: DataTypes.STRING,
-        authorNamesLastFirst: DataTypes.STRING
+        authorNamesLastFirst: DataTypes.STRING,
+        isNotConsolidated: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: false
+        }
       },
       {
         sequelize,
@@ -917,11 +921,17 @@ class LibraryItem extends Model {
   }
 
   checkIsNotConsolidated() {
-    if (this.isFile || this.mediaType !== 'book' || !this.media) return false
-    const author = this.media.authors?.[0]?.name || 'Unknown Author'
-    const title = this.media.title || 'Unknown Title'
-    const folderName = sanitizeFilename(`${author} - ${title}`)
-    return Path.basename(this.path) !== folderName
+    if (this.mediaType !== 'book') return false
+    if (this.isFile) return true
+    const author = this.authorNamesFirstLast?.split(',')[0]?.trim() || 'Unknown Author'
+    const title = this.title || 'Unknown Title'
+    const folderName = this.checkIsNotConsolidated_FolderName(author, title)
+    const currentFolderName = Path.basename(this.path.replace(/[\/\\]$/, ''))
+    return currentFolderName !== folderName
+  }
+
+  checkIsNotConsolidated_FolderName(author, title) {
+    return sanitizeFilename(`${author} - ${title}`)
   }
 
   toOldJSON() {
@@ -947,7 +957,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
-      isNotConsolidated: this.checkIsNotConsolidated(),
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSON(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
@@ -976,7 +986,7 @@ class LibraryItem extends Model {
       updatedAt: this.updatedAt.valueOf(),
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
-      isNotConsolidated: this.checkIsNotConsolidated(),
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSONMinified(),
       numFiles: this.libraryFiles.length,
@@ -1003,7 +1013,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
-      isNotConsolidated: this.checkIsNotConsolidated(),
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database

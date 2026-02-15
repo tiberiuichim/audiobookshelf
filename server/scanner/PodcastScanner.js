@@ -232,8 +232,12 @@ class PodcastScanner {
     }
 
     existingLibraryItem.media = media
-
     let libraryItemUpdated = false
+    const isNotConsolidated = existingLibraryItem.checkIsNotConsolidated()
+    if (existingLibraryItem.isNotConsolidated !== isNotConsolidated) {
+      existingLibraryItem.isNotConsolidated = isNotConsolidated
+      libraryItemUpdated = true
+    }
 
     // Save Podcast changes to db
     if (hasMediaChanges) {
@@ -337,6 +341,7 @@ class PodcastScanner {
     }
 
     libraryItemObj.podcast = podcastObject
+    libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.podcastModel,

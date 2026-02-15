@@ -82,6 +82,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
       libraryItem.relPath = newRelPath
       libraryItem.isMissing = false
       libraryItem.isInvalid = false
+      libraryItem.isNotConsolidated = libraryItem.checkIsNotConsolidated()
       libraryItem.changed('updatedAt', true)
       await libraryItem.save({ transaction })
 
