@@ -15,11 +15,19 @@ Add a visual indicator (badge) to the book thumbnail card in listings to identif
 
 ### Backend (Server)
 - **Model**: `LibraryItem` (`server/models/LibraryItem.js`)
-- **Logic**: Added `checkIsNotConsolidated()` which:
-  1. Checks if the item is a book folder.
-  2. Sanitizes the `Author - Title` name using `sanitizeFilename`.
+- **Logic**: Enhanced `checkIsNotConsolidated()` which:
+  1. Checks if the item is a book folder (not a single file).
+  2. Sanitizes the `Author - Title` name using `LibraryItem.getConsolidatedFolderName(author, title)`.
   3. Compares the sanitized name with the folder's name (`Path.basename(this.path)`).
-- **API**: The flag `isNotConsolidated` is included in the JSON response for library items.
+  4. **Subfolder Check**: Verifies the item is located at the root of the library folder. If it's in a subfolder (e.g., `Author/Title`), it's considered "Not Consolidated" even if the folder name is correct.
+
+### Library-wide Status Update Tool
+A tool was added to the Library Settings to allow manual re-evaluation of the consolidation status for all items.
+
+- **Frontend**: Added "Update Consolidation Status" button in Library Settings -> Tools tab.
+- **Backend Controller**: `LibraryController.updateConsolidationStatus`
+- **API**: `POST /api/libraries/:id/update-consolidation`
+- **Behavior**: Iterates through all items in the library, runs `checkIsNotConsolidated()`, and updates the database flag if it has changed. This is useful if the folder structure was manually altered on disk outside of the application.
 
 ### Frontend (Client)
 - **Component**: `LazyBookCard` (`client/components/cards/LazyBookCard.vue`)
@@ -32,4 +40,4 @@ Add a visual indicator (badge) to the book thumbnail card in listings to identif
 - **UI (Badge)**: Badge added next to the book title when `isNotConsolidated` is true.
 - **UI (Button)**: "Consolidate" button added to the primary action row (after Edit and Mark as Finished).
 - **Behavior**: The "Consolidate" button is disabled if the book is already consolidated.
-- **Cleanup**: The "Consolidate" option has been removed from the context menu on this page.
+- **Robustness**: Modified `handleMoveLibraryItem` to correctly identify when a book is already at its target path, avoiding redundant file operations and preventing "destination already exists" errors.

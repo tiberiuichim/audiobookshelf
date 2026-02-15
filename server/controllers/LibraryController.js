@@ -1375,6 +1375,39 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/update-consolidation
+   * Update isNotConsolidated flag for all items in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateConsolidationStatus(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update consolidation status`)
+      return res.sendStatus(403)
+    }
+
+    const items = await Database.libraryItemModel.findAllExpandedWhere({
+      libraryId: req.library.id
+    })
+
+    let updatedCount = 0
+    for (const item of items) {
+      const isNotConsolidated = item.checkIsNotConsolidated()
+      if (item.isNotConsolidated !== isNotConsolidated) {
+        item.isNotConsolidated = isNotConsolidated
+        await item.save()
+        updatedCount++
+      }
+    }
+
+    Logger.info(`[LibraryController] Updated consolidation status for ${updatedCount} items in library "${req.library.name}"`)
+    res.json({
+      updated: updatedCount
+    })
+  }
+
+  /**
    * GET: /api/libraries/:id/podcast-titles
    *
    * Get podcast titles with itunesId and libraryItemId for library

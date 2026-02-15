@@ -58,19 +58,22 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
 
   // Check if destination already exists
   const destinationExists = await fs.pathExists(newPath)
-  if (destinationExists) {
+  const isSamePath = oldPath === newPath
+  if (destinationExists && !isSamePath) {
     throw new Error(`Destination already exists: ${newPath}`)
   }
 
   try {
     Watcher.addIgnoreDir(oldPath)
-    Watcher.addIgnoreDir(newPath)
+    if (!isSamePath) Watcher.addIgnoreDir(newPath)
 
     const oldRelPath = libraryItem.relPath
 
     // Move files on disk
-    Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
-    await fs.move(oldPath, newPath)
+    if (!isSamePath) {
+      Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
+      await fs.move(oldPath, newPath)
+    }
 
     // Update database within a transaction
     const transaction = await Database.sequelize.transaction()
@@ -276,7 +279,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
     throw error
   } finally {
     Watcher.removeIgnoreDir(oldPath)
-    Watcher.removeIgnoreDir(newPath)
+    if (typeof isSamePath !== 'undefined' && !isSamePath) Watcher.removeIgnoreDir(newPath)
   }
 }
 

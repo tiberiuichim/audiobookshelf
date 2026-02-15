@@ -48,6 +48,17 @@ The "Consolidate" feature allows users to organize their book library by renamin
       - `handleMoveLibraryItem` assumes `itemFolderName` is `Path.basename(libraryItem.path)`. It does NOT rename the folder name itself.
       - So we need a custom logic or a modified helper that supports renaming.
 - **Response**: JSON object indicating success and the updated item.
+- **Robustness Improvements**:
+  - Enhanced `handleMoveLibraryItem` to detect if the source and destination paths are identical.
+  - Skips file move operation if the paths match, preventing "Destination already exists" Errors.
+  - Ensures `Watcher` ignore directories are correctly managed even when paths are identical.
+
+## Batch Consolidation
+
+- **Endpoint**: `POST /api/items/batch/consolidate`
+- **Controller**: `LibraryItemController.batchConsolidate`
+- **Logic**: Iterates through selected item IDs and calls the consolidation logic for each.
+- **Response**: Summary of successful and failed consolidation operations.
 
 ## Artifacts
 

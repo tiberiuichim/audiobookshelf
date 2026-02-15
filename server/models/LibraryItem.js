@@ -927,7 +927,12 @@ class LibraryItem extends Model {
     const title = this.title || 'Unknown Title'
     const folderName = LibraryItem.getConsolidatedFolderName(author, title)
     const currentFolderName = Path.basename(this.path.replace(/[\/\\]$/, ''))
-    return currentFolderName !== folderName
+    if (currentFolderName !== folderName) return true
+
+    // Check if it is in a subfolder
+    const relPathPOSIX = (this.relPath || '').replace(/\\/g, '/')
+    const cleanRelPath = relPathPOSIX.replace(/\/$/, '')
+    return cleanRelPath !== currentFolderName
   }
 
   static getConsolidatedFolderName(author, title) {
