@@ -1655,8 +1655,7 @@ class LibraryItemController {
 
     const author = req.libraryItem.media.authors?.[0]?.name || 'Unknown Author'
     const title = req.libraryItem.media.title || 'Unknown Title'
-    const newFolderName = `${author} - ${title}`
-    const sanitizedFolderName = sanitizeFilename(newFolderName)
+    const sanitizedFolderName = Database.libraryItemModel.getConsolidatedFolderName(author, title)
 
     const library = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
     // Find the library folder that currently contains this item
@@ -1719,8 +1718,7 @@ class LibraryItemController {
       try {
         const author = libraryItem.media.authors?.[0]?.name || 'Unknown Author'
         const title = libraryItem.media.title || 'Unknown Title'
-        const newFolderName = `${author} - ${title}`
-        const sanitizedFolderName = sanitizeFilename(newFolderName)
+        const sanitizedFolderName = Database.libraryItemModel.getConsolidatedFolderName(author, title)
 
         const library = await Database.libraryModel.findByIdWithFolders(libraryItem.libraryId)
         const currentLibraryFolder = library.libraryFolders.find((lf) => libraryItem.path.startsWith(lf.path)) || library.libraryFolders[0]

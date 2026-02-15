@@ -925,12 +925,12 @@ class LibraryItem extends Model {
     if (this.isFile) return true
     const author = this.authorNamesFirstLast?.split(',')[0]?.trim() || 'Unknown Author'
     const title = this.title || 'Unknown Title'
-    const folderName = this.checkIsNotConsolidated_FolderName(author, title)
+    const folderName = LibraryItem.getConsolidatedFolderName(author, title)
     const currentFolderName = Path.basename(this.path.replace(/[\/\\]$/, ''))
     return currentFolderName !== folderName
   }
 
-  checkIsNotConsolidated_FolderName(author, title) {
+  static getConsolidatedFolderName(author, title) {
     return sanitizeFilename(`${author} - ${title}`)
   }
 
