@@ -226,6 +226,40 @@ Vue.prototype.$downloadFile = (url, filename = null, openInNewTab = false) => {
   })
 }
 
+Vue.prototype.$sanitizeFilename = (filename, colonReplacement = ' - ') => {
+  if (typeof filename !== 'string') return ''
+  const illegalRe = /[\/\?<>\\:\*\|"]/g
+  const controlRe = /[\x00-\x1f\x80-\x9f]/g
+  const reservedRe = /^\.+$/
+  const windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i
+  const windowsTrailingRe = /[\. ]+$/
+  const lineBreaks = /[\n\r]/g
+
+  let sanitized = filename
+    .normalize('NFC')
+    .replace(':', colonReplacement)
+    .replace(illegalRe, '')
+    .replace(controlRe, '')
+    .replace(reservedRe, '')
+    .replace(lineBreaks, '')
+    .replace(windowsReservedRe, '')
+    .replace(windowsTrailingRe, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // Rough truncation for 255 bytes (assuming 2 bytes per char for safety)
+  const MAX_FILENAME_BYTES = 255
+  if (sanitized.length > MAX_FILENAME_BYTES / 2) {
+    sanitized = sanitized.substring(0, Math.floor(MAX_FILENAME_BYTES / 2)).trim()
+  }
+
+  return sanitized
+}
+
+Vue.prototype.$getConsolidatedFolderName = (author, title) => {
+  return Vue.prototype.$sanitizeFilename(`${author} - ${title}`)
+}
+
 export function supplant(str, subs) {
   // source: http://crockford.com/javascript/remedial.html
   return str.replace(/{([^{}]*)}/g, function (a, b) {

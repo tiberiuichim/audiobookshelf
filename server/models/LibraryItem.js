@@ -938,18 +938,31 @@ class LibraryItem extends Model {
   }
 
   checkIsNotConsolidated() {
-    if (this.mediaType !== 'book') return false
+    if (!this.isBook) return false
     if (this.isFile) return true
-    const author = this.authorNamesFirstLast?.split(',')[0]?.trim() || 'Unknown Author'
-    const title = this.title || 'Unknown Title'
-    const folderName = LibraryItem.getConsolidatedFolderName(author, title)
-    const currentFolderName = Path.basename(this.path.replace(/[\/\\]$/, ''))
+
+    let author = null
+    let title = null
+
+    if (this.media && this.isBook) {
+      author = this.media.authorName
+      title = this.media.title
+    }
+
+    author = author || this.authorNamesFirstLast || 'Unknown Author'
+    title = title || this.title || 'Unknown Title'
+
+    const firstAuthor = author.split(',')[0].trim() || 'Unknown Author'
+    const folderName = LibraryItem.getConsolidatedFolderName(firstAuthor, title)
+
+    const cleanPath = filePathToPOSIX(this.path || '').replace(/\/$/, '')
+    const currentFolderName = Path.posix.basename(cleanPath)
+
     if (currentFolderName !== folderName) return true
 
     // Check if it is in a subfolder
-    const relPathPOSIX = (this.relPath || '').replace(/\\/g, '/')
-    const cleanRelPath = relPathPOSIX.replace(/\/$/, '')
-    return cleanRelPath !== currentFolderName
+    const relPathPOSIX = filePathToPOSIX(this.relPath || '').replace(/\/$/, '')
+    return relPathPOSIX !== currentFolderName
   }
 
   static getConsolidatedFolderName(author, title) {

@@ -117,9 +117,9 @@
         </div>
 
         <!-- Not Consolidated Badge -->
-        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode && !isHovering" text="Not Consolidated" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: 0.375 + 'em' }">
-          <div class="rounded-full bg-warning flex items-center justify-center border border-black/20 shadow-sm" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }">
-            <span class="material-symbols text-black" :style="{ fontSize: 0.9 + 'em' }">folder_open</span>
+        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode" text="Not Consolidated" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: ebookFormat ? '1.5em' : '0.375em' }">
+          <div class="rounded-full bg-yellow-500 flex items-center justify-center border border-black/20 shadow-sm" :style="{ width: 1.2 + 'em', height: 1.2 + 'em' }">
+            <span class="material-symbols text-black" :style="{ fontSize: 0.8 + 'em' }">warning</span>
           </div>
         </ui-tooltip>
       </div>
