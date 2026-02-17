@@ -212,16 +212,17 @@ Each new feature or major change should be documented in an artifact specificati
 ### Organization
 
 - **Location**: All artifact specifications are stored in the `artifacts/` directory.
-- **Dated Folders**: Specifications should be placed in a subfolder named by the current date (e.g., `artifacts/YYYY-MM-DD/`).
+- **Dated Folders**: Specifications **MUST** be placed in a subfolder named by the current date (e.g., `artifacts/YYYY-MM-DD/`).
+- **CRITICAL**: Do **NOT** create specification files directly in the `artifacts/` root. Always use the dated folder.
 - **Filename**: Use descriptive names for the specification files (e.g., `move-to-library-specification.md`).
 
 ### Managing Folders
 
-A `Makefile` is provided in the `artifacts/` directory to quickly set up the folder for the current day:
+A `Makefile` is provided in the `artifacts/` directory to quickly set up the folder for the current day. **AI Assistants should always run this command first** if the today folder does not exist:
 
 ```bash
 cd artifacts
-make  # Runs the 'today' target to create the dated folder
+make  # Runs the 'today' target to create the dated folder (e.g. artifacts/2026-02-17)
 ```
 
 ### Purpose
