@@ -47,7 +47,7 @@ const ShareManager = require('../managers/ShareManager')
  * @param {import('../models/Library')} targetLibrary
  * @param {import('../models/LibraryFolder')} targetFolder
  */
-async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, newItemFolderName = null) {
+async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, newItemFolderName = null, forceMerge = false) {
   const oldPath = libraryItem.path
   const oldLibraryId = libraryItem.libraryId
   const oldIsFile = libraryItem.isFile
@@ -60,8 +60,11 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
   // Check if destination already exists
   const destinationExists = await fs.pathExists(newPath)
   const isSamePath = oldPath === newPath
-  if (destinationExists && !isSamePath) {
-    throw new Error(`Destination already exists: ${newPath}`)
+  if (destinationExists && !isSamePath && !forceMerge) {
+    const error = new Error(`Destination already exists: ${newPath}`)
+    error.code = 'EEXIST'
+    error.path = newPath
+    throw error
   }
 
   try {
@@ -70,15 +73,36 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
 
     const oldRelPath = libraryItem.relPath
 
-    // Move files on disk
     if (!isSamePath) {
-      Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
+      Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}" (forceMerge: ${forceMerge})`)
       if (libraryItem.isFile && newItemFolderName) {
         // Handle single file consolidation: create folder and move file inside
         await fs.ensureDir(newPath)
-        const destPath = Path.join(newPath, Path.basename(oldPath))
+        let destPath = Path.join(newPath, Path.basename(oldPath))
+        if (await fs.pathExists(destPath)) {
+          const filename = Path.basename(oldPath)
+          const name = Path.parse(filename).name
+          const ext = Path.parse(filename).ext
+          destPath = Path.join(newPath, `${name}_${Date.now()}${ext}`)
+        }
         await fs.move(oldPath, destPath)
         libraryItem.isFile = false
+      } else if (forceMerge && destinationExists) {
+        // Move all files from this directory to target directory
+        const files = await fs.readdir(oldPath)
+        for (const file of files) {
+          const srcFile = Path.join(oldPath, file)
+          let destFile = Path.join(newPath, file)
+
+          if (await fs.pathExists(destFile)) {
+            const name = Path.parse(file).name
+            const ext = Path.parse(file).ext
+            destFile = Path.join(newPath, `${name}_${Date.now()}${ext}`)
+          }
+          await fs.move(srcFile, destFile)
+        }
+        // Remove the now empty directory
+        await fs.remove(oldPath)
       } else {
         await fs.move(oldPath, newPath)
       }
@@ -1691,16 +1715,35 @@ class LibraryItemController {
       return res.status(400).send('Consolidate only available for books')
     }
 
+    const { merge, newName } = req.body
     const author = req.libraryItem.media.authors?.[0]?.name || 'Unknown Author'
     const title = req.libraryItem.media.title || 'Unknown Title'
     const sanitizedFolderName = Database.libraryItemModel.getConsolidatedFolderName(author, title)
+    const targetFolderName = newName || sanitizedFolderName
 
     const library = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
     // Find the library folder that currently contains this item
     const targetFolder = library.libraryFolders.find((f) => req.libraryItem.path.startsWith(f.path)) || library.libraryFolders[0]
 
+    const expectedPath = Path.join(targetFolder.path, targetFolderName)
+    const isSamePath = req.libraryItem.path === expectedPath
+
+    if (!isSamePath && !merge && (await fs.pathExists(expectedPath))) {
+      // Find existing library item at this path if any
+      const existingItem = await Database.libraryItemModel.findOne({
+        where: {
+          path: expectedPath
+        }
+      })
+      return res.status(409).json({
+        error: 'Destination already exists',
+        path: expectedPath,
+        existingLibraryItemId: existingItem?.id || null
+      })
+    }
+
     try {
-      await handleMoveLibraryItem(req.libraryItem, library, targetFolder, sanitizedFolderName)
+      await handleMoveLibraryItem(req.libraryItem, library, targetFolder, targetFolderName, !!merge)
 
       // Recursively remove empty parent directories
       let parentDir = Path.dirname(req.libraryItem.path)
@@ -1737,7 +1780,7 @@ class LibraryItemController {
    * @param {Response} res
    */
   async batchConsolidate(req, res) {
-    const { libraryItemIds } = req.body
+    const { libraryItemIds, merge } = req.body
     if (!Array.isArray(libraryItemIds) || !libraryItemIds.length) {
       return res.status(400).send('Invalid request')
     }
@@ -1747,6 +1790,7 @@ class LibraryItemController {
     })
 
     const results = []
+    let numSuccess = 0
     for (const libraryItem of libraryItems) {
       if (libraryItem.mediaType !== 'book') {
         results.push({ id: libraryItem.id, success: false, error: 'Not a book' })
@@ -1762,7 +1806,7 @@ class LibraryItemController {
         const currentLibraryFolder = library.libraryFolders.find((lf) => libraryItem.path.startsWith(lf.path)) || library.libraryFolders[0]
 
         const oldPath = libraryItem.path
-        await handleMoveLibraryItem(libraryItem, library, currentLibraryFolder, sanitizedFolderName)
+        await handleMoveLibraryItem(libraryItem, library, currentLibraryFolder, sanitizedFolderName, !!merge)
 
         // Recursively remove empty parent directories
         let parentDir = Path.dirname(oldPath)
@@ -1782,13 +1826,17 @@ class LibraryItemController {
         }
 
         results.push({ id: libraryItem.id, success: true })
+        numSuccess++
       } catch (error) {
         Logger.error(`[LibraryItemController] Batch Consolidate: Failed to consolidate "${libraryItem.media?.title}"`, error)
         results.push({ id: libraryItem.id, success: false, error: error.message })
       }
     }
 
-    res.json({ results })
+    res.json({
+      success: numSuccess === libraryItems.length,
+      results
+    })
   }
 
   /**

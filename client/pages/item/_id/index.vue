@@ -812,7 +812,19 @@ export default {
               })
               .catch((error) => {
                 console.error('Failed to consolidate', error)
-                this.$toast.error(error.response?.data || this.$strings.ToastConsolidateFailed)
+                if (error.response?.status === 409) {
+                  const data = error.response.data
+                  const author = this.mediaMetadata.authorName?.split(',')[0]?.trim() || 'Unknown Author'
+                  const title = this.mediaMetadata.title || 'Unknown Title'
+                  this.$eventBus.$emit('show-consolidation-conflict', {
+                    item: this.libraryItem,
+                    path: data.path,
+                    folderName: this.$getConsolidatedFolderName(author, title),
+                    existingLibraryItemId: data.existingLibraryItemId
+                  })
+                } else {
+                  this.$toast.error(error.response?.data?.error || error.response?.data || this.$strings.ToastConsolidateFailed)
+                }
               })
               .finally(() => {
                 this.processing = false

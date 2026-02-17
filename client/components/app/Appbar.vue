@@ -273,16 +273,25 @@ export default {
     batchConsolidate() {
       const payload = {
         message: this.$getString('MessageConfirmConsolidate', [this.$getString('MessageItemsSelected', [this.numMediaItemsSelected]), 'Author - Title']),
-        callback: (confirmed) => {
+        checkboxLabel: 'Merge contents on conflict',
+        checkboxType: 'checkbox',
+        callback: (confirmed, merge) => {
           if (confirmed) {
             this.$store.commit('setProcessingBatch', true)
             this.$axios
               .$post('/api/items/batch/consolidate', {
-                libraryItemIds: this.selectedMediaItems.map((i) => i.id)
+                libraryItemIds: this.selectedMediaItems.map((i) => i.id),
+                merge
               })
               .then((data) => {
-                this.$toast.success(this.$strings.ToastBatchConsolidateSuccess)
-                if (this.numMediaItemsSelected === 1) {
+                if (data.success) {
+                  this.$toast.success(this.$strings.ToastBatchConsolidateSuccess)
+                } else {
+                  const numFailed = data.results.filter((r) => !r.success).length
+                  this.$toast.warning(`${numFailed} items failed to consolidate. They may already exist or have other errors.`)
+                }
+
+                if (this.numMediaItemsSelected === 1 && data.success) {
                   this.$router.push(`/item/${this.selectedMediaItems[0].id}`)
                 }
                 this.cancelSelectionMode()

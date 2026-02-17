@@ -22,6 +22,15 @@
     <modals-raw-cover-preview-modal />
     <modals-share-modal />
     <modals-item-move-to-library-modal />
+    <modals-consolidation-conflict-modal
+      v-model="showConsolidationConflictModal"
+      :item="consolidationConflictItem"
+      :folder-path="consolidationConflictPath"
+      :folder-name="consolidationConflictFolderName"
+      :existing-library-item-id="consolidationConflictExistingItemId"
+      :processing="processingConsolidationConflict"
+      @confirm="resolveConsolidationConflict"
+    />
     <prompt-confirm />
     <readers-reader />
   </div>
@@ -39,7 +48,13 @@ export default {
       socketConnectionToastId: null,
       currentLang: null,
       multiSessionOtherSessionId: null, // Used for multiple sessions open warning toast
-      multiSessionCurrentSessionId: null // Used for multiple sessions open warning toast
+      multiSessionCurrentSessionId: null, // Used for multiple sessions open warning toast
+      showConsolidationConflictModal: false,
+      consolidationConflictItem: null,
+      consolidationConflictPath: '',
+      consolidationConflictFolderName: '',
+      consolidationConflictExistingItemId: null,
+      processingConsolidationConflict: false
     }
   },
   watch: {
@@ -600,6 +615,27 @@ export default {
       console.log('Changed lang', code)
       this.currentLang = code
       document.documentElement.lang = code
+    },
+    openConsolidationConflict(data) {
+      this.consolidationConflictItem = data.item
+      this.consolidationConflictPath = data.path
+      this.consolidationConflictFolderName = data.folderName
+      this.consolidationConflictExistingItemId = data.existingLibraryItemId
+      this.showConsolidationConflictModal = true
+    },
+    async resolveConsolidationConflict(payload) {
+      this.processingConsolidationConflict = true
+      const axios = this.$axios || this.$nuxt.$axios
+      try {
+        await axios.$post(`/api/items/${this.consolidationConflictItem.id}/consolidate`, payload)
+        this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidation successful')
+        this.showConsolidationConflictModal = false
+      } catch (error) {
+        console.error('Failed to resolve consolidation conflict', error)
+        this.$toast.error(error.response?.data?.error || error.response?.data || 'Failed to resolve conflict')
+      } finally {
+        this.processingConsolidationConflict = false
+      }
     }
   },
   beforeMount() {
@@ -610,6 +646,7 @@ export default {
     this.resize()
     this.$eventBus.$on('change-lang', this.changeLanguage)
     this.$eventBus.$on('token_refreshed', this.tokenRefreshed)
+    this.$eventBus.$on('show-consolidation-conflict', this.openConsolidationConflict)
     window.addEventListener('resize', this.resize)
     window.addEventListener('keydown', this.keyDown)
 
@@ -634,6 +671,7 @@ export default {
   beforeDestroy() {
     this.$eventBus.$off('change-lang', this.changeLanguage)
     this.$eventBus.$off('token_refreshed', this.tokenRefreshed)
+    this.$eventBus.$off('show-consolidation-conflict', this.openConsolidationConflict)
     window.removeEventListener('resize', this.resize)
     window.removeEventListener('keydown', this.keyDown)
   }
