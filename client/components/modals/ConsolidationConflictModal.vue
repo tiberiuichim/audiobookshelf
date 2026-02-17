@@ -1,6 +1,6 @@
 <template>
   <modals-modal v-model="show" name="consolidation-conflict" :width="500" :processing="processing">
-    <div class="px-6 py-6 font-sans">
+    <div class="px-6 py-6 font-sans bg-bg shadow-lg border border-black-300 rounded-lg">
       <div class="flex items-center mb-4">
         <span class="material-symbols text-yellow-500 text-3xl mr-3 font-bold">warning</span>
         <h2 class="text-xl font-semibold text-white">Consolidation Conflict</h2>
