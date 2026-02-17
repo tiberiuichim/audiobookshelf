@@ -1408,6 +1408,39 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/update-cover-dimensions
+   * Recompute cover dimensions for all items in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateCoverDimensions(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update cover dimensions`)
+      return res.sendStatus(403)
+    }
+
+    const items = await Database.libraryItemModel.findAllExpandedWhere({
+      libraryId: req.library.id
+    })
+
+    let updatedCount = 0
+    for (const item of items) {
+      if (item.media?.coverPath) {
+        // Force coverPath to be seen as changed to trigger beforeSave hook
+        item.media.changed('coverPath', true)
+        await item.media.save()
+        updatedCount++
+      }
+    }
+
+    Logger.info(`[LibraryController] Updated cover dimensions for ${updatedCount} items in library "${req.library.name}"`)
+    res.json({
+      updated: updatedCount
+    })
+  }
+
+  /**
    * GET: /api/libraries/:id/podcast-titles
    *
    * Get podcast titles with itunesId and libraryItemId for library

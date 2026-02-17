@@ -96,6 +96,24 @@ async function resizeImage(filePath, outputPath, width, height) {
 }
 module.exports.resizeImage = resizeImage
 
+async function getImageDimensions(filePath) {
+  return new Promise((resolve) => {
+    Ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        Logger.error(`[FfmpegHelpers] ffprobe Error ${err}`)
+        return resolve(null)
+      }
+      const stream = metadata?.streams?.find((s) => s.codec_type === 'video')
+      if (stream) {
+        resolve({ width: stream.width, height: stream.height })
+      } else {
+        resolve(null)
+      }
+    })
+  })
+}
+module.exports.getImageDimensions = getImageDimensions
+
 /**
  *
  * @param {import('../objects/PodcastEpisodeDownload')} podcastEpisodeDownload

@@ -122,6 +122,11 @@
             <span class="material-symbols text-black" :style="{ fontSize: 0.875 + 'em' }">folder_open</span>
           </button>
         </ui-tooltip>
+
+        <!-- Cover Size Badge -->
+        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20" :class="coverBadge.color" :style="{ bottom: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+          {{ coverBadge.text }}
+        </div>
       </div>
     </div>
 
@@ -176,7 +181,9 @@ export default {
       isSelectionMode: false,
       displayTitleTruncated: false,
       displaySubtitleTruncated: false,
-      showCoverBg: false
+      showCoverBg: false,
+      naturalWidth: 0,
+      naturalHeight: 0
     }
   },
   watch: {
@@ -249,6 +256,18 @@ export default {
     seriesName() {
       if (this.collapsedSeries?.name) return this.collapsedSeries.name
       return this.series?.name || null
+    },
+    coverBadge() {
+      const width = this.media?.coverWidth || this.coverWidth
+      const height = this.media?.coverHeight || this.coverHeight
+      if (!width || !height) return null
+      if (width >= 1200 || height >= 1200) {
+        return { text: 'BIG', color: 'bg-success' }
+      }
+      if (width >= 450 || height >= 450) {
+        return { text: 'MED', color: 'bg-info' }
+      }
+      return { text: 'SML', color: 'bg-warning' }
     },
     seriesSequence() {
       return this.series?.sequence || null
@@ -1148,6 +1167,8 @@ export default {
 
       if (this.$refs.cover && this.bookCoverSrc !== this.placeholderUrl) {
         var { naturalWidth, naturalHeight } = this.$refs.cover
+        this.naturalWidth = naturalWidth
+        this.naturalHeight = naturalHeight
         var aspectRatio = naturalHeight / naturalWidth
         var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
 

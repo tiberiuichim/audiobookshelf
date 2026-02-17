@@ -19,6 +19,7 @@ const LibraryFile = require('../objects/files/LibraryFile')
 
 const RssFeedManager = require('../managers/RssFeedManager')
 const CoverManager = require('../managers/CoverManager')
+const { getImageDimensions } = require('../utils/ffmpegHelpers')
 
 const LibraryScan = require('./LibraryScan')
 const OpfFileScanner = require('./OpfFileScanner')

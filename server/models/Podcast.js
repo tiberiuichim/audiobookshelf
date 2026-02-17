@@ -150,7 +150,9 @@ class Podcast extends Model {
         coverPath: DataTypes.STRING,
         tags: DataTypes.JSON,
         genres: DataTypes.JSON,
-        numEpisodes: DataTypes.INTEGER
+        numEpisodes: DataTypes.INTEGER,
+        coverWidth: DataTypes.INTEGER,
+        coverHeight: DataTypes.INTEGER
       },
       {
         sequelize,
@@ -164,6 +166,20 @@ class Podcast extends Model {
 
     Podcast.addHook('afterCreate', async (instance) => {
       libraryItemsPodcastFilters.clearCountCache('podcast', 'afterCreate')
+    })
+
+    Podcast.addHook('beforeSave', async (instance) => {
+      if (instance.changed('coverPath') && instance.coverPath) {
+        const { getImageDimensions } = require('../utils/ffmpegHelpers')
+        const dims = await getImageDimensions(instance.coverPath)
+        if (dims) {
+          instance.coverWidth = dims.width
+          instance.coverHeight = dims.height
+        } else {
+          instance.coverWidth = null
+          instance.coverHeight = null
+        }
+      }
     })
   }
 
@@ -436,6 +452,8 @@ class Podcast extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSON(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       episodes: this.podcastEpisodes.map((episode) => episode.toOldJSON(libraryItemId)),
       autoDownloadEpisodes: this.autoDownloadEpisodes,
@@ -452,6 +470,8 @@ class Podcast extends Model {
       // Minified metadata and expanded metadata are the same
       metadata: this.oldMetadataToJSONExpanded(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       numEpisodes: this.podcastEpisodes?.length || 0,
       autoDownloadEpisodes: this.autoDownloadEpisodes,
@@ -476,6 +496,8 @@ class Podcast extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSONExpanded(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       episodes: this.podcastEpisodes.map((e) => e.toOldJSONExpanded(libraryItemId)),
       autoDownloadEpisodes: this.autoDownloadEpisodes,

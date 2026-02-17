@@ -49,6 +49,18 @@
         </div>
       </div>
     </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelUpdateCoverDimensions }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelUpdateCoverDimensionsHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="updateCoverDimensionsClick">{{ $strings.ButtonUpdate }}</ui-btn>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -194,6 +206,34 @@ export default {
         .catch((error) => {
           console.error('Failed to update consolidation status', error)
           this.$toast.error(this.$strings.ToastUpdateConsolidationStatusFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    updateCoverDimensionsClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmUpdateCoverDimensions,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.updateCoverDimensions()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    updateCoverDimensions() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/update-cover-dimensions`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastUpdateCoverDimensionsSuccess', [data.updated]))
+        })
+        .catch((error) => {
+          console.error('Failed to update cover dimensions', error)
+          this.$toast.error(this.$strings.ToastUpdateCoverDimensionsFailed)
         })
         .finally(() => {
           this.$emit('update:processing', false)

@@ -601,6 +601,8 @@ class LibraryItemController {
     }
 
     req.libraryItem.media.coverPath = result.cover
+    req.libraryItem.media.coverWidth = result.width
+    req.libraryItem.media.coverHeight = result.height
     req.libraryItem.media.changed('coverPath', true)
     await req.libraryItem.media.save()
 
@@ -634,6 +636,8 @@ class LibraryItemController {
     }
     if (validationResult.updated) {
       req.libraryItem.media.coverPath = validationResult.cover
+      req.libraryItem.media.coverWidth = validationResult.width
+      req.libraryItem.media.coverHeight = validationResult.height
       req.libraryItem.media.changed('coverPath', true)
       await req.libraryItem.media.save()
 
