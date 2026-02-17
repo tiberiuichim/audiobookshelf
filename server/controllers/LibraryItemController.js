@@ -50,6 +50,7 @@ const ShareManager = require('../managers/ShareManager')
 async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, newItemFolderName = null) {
   const oldPath = libraryItem.path
   const oldLibraryId = libraryItem.libraryId
+  const oldIsFile = libraryItem.isFile
 
   // Calculate new paths
   const itemFolderName = newItemFolderName || Path.basename(libraryItem.path)
@@ -72,7 +73,15 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
     // Move files on disk
     if (!isSamePath) {
       Logger.info(`[LibraryItemController] Moving item "${libraryItem.media.title}" from "${oldPath}" to "${newPath}"`)
-      await fs.move(oldPath, newPath)
+      if (libraryItem.isFile && newItemFolderName) {
+        // Handle single file consolidation: create folder and move file inside
+        await fs.ensureDir(newPath)
+        const destPath = Path.join(newPath, Path.basename(oldPath))
+        await fs.move(oldPath, destPath)
+        libraryItem.isFile = false
+      } else {
+        await fs.move(oldPath, newPath)
+      }
     }
 
     // Update database within a transaction
@@ -93,10 +102,18 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
       if (libraryItem.libraryFiles?.length) {
         libraryItem.libraryFiles = libraryItem.libraryFiles.map((lf) => {
           if (lf.metadata?.path) {
-            lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+            if (oldIsFile && newItemFolderName) {
+              lf.metadata.path = Path.join(newPath, Path.basename(lf.metadata.path))
+            } else {
+              lf.metadata.path = lf.metadata.path.replace(oldPath, newPath)
+            }
           }
           if (lf.metadata?.relPath) {
-            lf.metadata.relPath = lf.metadata.relPath.replace(oldRelPath, newRelPath)
+            if (oldIsFile && newItemFolderName) {
+              lf.metadata.relPath = Path.join(newRelPath, Path.basename(lf.metadata.relPath))
+            } else {
+              lf.metadata.relPath = lf.metadata.relPath.replace(oldRelPath, newRelPath)
+            }
           }
           return lf
         })
@@ -110,10 +127,18 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
         if (libraryItem.media.audioFiles?.length) {
           libraryItem.media.audioFiles = libraryItem.media.audioFiles.map((af) => {
             if (af.metadata?.path) {
-              af.metadata.path = af.metadata.path.replace(oldPath, newPath)
+              if (oldIsFile && newItemFolderName) {
+                af.metadata.path = Path.join(newPath, Path.basename(af.metadata.path))
+              } else {
+                af.metadata.path = af.metadata.path.replace(oldPath, newPath)
+              }
             }
             if (af.metadata?.relPath) {
-              af.metadata.relPath = af.metadata.relPath.replace(oldRelPath, newRelPath)
+              if (oldIsFile && newItemFolderName) {
+                af.metadata.relPath = Path.join(newRelPath, Path.basename(af.metadata.relPath))
+              } else {
+                af.metadata.relPath = af.metadata.relPath.replace(oldRelPath, newRelPath)
+              }
             }
             return af
           })
@@ -121,18 +146,31 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
         }
         // Update ebookFile path
         if (libraryItem.media.ebookFile?.metadata?.path) {
-          libraryItem.media.ebookFile.metadata.path = libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
+          if (oldIsFile && newItemFolderName) {
+            libraryItem.media.ebookFile.metadata.path = Path.join(newPath, Path.basename(libraryItem.media.ebookFile.metadata.path))
+          } else {
+            libraryItem.media.ebookFile.metadata.path = libraryItem.media.ebookFile.metadata.path.replace(oldPath, newPath)
+          }
           if (libraryItem.media.ebookFile.metadata?.relPath) {
-            libraryItem.media.ebookFile.metadata.relPath = libraryItem.media.ebookFile.metadata.relPath.replace(oldRelPath, newRelPath)
+            if (oldIsFile && newItemFolderName) {
+              libraryItem.media.ebookFile.metadata.relPath = Path.join(newRelPath, Path.basename(libraryItem.media.ebookFile.metadata.relPath))
+            } else {
+              libraryItem.media.ebookFile.metadata.relPath = libraryItem.media.ebookFile.metadata.relPath.replace(oldRelPath, newRelPath)
+            }
           }
           libraryItem.media.changed('ebookFile', true)
         }
         // Update coverPath
         if (libraryItem.media.coverPath) {
-          libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
+          if (oldIsFile && newItemFolderName) {
+            libraryItem.media.coverPath = Path.join(newPath, Path.basename(libraryItem.media.coverPath))
+          } else {
+            libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
+          }
         }
         await libraryItem.media.save({ transaction })
-      } else if (libraryItem.isPodcast) {
+      }
+ else if (libraryItem.isPodcast) {
         // Update coverPath
         if (libraryItem.media.coverPath) {
           libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
@@ -1652,9 +1690,6 @@ class LibraryItemController {
     if (!req.libraryItem.isBook) {
       return res.status(400).send('Consolidate only available for books')
     }
-    if (req.libraryItem.isFile) {
-      return res.status(400).send('Consolidate only available for books in a folder')
-    }
 
     const author = req.libraryItem.media.authors?.[0]?.name || 'Unknown Author'
     const title = req.libraryItem.media.title || 'Unknown Title'
@@ -1713,8 +1748,8 @@ class LibraryItemController {
 
     const results = []
     for (const libraryItem of libraryItems) {
-      if (libraryItem.mediaType !== 'book' || libraryItem.isFile) {
-        results.push({ id: libraryItem.id, success: false, error: 'Not a book in a folder' })
+      if (libraryItem.mediaType !== 'book') {
+        results.push({ id: libraryItem.id, success: false, error: 'Not a book' })
         continue
       }
 

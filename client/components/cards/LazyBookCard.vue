@@ -575,7 +575,7 @@ export default {
           func: 'showEditModalMatch',
           text: this.$strings.HeaderMatch
         })
-        if (!this.isFile && !this.isPodcast) {
+        if (!this.isPodcast) {
           items.push({
             func: 'consolidate',
             text: 'Consolidate'

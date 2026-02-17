@@ -790,6 +790,23 @@ class LibraryItem extends Model {
         media.destroy()
       }
     })
+
+    LibraryItem.addHook('beforeSave', (instance) => {
+      if (instance.media) {
+        instance.title = instance.media.title
+        instance.titleIgnorePrefix = instance.media.titleIgnorePrefix
+        if (instance.isBook) {
+          if (instance.media.authors !== undefined) {
+            instance.authorNamesFirstLast = instance.media.authorName
+            instance.authorNamesLastFirst = instance.media.authorNameLF
+          }
+        } else if (instance.isPodcast) {
+          instance.authorNamesFirstLast = instance.media.author
+          instance.authorNamesLastFirst = instance.media.author
+        }
+      }
+      instance.isNotConsolidated = instance.checkIsNotConsolidated()
+    })
   }
 
   get isBook() {
