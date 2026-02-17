@@ -40,7 +40,7 @@
           <h2 :style="{ fontSize: 0.9 + 'em' }">{{ $strings[shelf.labelStringKey] }}</h2>
           <ui-tooltip v-if="isLinkableShelf" :text="$strings.ButtonViewAll" direction="top" class="ml-2">
             <button class="flex items-center justify-center hover:text-yellow-400 opacity-60 hover:opacity-100 transition-opacity" @click.stop="goToShelfFullPage">
-              <span class="material-symbols text-base">arrow_forward</span>
+              <span class="material-symbols text-xl"> arrow_forward </span>
             </button>
           </ui-tooltip>
         </div>
@@ -91,7 +91,7 @@ export default {
       return this.$store.getters['globals/getIsBatchSelectingMediaItems']
     },
     isLinkableShelf() {
-      return ['recently-added', 'recent-series', 'newest-authors'].includes(this.shelf.id)
+      return ['recently-added', 'recent-series', 'newest-authors', 'series', 'authors'].includes(this.shelf.id)
     }
   },
   methods: {
@@ -99,10 +99,10 @@ export default {
       if (this.shelf.id === 'recently-added') {
         this.$store.dispatch('user/updateUserSettings', { orderBy: 'addedAt', orderDesc: true })
         this.$router.push(`/library/${this.currentLibraryId}/bookshelf`)
-      } else if (this.shelf.id === 'recent-series') {
+      } else if (this.shelf.id === 'recent-series' || this.shelf.id === 'series') {
         this.$store.dispatch('user/updateUserSettings', { seriesSortBy: 'addedAt', seriesSortDesc: true })
         this.$router.push(`/library/${this.currentLibraryId}/bookshelf/series`)
-      } else if (this.shelf.id === 'newest-authors') {
+      } else if (this.shelf.id === 'newest-authors' || this.shelf.id === 'authors') {
         this.$store.dispatch('user/updateUserSettings', { authorSortBy: 'addedAt', authorSortDesc: true })
         this.$router.push(`/library/${this.currentLibraryId}/bookshelf/authors`)
       }
