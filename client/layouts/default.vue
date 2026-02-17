@@ -627,9 +627,16 @@ export default {
       this.processingConsolidationConflict = true
       const axios = this.$axios || this.$nuxt.$axios
       try {
-        await axios.$post(`/api/items/${this.consolidationConflictItem.id}/consolidate`, payload)
+        const data = await axios.$post(`/api/items/${this.consolidationConflictItem.id}/consolidate`, payload)
         this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidation successful')
         this.showConsolidationConflictModal = false
+
+        if (data.mergedInto) {
+          const id = data.mergedInto
+          if (this.$route.name.startsWith('item') && this.$route.params.id === this.consolidationConflictItem.id) {
+            this.$router.push(`/item/${id}`)
+          }
+        }
       } catch (error) {
         console.error('Failed to resolve consolidation conflict', error)
         this.$toast.error(error.response?.data?.error || error.response?.data || 'Failed to resolve conflict')

@@ -1728,25 +1728,61 @@ class LibraryItemController {
     const expectedPath = Path.join(targetFolder.path, targetFolderName)
     const isSamePath = req.libraryItem.path === expectedPath
 
-    if (!isSamePath && !merge && (await fs.pathExists(expectedPath))) {
+    let existingItem = null
+    if (!isSamePath && (await fs.pathExists(expectedPath))) {
       // Find existing library item at this path if any
-      const existingItem = await Database.libraryItemModel.findOne({
+      existingItem = await Database.libraryItemModel.findOne({
         where: {
           path: expectedPath
         }
       })
-      return res.status(409).json({
-        error: 'Destination already exists',
-        path: expectedPath,
-        existingLibraryItemId: existingItem?.id || null
-      })
+
+      if (!merge) {
+        return res.status(409).json({
+          error: 'Destination already exists',
+          path: expectedPath,
+          existingLibraryItemId: existingItem?.id || null
+        })
+      }
     }
 
     try {
+      const oldPath = req.libraryItem.path
       await handleMoveLibraryItem(req.libraryItem, library, targetFolder, targetFolderName, !!merge)
 
-      // Recursively remove empty parent directories
-      let parentDir = Path.dirname(req.libraryItem.path)
+      if (merge && existingItem) {
+        Logger.info(`[LibraryItemController] Consolidated item "${req.libraryItem.id}" was merged into existing item "${existingItem.id}"`)
+
+        const authorIds = req.libraryItem.media.authors?.map((au) => au.id) || []
+        const seriesIds = req.libraryItem.media.series?.map((se) => se.id) || []
+
+        // Cleanup associations for the item being absorbed
+        await this.handleDeleteLibraryItem(req.libraryItem.id, [req.libraryItem.media.id])
+
+        // Delete the redundant database record
+        await req.libraryItem.destroy()
+
+        if (authorIds.length) {
+          await this.checkRemoveAuthorsWithNoBooks(authorIds)
+        }
+        if (seriesIds.length) {
+          await this.checkRemoveEmptySeries(seriesIds)
+        }
+
+        // Rescan target item to pick up merged files
+        await LibraryItemScanner.scanLibraryItem(existingItem.id)
+
+        const updatedExistingItem = await Database.libraryItemModel.findByPkExpanded(existingItem.id)
+
+        return res.json({
+          success: true,
+          mergedInto: existingItem.id,
+          libraryItem: updatedExistingItem.toOldJSONExpanded()
+        })
+      }
+
+      // Recursively remove empty parent directories from original location
+      let parentDir = Path.dirname(oldPath)
       while (parentDir && parentDir !== targetFolder.path && parentDir !== Path.dirname(parentDir)) {
         try {
           const files = await fs.readdir(parentDir)
@@ -1805,10 +1841,48 @@ class LibraryItemController {
         const library = await Database.libraryModel.findByIdWithFolders(libraryItem.libraryId)
         const currentLibraryFolder = library.libraryFolders.find((lf) => libraryItem.path.startsWith(lf.path)) || library.libraryFolders[0]
 
+        const targetPath = Path.join(currentLibraryFolder.path, sanitizedFolderName)
+        const isSamePath = libraryItem.path === targetPath
+
+        let existingItem = null
+        if (!isSamePath && (await fs.pathExists(targetPath))) {
+          existingItem = await Database.libraryItemModel.findOne({
+            where: { path: targetPath }
+          })
+
+          if (!merge) {
+            results.push({ id: libraryItem.id, success: false, error: 'Destination already exists' })
+            continue
+          }
+        }
+
         const oldPath = libraryItem.path
         await handleMoveLibraryItem(libraryItem, library, currentLibraryFolder, sanitizedFolderName, !!merge)
 
-        // Recursively remove empty parent directories
+        if (merge && existingItem) {
+          Logger.info(`[LibraryItemController] Batch Consolidate: Merging item "${libraryItem.id}" into existing item "${existingItem.id}"`)
+
+          const authorIds = libraryItem.media.authors?.map((au) => au.id) || []
+          const seriesIds = libraryItem.media.series?.map((se) => se.id) || []
+
+          await this.handleDeleteLibraryItem(libraryItem.id, [libraryItem.media.id])
+          await libraryItem.destroy()
+
+          if (authorIds.length) {
+            await this.checkRemoveAuthorsWithNoBooks(authorIds)
+          }
+          if (seriesIds.length) {
+            await this.checkRemoveEmptySeries(seriesIds)
+          }
+
+          await LibraryItemScanner.scanLibraryItem(existingItem.id)
+
+          results.push({ id: libraryItem.id, success: true, mergedInto: existingItem.id })
+          numSuccess++
+          continue
+        }
+
+        // Recursively remove empty parent directories from original location
         let parentDir = Path.dirname(oldPath)
         while (parentDir && parentDir !== currentLibraryFolder.path && parentDir !== Path.dirname(parentDir)) {
           try {
