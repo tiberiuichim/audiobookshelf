@@ -116,11 +116,11 @@
           <p :style="{ fontSize: 0.8 + 'em' }">{{ numEpisodesIncomplete }}</p>
         </div>
 
-        <!-- Not Consolidated Badge -->
-        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode" text="Not Consolidated" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: ebookFormat ? '1.5em' : '0.375em' }">
-          <div class="rounded-full bg-yellow-500 flex items-center justify-center border border-black/20 shadow-sm" :style="{ width: 1.2 + 'em', height: 1.2 + 'em' }">
-            <span class="material-symbols text-black" :style="{ fontSize: 0.8 + 'em' }">warning</span>
-          </div>
+        <!-- Not Consolidated Button -->
+        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode" :text="userCanUpdate ? 'Consolidate' : 'Not Consolidated'" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: ebookFormat ? '1.51em' : '0.38em' }">
+          <button class="rounded-full bg-yellow-500 flex items-center justify-center border border-black/20 shadow-sm transition-transform duration-200" :class="userCanUpdate ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }" @click.stop.prevent="userCanUpdate ? consolidate() : null">
+            <span class="material-symbols text-black" :style="{ fontSize: 0.875 + 'em' }">folder_open</span>
+          </button>
         </ui-tooltip>
       </div>
     </div>
