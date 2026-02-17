@@ -1772,7 +1772,7 @@ class LibraryItemController {
         // Rescan target item to pick up merged files
         await LibraryItemScanner.scanLibraryItem(existingItem.id)
 
-        const updatedExistingItem = await Database.libraryItemModel.findByPkExpanded(existingItem.id)
+        const updatedExistingItem = await Database.libraryItemModel.getExpandedById(existingItem.id)
 
         return res.json({
           success: true,
