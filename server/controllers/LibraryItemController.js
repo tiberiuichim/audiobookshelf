@@ -13,6 +13,7 @@ const { getAudioMimeTypeFromExtname, encodeUriPath, sanitizeFilename } = require
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
 const AudioFileScanner = require('../scanner/AudioFileScanner')
 const Scanner = require('../scanner/Scanner')
+const LibraryScanner = require('../scanner/LibraryScanner')
 const Watcher = require('../Watcher')
 
 const libraryItemsBookFilters = require('../utils/queries/libraryItemsBookFilters')
@@ -1475,6 +1476,176 @@ class LibraryItemController {
 
     SocketAuthority.libraryItemEmitter('item_updated', req.libraryItem)
     res.sendStatus(200)
+  }
+
+  /**
+   * POST api/items/:id/file/:fileid/promote
+   *
+   * @param {LibraryItemControllerRequestWithFile} req
+   * @param {Response} res
+   */
+  async promoteLibraryFile(req, res) {
+    if (!req.user.canDelete) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to promote file without permission`)
+      return res.sendStatus(403)
+    }
+
+    if (!req.libraryItem.isBook) {
+      return res.status(400).send('Promote only available for books')
+    }
+
+    const libraryFile = req.libraryFile
+
+    // Determine new folder name based on file name without extension
+    const ext = Path.extname(libraryFile.metadata.path)
+    const baseName = Path.basename(libraryFile.metadata.path, ext)
+    const sanitizedFolderName = Database.libraryItemModel.getConsolidatedFolderName('Unknown Author', baseName)
+
+    const library = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
+    // Find the library folder that currently contains this item
+    const targetFolder = library.libraryFolders.find((f) => req.libraryItem.path.startsWith(f.path)) || library.libraryFolders[0]
+
+    const targetPath = Path.join(targetFolder.path, sanitizedFolderName)
+
+    if (await fs.pathExists(targetPath)) {
+      return res.status(409).send('Destination folder already exists')
+    }
+
+    try {
+      await fs.ensureDir(targetPath)
+
+      const newFilePath = Path.join(targetPath, Path.basename(libraryFile.metadata.path))
+      await fs.move(libraryFile.metadata.path, newFilePath)
+
+      // Remove the file from the original library item
+      req.libraryItem.libraryFiles = req.libraryItem.libraryFiles.filter((lf) => lf.ino !== req.params.fileid)
+      req.libraryItem.changed('libraryFiles', true)
+
+      if (req.libraryItem.media.audioFiles.some((af) => af.ino === req.params.fileid)) {
+        req.libraryItem.media.audioFiles = req.libraryItem.media.audioFiles.filter((af) => af.ino !== req.params.fileid)
+        req.libraryItem.media.changed('audioFiles', true)
+      } else if (req.libraryItem.media.ebookFile?.ino === req.params.fileid) {
+        req.libraryItem.media.ebookFile = null
+        req.libraryItem.media.changed('ebookFile', true)
+      }
+
+      if (!req.libraryItem.media.hasMediaFiles) {
+        req.libraryItem.isMissing = true
+      }
+
+      if (req.libraryItem.media.changed()) {
+        await req.libraryItem.media.save()
+      }
+
+      await req.libraryItem.save()
+
+      SocketAuthority.libraryItemEmitter('item_updated', req.libraryItem)
+
+      // Trigger scan on the library to pick up the new folder
+      LibraryScanner.scan(library)
+
+      res.json({
+        success: true
+      })
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to promote file`, error)
+      return res.status(500).send(error.message || 'Failed to promote file')
+    }
+  }
+
+  /**
+   * POST api/items/:id/split
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async splitLibraryItem(req, res) {
+    if (!req.user.canDelete) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to split book without permission`)
+      return res.sendStatus(403)
+    }
+
+    if (!req.libraryItem.isBook) {
+      return res.status(400).send('Split only available for books')
+    }
+
+    const assignments = req.body.assignments || []
+    if (!assignments.length) {
+      return res.status(400).send('No file assignments provided')
+    }
+
+    const library = await Database.libraryModel.findByIdWithFolders(req.libraryItem.libraryId)
+    const targetFolder = library.libraryFolders.find((f) => req.libraryItem.path.startsWith(f.path)) || library.libraryFolders[0]
+
+    // Group files by bookNumber
+    const groups = {}
+    assignments.forEach(({ ino, bookNumber }) => {
+      // Only care about split files (bookNumber > 1)
+      if (bookNumber > 1) {
+        if (!groups[bookNumber]) groups[bookNumber] = []
+        groups[bookNumber].push(ino)
+      }
+    })
+
+    if (Object.keys(groups).length === 0) {
+      return res.status(400).send('No files were assigned to new books')
+    }
+
+    // Process each group
+    try {
+      const originalPathBase = Path.basename(req.libraryItem.path)
+      let filesRemoved = 0
+
+      for (const [bookNumber, inos] of Object.entries(groups)) {
+        const newFolderName = `${originalPathBase} - Book ${bookNumber}`
+        const targetPath = Path.join(targetFolder.path, newFolderName)
+
+        await fs.ensureDir(targetPath)
+
+        for (const ino of inos) {
+          const libraryFile = req.libraryItem.getLibraryFileWithIno(ino)
+          if (!libraryFile) continue
+
+          const newFilePath = Path.join(targetPath, Path.basename(libraryFile.metadata.path))
+          await fs.move(libraryFile.metadata.path, newFilePath)
+
+          // Remove the file from original library item
+          req.libraryItem.libraryFiles = req.libraryItem.libraryFiles.filter((lf) => lf.ino !== ino)
+          
+          if (req.libraryItem.media.audioFiles.some((af) => af.ino === ino)) {
+            req.libraryItem.media.audioFiles = req.libraryItem.media.audioFiles.filter((af) => af.ino !== ino)
+          } else if (req.libraryItem.media.ebookFile?.ino === ino) {
+            req.libraryItem.media.ebookFile = null
+          }
+          filesRemoved++
+        }
+      }
+
+      if (filesRemoved > 0) {
+        req.libraryItem.changed('libraryFiles', true)
+        req.libraryItem.media.changed('audioFiles', true)
+        req.libraryItem.media.changed('ebookFile', true)
+
+        if (!req.libraryItem.media.hasMediaFiles) {
+          req.libraryItem.isMissing = true
+        }
+
+        if (req.libraryItem.media.changed()) {
+          await req.libraryItem.media.save()
+        }
+
+        await req.libraryItem.save()
+        SocketAuthority.libraryItemEmitter('item_updated', req.libraryItem)
+
+        // Trigger scan on the library to pick up the new folders
+        LibraryScanner.scan(library)
+      }
+
+      res.json({ success: true, filesMoved: filesRemoved })
+    } catch (error) {
+      Logger.error(`[LibraryItemController] Failed to split book`, error)
+      return res.status(500).send(error.message || 'Failed to split book')
+    }
   }
 
   /**

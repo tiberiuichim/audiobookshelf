@@ -131,9 +131,11 @@ class ApiRouter {
     this.router.get('/items/:id/ffprobe/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
     this.router.get('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getLibraryFile.bind(this))
     this.router.delete('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.deleteLibraryFile.bind(this))
+    this.router.post('/items/:id/file/:fileid/promote', LibraryItemController.middleware.bind(this), LibraryItemController.promoteLibraryFile.bind(this))
     this.router.get('/items/:id/file/:fileid/download', LibraryItemController.middleware.bind(this), LibraryItemController.downloadLibraryFile.bind(this))
     this.router.get('/items/:id/ebook/:fileid?', LibraryItemController.middleware.bind(this), LibraryItemController.getEBookFile.bind(this))
     this.router.patch('/items/:id/ebook/:fileid/status', LibraryItemController.middleware.bind(this), LibraryItemController.updateEbookFileStatus.bind(this))
+    this.router.post('/items/:id/split', LibraryItemController.middleware.bind(this), LibraryItemController.splitLibraryItem.bind(this))
     this.router.post('/items/:id/move', LibraryItemController.middleware.bind(this), LibraryItemController.move.bind(this))
     this.router.post('/items/:id/consolidate', LibraryItemController.middleware.bind(this), LibraryItemController.consolidate.bind(this))
 
