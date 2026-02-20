@@ -574,6 +574,24 @@ export default {
         } else if (this.isItemPage) {
           this.$eventBus.$emit('item_shortcut_reset')
         }
+      } else if (alt && this.currentLibrary?.id) {
+        const libId = this.currentLibrary.id
+        if (e.key.toLowerCase() === 'h') {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}`)
+        } else if (e.key.toLowerCase() === 'l') {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf`)
+        } else if (e.key.toLowerCase() === 's') {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/series`)
+        } else if (e.key.toLowerCase() === 'c') {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/collections`)
+        } else if (e.key.toLowerCase() === 'a') {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/authors`)
+        }
       }
     }
   },

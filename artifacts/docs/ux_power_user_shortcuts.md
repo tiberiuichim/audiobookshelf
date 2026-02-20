@@ -17,6 +17,13 @@ To improve the efficiency of batch operations, global keyboard listeners have be
     - **Move to Library**: `Ctrl + Shift + M`.
     - **Reset Metadata**: `Alt + R`. (Note: `Alt` is used specifically to avoid conflict with standard "Reload" `Ctrl + R`).
 
+- **Navigation Shortcuts** (Requires an active library selection):
+    - **Home**: `Alt + H`.
+    - **Library**: `Alt + L`.
+    - **Series**: `Alt + S`.
+    - **Collections**: `Alt + C`.
+    - **Authors**: `Alt + A`.
+
 ## 2. Navigation and Filter Persistence
 The interface manages filter states dynamically to prevent confusion when switching contexts.
 
