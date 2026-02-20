@@ -1,5 +1,5 @@
 <template>
-  <modals-modal ref="modal" v-model="show" name="split-book" :width="600" :height="'unset'" :processing="processing">
+  <modals-modal ref="modal" v-model="show" name="split-book" :width="600" :height="'unset'" :processing="processing" @submit="submit">
     <template #outer>
       <div class="absolute top-0 left-0 p-5 w-2/3 overflow-hidden">
         <p class="text-3xl text-white truncate">{{ $strings.HeaderSplitBook || 'Split Book' }}</p>

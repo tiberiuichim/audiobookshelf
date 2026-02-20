@@ -47,6 +47,7 @@ const Constants = {
 }
 
 const KeyNames = {
+  13: 'Enter',
   27: 'Escape',
   32: 'Space',
   37: 'ArrowLeft',
@@ -77,7 +78,8 @@ const Hotkeys = {
   Modal: {
     NEXT_PAGE: 'ArrowRight',
     PREV_PAGE: 'ArrowLeft',
-    CLOSE: 'Escape'
+    CLOSE: 'Escape',
+    SUBMIT: 'Enter'
   }
 }
 

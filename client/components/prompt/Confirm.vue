@@ -115,6 +115,25 @@ export default {
       this.$eventBus.$emit('showing-prompt', false)
       this.content.style.transform = 'scale(0)'
       this.el.remove()
+    },
+    handleKeyDown(e) {
+      if (!this.show) return
+      if (e.key === 'Enter') {
+        const activeElement = document.activeElement
+        // If an input is focused, let it handle the enter key if it wants, 
+        // but ui-checkbox is okay to override if needed.
+        // Actually for a simple confirm prompt, Enter should usually confirm.
+        if (activeElement && ['INPUT', 'TEXTAREA'].includes(activeElement.tagName) && activeElement.type !== 'checkbox') {
+          return
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        this.confirm()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        this.nevermind()
+      }
     }
   },
   mounted() {
@@ -124,11 +143,14 @@ export default {
     this.content.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
     this.el.style.opacity = 1
     this.el.remove()
+
+    window.addEventListener('keydown', this.handleKeyDown)
   },
   beforeDestroy() {
     if (this.show) {
       this.$eventBus.$emit('showing-prompt', false)
     }
+    window.removeEventListener('keydown', this.handleKeyDown)
   }
 }
 </script>

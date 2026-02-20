@@ -816,7 +816,7 @@ export default {
     windowResize() {
       this.executeRebuild()
     },
-
+    initListeners() {
       window.addEventListener('resize', this.windowResize)
 
       this.$nextTick(() => {
