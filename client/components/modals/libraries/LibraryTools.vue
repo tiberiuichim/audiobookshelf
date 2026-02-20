@@ -3,6 +3,18 @@
     <div class="w-full border border-black-200 p-4 my-8">
       <div class="flex flex-wrap items-center">
         <div>
+          <p class="text-lg">{{ $strings.LabelWriteMetadataFiles }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelWriteMetadataFilesHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="writeMetadataFilesClick">{{ $strings.LabelWriteMetadataFiles }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
           <p class="text-lg">{{ $strings.LabelRemoveMetadataFile }}</p>
           <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $getString('LabelRemoveMetadataFileHelp', [mediaType]) }}</p>
         </div>
@@ -89,6 +101,34 @@ export default {
     }
   },
   methods: {
+    writeMetadataFilesClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmWriteMetadataFiles,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.writeMetadataFiles()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    writeMetadataFiles() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/write-metadata-files`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastWriteMetadataFilesSuccess', [data.created, data.skipped]))
+        })
+        .catch((error) => {
+          console.error('Failed to write metadata files', error)
+          this.$toast.error(this.$strings.ToastWriteMetadataFilesFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
     removeAllMetadataClick(ext) {
       const payload = {
         message: this.$getString('MessageConfirmRemoveMetadataFiles', [ext]),

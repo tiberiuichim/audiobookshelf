@@ -91,3 +91,5 @@ module.exports.migrate = async (Database) => {
   const totalCreated = await runMigration(Database)
   Logger.info(`[absMetadataMigration] Finished metadata.json migration (${totalCreated} files created)`)
 }
+
+module.exports.writeMetadataFileForItem = writeMetadataFileForItem

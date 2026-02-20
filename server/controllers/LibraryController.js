@@ -1576,6 +1576,56 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/write-metadata-files
+   * Write metadata.json files for all items in library that don't already have one
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async writeMetadataFiles(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to write metadata files`)
+      return res.sendStatus(403)
+    }
+
+    const absMetadataMigration = require('../utils/migrations/absMetadataMigration')
+
+    Logger.info(`[LibraryController] Writing metadata files for library "${req.library.name}"`)
+
+    let created = 0
+    let skipped = 0
+    let failed = 0
+    let offset = 0
+    const batchSize = 500
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const libraryItems = await Database.libraryItemModel.getLibraryItemsIncrement(offset, batchSize, {
+        libraryId: req.library.id,
+        isMissing: false
+      })
+      if (!libraryItems.length) break
+
+      for (const libraryItem of libraryItems) {
+        const result = await absMetadataMigration.writeMetadataFileForItem(libraryItem)
+        if (result === null) {
+          skipped++ // Already existed
+        } else if (result === false) {
+          failed++
+        } else {
+          created++
+        }
+      }
+
+      if (libraryItems.length < batchSize) break
+      offset += libraryItems.length
+    }
+
+    Logger.info(`[LibraryController] Finished writing metadata files for library "${req.library.name}" (created=${created}, skipped=${skipped}, failed=${failed})`)
+    res.json({ created, skipped, failed })
+  }
+
+  /**
    *
    * @param {RequestWithUser} req
    * @param {Response} res

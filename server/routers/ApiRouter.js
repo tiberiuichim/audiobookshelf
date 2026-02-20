@@ -96,6 +96,7 @@ class ApiRouter {
     this.router.post('/libraries/:id/remove-metadata', LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
     this.router.post('/libraries/:id/update-consolidation', LibraryController.middleware.bind(this), LibraryController.updateConsolidationStatus.bind(this))
     this.router.post('/libraries/:id/update-cover-dimensions', LibraryController.middleware.bind(this), LibraryController.updateCoverDimensions.bind(this))
+    this.router.post('/libraries/:id/write-metadata-files', LibraryController.middleware.bind(this), LibraryController.writeMetadataFiles.bind(this))
     this.router.get('/libraries/:id/podcast-titles', LibraryController.middleware.bind(this), LibraryController.getPodcastTitles.bind(this))
     this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
