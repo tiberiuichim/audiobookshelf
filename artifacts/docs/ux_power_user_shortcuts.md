@@ -24,6 +24,10 @@ To improve the efficiency of batch operations, global keyboard listeners have be
     - **Collections**: `Alt + C`.
     - **Authors**: `Alt + A`.
 
+- **Modal & Prompt Controls**:
+    - **Confirm / Submit**: `Enter` (Works on confirmation prompts and many action modals like "Move", "Quick Match", and "Split").
+    - **Cancel / Close**: `Escape` (Closes modals, cancels prompts, and clears batch selections).
+
 ## 2. Navigation and Filter Persistence
 The interface manages filter states dynamically to prevent confusion when switching contexts.
 
