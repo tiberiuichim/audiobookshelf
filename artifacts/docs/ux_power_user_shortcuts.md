@@ -16,6 +16,7 @@ To improve the efficiency of batch operations, global keyboard listeners have be
     - **Merge**: `Ctrl + M` (Requires 2+ selected items).
     - **Move to Library**: `Ctrl + Shift + M`.
     - **Reset Metadata**: `Alt + R`. (Note: `Alt` is used specifically to avoid conflict with standard "Reload" `Ctrl + R`).
+    - **Quick Match / Match**: `Alt + Q`.
 
 - **Navigation Shortcuts** (Requires an active library selection):
     - **Home**: `Alt + H`.

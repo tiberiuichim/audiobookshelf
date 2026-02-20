@@ -517,6 +517,10 @@ export default {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'cover' })
     },
+    showEditMatch() {
+      this.$store.commit('setBookshelfBookIds', [])
+      this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
+    },
     openEbook() {
       this.$store.commit('showEReader', { libraryItem: this.libraryItem, keepProgress: true })
     },
@@ -912,6 +916,7 @@ export default {
       this.contextMenuAction({ action: 'move' })
     })
     this.$eventBus.$on('item_shortcut_reset', this.resetMetadata)
+    this.$eventBus.$on('item_shortcut_match', this.showEditMatch)
   },
   beforeDestroy() {
     this.$eventBus.$off(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
@@ -928,6 +933,7 @@ export default {
     this.$eventBus.$off('item_shortcut_consolidate', this.consolidate)
     this.$eventBus.$off('item_shortcut_move')
     this.$eventBus.$off('item_shortcut_reset', this.resetMetadata)
+    this.$eventBus.$off('item_shortcut_match', this.showEditMatch)
   }
 }
 </script>

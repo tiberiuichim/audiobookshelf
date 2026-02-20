@@ -574,6 +574,13 @@ export default {
         } else if (this.isItemPage) {
           this.$eventBus.$emit('item_shortcut_reset')
         }
+      } else if (alt && e.key.toLowerCase() === 'q') {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchAutoMatchClick()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_match')
+        }
       } else if (alt && this.currentLibrary?.id) {
         const libId = this.currentLibrary.id
         if (e.key.toLowerCase() === 'h') {
