@@ -180,6 +180,29 @@ export default {
         this.$eventBus.$emit('item-selected', entity)
       })
     },
+    selectAll() {
+      const itemsToSelect = []
+      this.supportedShelves.forEach((shelf) => {
+        if (shelf.type === 'book' || shelf.type === 'podcast' || shelf.type === 'episode') {
+          shelf.entities.forEach((entity) => {
+            const mediaItem = {
+              id: entity.id,
+              libraryId: entity.libraryId,
+              mediaType: entity.mediaType,
+              hasTracks: entity.mediaType === 'podcast' || (entity.media && (entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)))
+            }
+            itemsToSelect.push(mediaItem)
+          })
+        }
+      })
+
+      if (itemsToSelect.length) {
+        this.$store.commit('globals/addBatchMediaItemsSelected', itemsToSelect)
+        this.$nextTick(() => {
+          this.$eventBus.$emit('item-selected')
+        })
+      }
+    },
     async init() {
       this.wrapperClientWidth = this.$refs.wrapper ? this.$refs.wrapper.clientWidth : 0
 
@@ -506,6 +529,7 @@ export default {
       } else {
         console.error('Error socket not initialized')
       }
+      this.$eventBus.$on('bookshelf_select_all', this.selectAll)
     },
     removeListeners() {
       if (this.$root.socket) {
@@ -523,6 +547,7 @@ export default {
       } else {
         console.error('Error socket not initialized')
       }
+      this.$eventBus.$off('bookshelf_select_all', this.selectAll)
     }
   },
   mounted() {

@@ -134,8 +134,8 @@ export default {
       return this.$route.name === 'item-id'
     },
     isBookshelfPage() {
-      const bookshelfRoutes = ['library-library-bookshelf', 'library-library-series', 'library-library-collections', 'library-library-playlists', 'library-library-authors', 'library-library']
-      return bookshelfRoutes.includes(this.$route.name)
+      if (!this.$route.name) return false
+      return this.$route.name.startsWith('library-library')
     },
     selectedMediaItemsArePlayable() {
       return !this.selectedMediaItems.some((i) => !i.hasTracks)
@@ -543,7 +543,7 @@ export default {
       const shift = e.shiftKey
       const alt = e.altKey
 
-      if (ctrlOrMeta && e.key === 'a') {
+      if (ctrlOrMeta && e.key.toLowerCase() === 'a') {
         if (this.isBookshelfPage) {
           e.preventDefault()
           this.$eventBus.$emit('bookshelf_select_all')
