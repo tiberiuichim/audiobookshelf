@@ -816,19 +816,8 @@ export default {
     windowResize() {
       this.executeRebuild()
     },
-    handleKeyDown(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        // Only trigger if no input/textarea is focused
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-          return
-        }
-        e.preventDefault()
-        this.selectAll()
-      }
-    },
-    initListeners() {
+
       window.addEventListener('resize', this.windowResize)
-      window.addEventListener('keydown', this.handleKeyDown)
 
       this.$nextTick(() => {
         var bookshelf = document.getElementById('bookshelf')
@@ -839,6 +828,7 @@ export default {
       })
 
       this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$on('bookshelf_select_all', this.selectAll)
       this.$eventBus.$on('user-settings', this.settingsUpdated)
 
       if (this.$root.socket) {
@@ -864,13 +854,13 @@ export default {
     },
     removeListeners() {
       window.removeEventListener('resize', this.windowResize)
-      window.removeEventListener('keydown', this.handleKeyDown)
       var bookshelf = document.getElementById('bookshelf')
       if (bookshelf) {
         bookshelf.removeEventListener('scroll', this.scroll)
       }
 
       this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
+      this.$eventBus.$off('bookshelf_select_all', this.selectAll)
       this.$eventBus.$off('user-settings', this.settingsUpdated)
 
       if (this.$root.socket) {

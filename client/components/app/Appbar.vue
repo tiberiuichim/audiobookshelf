@@ -128,7 +128,14 @@ export default {
       return this.selectedMediaItems.length
     },
     selectedMediaItems() {
-      return this.$store.state.globals.selectedMediaItems
+      return this.$store.state.globals.selectedMediaItems || []
+    },
+    isItemPage() {
+      return this.$route.name === 'item-id'
+    },
+    isBookshelfPage() {
+      const bookshelfRoutes = ['library-library-bookshelf', 'library-library-series', 'library-library-collections', 'library-library-playlists', 'library-library-authors', 'library-library']
+      return bookshelfRoutes.includes(this.$route.name)
     },
     selectedMediaItemsArePlayable() {
       return !this.selectedMediaItems.some((i) => !i.hasTracks)
@@ -526,13 +533,57 @@ export default {
     },
     batchAutoMatchClick() {
       this.$store.commit('globals/setShowBatchQuickMatchModal', true)
+    },
+    handleKeyDown(e) {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        return
+      }
+
+      const ctrlOrMeta = e.ctrlKey || e.metaKey
+      const shift = e.shiftKey
+      const alt = e.altKey
+
+      if (ctrlOrMeta && e.key === 'a') {
+        if (this.isBookshelfPage) {
+          e.preventDefault()
+          this.$eventBus.$emit('bookshelf_select_all')
+        }
+      } else if (ctrlOrMeta && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchConsolidate()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_consolidate')
+        }
+      } else if (ctrlOrMeta && !shift && e.key.toLowerCase() === 'm') {
+        if (this.numMediaItemsSelected > 1) {
+          e.preventDefault()
+          this.batchMerge()
+        }
+      } else if (ctrlOrMeta && shift && e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchMoveToLibrary()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_move')
+        }
+      } else if (alt && e.key.toLowerCase() === 'r') {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchResetMetadata()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_reset')
+        }
+      }
     }
   },
   mounted() {
     this.$eventBus.$on('bookshelf-total-entities', this.setBookshelfTotalEntities)
+    window.addEventListener('keydown', this.handleKeyDown)
   },
   beforeDestroy() {
     this.$eventBus.$off('bookshelf-total-entities', this.setBookshelfTotalEntities)
+    window.removeEventListener('keydown', this.handleKeyDown)
   }
 }
 </script>

@@ -835,6 +835,33 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
+    resetMetadata() {
+      const payload = {
+        message: `Are you sure you want to reset metadata for "${this.title}"? This will remove metadata files and re-scan the item from files.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            this.$axios
+              .$post('/api/items/batch/reset-metadata', {
+                libraryItemIds: [this.libraryItemId]
+              })
+              .then(() => {
+                this.$toast.success('Reset metadata successful')
+              })
+              .catch((error) => {
+                console.error('Reset metadata failed', error)
+                const errorMsg = error.response?.data || 'Reset metadata failed'
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
     contextMenuAction({ action, data }) {
       if (action === 'collections') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
@@ -879,6 +906,12 @@ export default {
     this.$root.socket.on('episode_download_started', this.episodeDownloadStarted)
     this.$root.socket.on('episode_download_finished', this.episodeDownloadFinished)
     this.$root.socket.on('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
+
+    this.$eventBus.$on('item_shortcut_consolidate', this.consolidate)
+    this.$eventBus.$on('item_shortcut_move', () => {
+      this.contextMenuAction({ action: 'move' })
+    })
+    this.$eventBus.$on('item_shortcut_reset', this.resetMetadata)
   },
   beforeDestroy() {
     this.$eventBus.$off(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
@@ -891,6 +924,10 @@ export default {
     this.$root.socket.off('episode_download_started', this.episodeDownloadStarted)
     this.$root.socket.off('episode_download_finished', this.episodeDownloadFinished)
     this.$root.socket.off('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
+
+    this.$eventBus.$off('item_shortcut_consolidate', this.consolidate)
+    this.$eventBus.$off('item_shortcut_move')
+    this.$eventBus.$off('item_shortcut_reset', this.resetMetadata)
   }
 }
 </script>
