@@ -14,7 +14,7 @@ To improve the efficiency of batch operations, global keyboard listeners have be
 - **Action Shortcuts** (Context-aware: Applied to selection in Library, or current item on Item Page):
     - **Consolidate**: `Ctrl + K`.
     - **Merge**: `Ctrl + M` (Requires 2+ selected items).
-    - **Move to Library**: `Ctrl + Shift + M`.
+    - **Move to Library**: `Ctrl + Shift + M` or `Alt + M`.
     - **Reset Metadata**: `Alt + R`. (Note: `Alt` is used specifically to avoid conflict with standard "Reload" `Ctrl + R`).
     - **Quick Match / Match**: `Alt + Q`.
 

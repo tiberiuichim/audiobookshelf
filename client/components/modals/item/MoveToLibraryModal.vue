@@ -1,5 +1,5 @@
 <template>
-  <modals-modal ref="modal" v-model="show" name="move-to-library" :width="400" :height="'unset'" :processing="processing" @submit="moveItems">
+  <modals-modal ref="modal" v-model="show" name="move-to-library" :width="500" :height="'unset'" :processing="processing" @submit="moveItems">
     <template #outer>
       <div class="absolute top-0 left-0 p-5 w-2/3 overflow-hidden">
         <p class="text-3xl text-white truncate">{{ $strings.LabelMoveToLibrary }}</p>
@@ -14,11 +14,23 @@
         </div>
 
         <template v-if="targetLibraries.length">
+          <!-- Library shortcut buttons -->
           <div class="w-full mb-4">
-            <label class="px-1 text-sm font-semibold block mb-1">{{ $strings.LabelSelectTargetLibrary }}</label>
-            <ui-dropdown v-model="selectedLibraryId" :items="libraryOptions" />
+            <label class="px-1 text-sm font-semibold block mb-2">{{ $strings.LabelSelectTargetLibrary }}</label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="lib in libraryShortcuts"
+                :key="lib.id"
+                class="library-shortcut-btn"
+                :class="{ 'active': selectedLibraryId === lib.id }"
+                @click="selectLibrary(lib)"
+              >
+                <span>{{ lib.before }}</span><span class="shortcut-char">{{ lib.shortcutChar }}</span><span>{{ lib.after }}</span>
+              </button>
+            </div>
           </div>
 
+          <!-- Folder picker (only when selected library has multiple folders) -->
           <div v-if="selectedLibraryFolders.length > 1" class="w-full mb-4">
             <label class="px-1 text-sm font-semibold block mb-1">{{ $strings.LabelSelectTargetFolder }}</label>
             <ui-dropdown v-model="selectedFolderId" :items="folderOptions" />
@@ -54,6 +66,9 @@ export default {
       handler(newVal) {
         if (newVal) {
           this.init()
+          window.addEventListener('keydown', this.keydownHandler)
+        } else {
+          window.removeEventListener('keydown', this.keydownHandler)
         }
       }
     },
@@ -109,11 +124,32 @@ export default {
       // Filter libraries to only show compatible ones (same media type, different library)
       return this.$store.state.libraries.libraries.filter((l) => l.mediaType === this.currentMediaType && l.id !== this.currentLibraryId)
     },
-    libraryOptions() {
-      return this.targetLibraries.map((lib) => ({
-        text: lib.name,
-        value: lib.id
-      }))
+    libraryShortcuts() {
+      const used = new Set()
+      return this.targetLibraries.map((lib) => {
+        const name = lib.name
+        let shortcutIndex = -1
+        for (let i = 0; i < name.length; i++) {
+          const letter = name[i].toLowerCase()
+          if (/[a-z]/.test(letter) && !used.has(letter)) {
+            used.add(letter)
+            shortcutIndex = i
+            break
+          }
+        }
+        if (shortcutIndex === -1) {
+          return { id: lib.id, name, before: name, shortcutChar: '', after: '', shortcutKey: null, folders: lib.folders || [] }
+        }
+        return {
+          id: lib.id,
+          name,
+          before: name.slice(0, shortcutIndex),
+          shortcutChar: name[shortcutIndex],
+          after: name.slice(shortcutIndex + 1),
+          shortcutKey: name[shortcutIndex].toLowerCase(),
+          folders: lib.folders || []
+        }
+      })
     },
     selectedLibrary() {
       return this.targetLibraries.find((l) => l.id === this.selectedLibraryId)
@@ -129,6 +165,26 @@ export default {
     }
   },
   methods: {
+    keydownHandler(e) {
+      // Ignore events when a form element inside the modal is focused (e.g., folder dropdown)
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return
+
+      const key = e.key.toLowerCase()
+      const match = this.libraryShortcuts.find((lib) => lib.shortcutKey === key)
+      if (match) {
+        e.preventDefault()
+        this.selectLibrary(match)
+      }
+    },
+    selectLibrary(lib) {
+      this.selectedLibraryId = lib.id
+      // Auto-trigger move if only one folder
+      const folders = lib.folders || this.selectedLibraryFolders
+      if (folders.length <= 1) {
+        this.$nextTick(() => this.moveItems())
+      }
+    },
     async moveItems() {
       if (!this.selectedLibraryId) return
 
@@ -180,7 +236,41 @@ export default {
       }
     }
   },
-  mounted() {}
+  beforeDestroy() {
+    window.removeEventListener('keydown', this.keydownHandler)
+  }
 }
 </script>
 
+<style scoped>
+.library-shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.375rem;
+  border: 1px solid #4b5563;
+  background-color: #1f2937;
+  color: #d1d5db;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.library-shortcut-btn:hover {
+  background-color: #374151;
+  border-color: #6b7280;
+  color: #f9fafb;
+}
+.library-shortcut-btn.active {
+  background-color: #1e3a5f;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+.shortcut-char {
+  text-decoration: underline;
+  color: #60a5fa;
+  font-weight: 600;
+}
+.library-shortcut-btn.active .shortcut-char {
+  color: #bfdbfe;
+}
+</style>

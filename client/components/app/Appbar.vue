@@ -560,7 +560,7 @@ export default {
           e.preventDefault()
           this.batchMerge()
         }
-      } else if (ctrlOrMeta && shift && e.key.toLowerCase() === 'm') {
+      } else if ((ctrlOrMeta && shift && e.key.toLowerCase() === 'm') || (alt && e.key.toLowerCase() === 'm')) {
         e.preventDefault()
         if (this.numMediaItemsSelected > 0) {
           this.batchMoveToLibrary()
