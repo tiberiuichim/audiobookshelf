@@ -239,6 +239,18 @@ class PodcastScanner {
       libraryItemUpdated = true
     }
 
+    if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
+      if (existingLibraryItem.isMissing) {
+        libraryScan.addLog(LogLevel.INFO, `Podcast "${podcastMetadata.title}" was missing but is now found. Setting library item as NOT missing`)
+        existingLibraryItem.isMissing = false
+      }
+      if (existingLibraryItem.isInvalid) {
+        libraryScan.addLog(LogLevel.INFO, `Podcast "${podcastMetadata.title}" was invalid but is now found. Setting library item as NOT invalid`)
+        existingLibraryItem.isInvalid = false
+      }
+      libraryItemUpdated = true
+    }
+
     // Save Podcast changes to db
     if (hasMediaChanges) {
       await media.save()

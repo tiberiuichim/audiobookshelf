@@ -404,9 +404,15 @@ class BookScanner {
         existingLibraryItem.isMissing = true
         libraryItemUpdated = true
       }
-    } else if (existingLibraryItem.isMissing) {
-      libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was missing but now has media files. Setting library item as NOT missing`)
-      existingLibraryItem.isMissing = false
+    } else if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
+      if (existingLibraryItem.isMissing) {
+        libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was missing but now has media files. Setting library item as NOT missing`)
+        existingLibraryItem.isMissing = false
+      }
+      if (existingLibraryItem.isInvalid) {
+        libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was invalid but now has media files. Setting library item as NOT invalid`)
+        existingLibraryItem.isInvalid = false
+      }
       libraryItemUpdated = true
     }
 
