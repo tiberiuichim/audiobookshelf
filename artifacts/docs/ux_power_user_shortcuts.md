@@ -11,11 +11,14 @@ To improve the efficiency of batch operations, global keyboard listeners have be
     - **Persistent Selection**: If you scroll down and new items load while in "Select All" mode, the new items will be automatically selected.
     - **Exit**: Clicking outside the items or manually deselecting an item will toggle off the "Select All" persistent state.
 
+- **Keyboard Shortcuts Helper**: `Shift + /` (`?`) or via the Appbar keyboard icon.
+    - **Behavior**: Opens a centralized modal displaying all available local and global shortcuts.
+
 - **Action Shortcuts** (Context-aware: Applied to selection in Library, or current item on Item Page):
-    - **Consolidate**: `Ctrl + K`.
-    - **Merge**: `Ctrl + M` (Requires 2+ selected items).
-    - **Move to Library**: `Ctrl + Shift + M` or `Alt + M`.
-    - **Reset Metadata**: `Alt + R`. (Note: `Alt` is used specifically to avoid conflict with standard "Reload" `Ctrl + R`).
+    - **Consolidate**: `Alt + K`.
+    - **Merge**: `Alt + M` (Requires 2+ selected items).
+    - **Move to Library**: `Shift + Alt + M`.
+    - **Reset Metadata**: `Alt + R`. (Note: `Alt` is used specifically to avoid conflict with standard browser actions like Reload `Ctrl+R` or Print `Ctrl+P`).
     - **Quick Match / Match**: `Alt + Q`.
 
 - **Navigation Shortcuts** (Requires an active library selection):
