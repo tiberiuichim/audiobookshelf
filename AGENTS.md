@@ -1,5 +1,7 @@
 # Audiobookshelf Development Project
 
+**CRITICAL INSTRUCTION FOR ALL AI AGENTS**: For *every* new feature, script, or development task, you **MUST ALWAYS** create an artifact specification file in `artifacts/YYYY-MM-DD/` to document your work. Never start feature development without an artifact specification. See the "Artifact Specifications" section below for details.
+
 ## Overview
 
 This is a **local development deployment** of [Audiobookshelf](https://audiobookshelf.org/) - a self-hosted audiobook and podcast server. The project is cloned from the original repository and configured for personal enhancements and development.
