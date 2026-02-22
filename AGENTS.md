@@ -139,6 +139,13 @@ OpenAPI documentation available at `docs/openapi.json`
 - Sequelize models for database operations
 - No comments in code unless explicitly requested
 
+### UI Components & Modals
+
+- **Modals**: Do **NOT** use `<ui-modal>`. The correct component for creating modals in this project is `<modals-modal>`.
+  - When creating a new modal, it must be imported/registered in `client/layouts/default.vue` (e.g., `<modals-my-new-modal />`).
+  - The modal title should be placed inside a `<template #outer>` slot, following the design pattern of other modals.
+  - State for whether the modal is open or closed should be managed in `client/store/globals.js` and toggled via a Vuex mutation.
+
 ## Database Migrations
 
 Located in `server/migrations/`. Key migrations include:
