@@ -211,7 +211,7 @@ export default {
           // Clear selection after batch move
           this.$store.commit('globals/resetSelectedMediaItems')
           if (response.successCount > 0) {
-            this.$router.push(`/library/${this.selectedLibraryId}`)
+            this.$router.push(`/library/${this.currentLibraryId}`)
           }
         } else {
           // Single item move
@@ -219,7 +219,7 @@ export default {
           if (response.success) {
             this.$toast.success(this.$strings.ToastItemMoved)
             this.$store.commit('setSelectedLibraryItem', null)
-            this.$router.push(`/library/${this.selectedLibraryId}`)
+            this.$router.push(`/library/${this.currentLibraryId}`)
           }
         }
         this.show = false
