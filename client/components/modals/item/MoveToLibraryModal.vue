@@ -208,10 +208,13 @@ export default {
           if (response.failCount > 0) {
             this.$toast.warning(this.$getString('ToastItemsMoveFailed', [response.failCount]))
           }
+          // Store the current library ID before clearing the selected items so we know where to redirect to
+          const redirectLibraryId = this.currentLibraryId
+          
           // Clear selection after batch move
           this.$store.commit('globals/resetSelectedMediaItems')
           if (response.successCount > 0) {
-            this.$router.push(`/library/${this.currentLibraryId}`)
+            this.$router.push(`/library/${redirectLibraryId}`)
           }
         } else {
           // Single item move
