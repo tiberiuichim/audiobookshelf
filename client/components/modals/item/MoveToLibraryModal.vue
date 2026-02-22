@@ -210,12 +210,16 @@ export default {
           }
           // Clear selection after batch move
           this.$store.commit('globals/resetSelectedMediaItems')
+          if (response.successCount > 0) {
+            this.$router.push(`/library/${this.selectedLibraryId}`)
+          }
         } else {
           // Single item move
           const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
           if (response.success) {
             this.$toast.success(this.$strings.ToastItemMoved)
             this.$store.commit('setSelectedLibraryItem', null)
+            this.$router.push(`/library/${this.selectedLibraryId}`)
           }
         }
         this.show = false
