@@ -247,7 +247,8 @@ Artifact specifications should serve as a source of truth for the feature's life
 
 ### Best Practices
 
-- **Use for Every Feature**: For *every* new feature or significant development, start by creating a specification file in today's dated folder.
+- **Use for Every Feature**: For *every* new feature or significant development, start by creating a specification file in today's dated folder. **You MUST produce an artifact specification file for ALL development work.**
+- **Index Management**: **It is CRITICAL that you update `artifacts/index.md` whenever you create a new artifact specification file.** The index must always be kept up to date.
 - **Initialization**: Always run `make` (or `make today`) in the `artifacts/` directory before starting work on a new specification to ensure the correct dated folder exists.
 - **Relevant Naming**: Name the specification file according to the task/feature (e.g., `feature_name_specification.md`).
 - **Update as you go**: The artifact should be updated during implementation if the plan changes.
