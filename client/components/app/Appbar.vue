@@ -87,7 +87,7 @@
 
         <ui-context-menu-dropdown v-if="contextMenuItems.length && !processingBatch" :items="contextMenuItems" class="ml-1" @action="contextMenuAction" />
 
-        <ui-tooltip :text="$strings.LabelDeselectAll" direction="bottom" class="flex items-center">
+        <ui-tooltip :text="`${$strings.LabelDeselectAll} (${$hotkeys.Batch.CANCEL.replace(/Key/g, '').replace(/-/g, '+')})`" direction="bottom" class="flex items-center">
           <span class="material-symbols text-3xl px-4 hover:text-gray-100 cursor-pointer" :class="processingBatch ? 'text-gray-400' : ''" @click="cancelSelectionMode">close</span>
         </ui-tooltip>
       </div>
