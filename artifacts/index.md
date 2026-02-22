@@ -23,6 +23,7 @@ This index provides a quick reference for specification and documentation files 
 | **2026-02-17** | [ui_enhancements.md](2026-02-17/ui_enhancements.md) | Specification for "View All" shortcuts on Home view shelves with specific sorting. |
 | **2026-02-20** | [promote_file_to_book.md](2026-02-20/promote_file_to_book.md) | Specification for "promoting" files from an existing book into a standalone library item, including a "Split Book" wizard. |
 | **2026-02-20** | [move_to_library_keyboard_shortcuts.md](2026-02-20/move_to_library_keyboard_shortcuts.md) | Specification for keyboard-shortcut-enabled library buttons in the "Move to Library" dialog. |
+| **2026-02-22** | [centralized_keyboard_shortcuts.md](2026-02-22/centralized_keyboard_shortcuts.md) | Specification for centralizing keyboard shortcut definitions into a single configuration file. |
 | **General** | [docs/consolidate_feature.md](docs/consolidate_feature.md) | Comprehensive documentation for the "Consolidate" feature, including conflict resolution and technical details. |
 | **General** | [docs/item_restructuring_guide.md](docs/item_restructuring_guide.md) | Guide for Moving, Merging, and Splitting (Promoting) library items. |
 | **General** | [docs/metadata_management_tools.md](docs/metadata_management_tools.md) | Documentation for Reset Metadata and Batch Reset operations. |

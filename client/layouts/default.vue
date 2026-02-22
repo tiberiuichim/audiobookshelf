@@ -22,6 +22,7 @@
     <modals-raw-cover-preview-modal />
     <modals-share-modal />
     <modals-item-move-to-library-modal />
+    <modals-shortcuts-modal />
     <modals-consolidation-conflict-modal
       v-model="showConsolidationConflictModal"
       :item="consolidationConflictItem"
@@ -547,6 +548,13 @@ export default {
         return
       }
 
+      // Show Shortcuts modal prompt
+      if (name === this.$hotkeys.Global.SHORTCUTS_HELPER) {
+        this.$store.commit('globals/setShowShortcutsModal', true)
+        e.preventDefault()
+        return
+      }
+
       // Modal is open
       if (this.$store.state.openModal && Object.values(this.$hotkeys.Modal).includes(name)) {
         this.$eventBus.$emit('modal-hotkey', name)
@@ -562,7 +570,7 @@ export default {
       }
 
       // Batch selecting
-      if (this.$store.getters['globals/getIsBatchSelectingMediaItems'] && name === 'Escape') {
+      if (this.$store.getters['globals/getIsBatchSelectingMediaItems'] && name === this.$hotkeys.Batch.CANCEL) {
         // ESCAPE key cancels batch selection
         this.$store.commit('globals/resetSelectedMediaItems', [])
         this.$eventBus.$emit('bookshelf_clear_selection')

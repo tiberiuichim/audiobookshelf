@@ -13,6 +13,7 @@ export const state = () => ({
   showShareModal: false,
   showConfirmPrompt: false,
   showRawCoverPreviewModal: false,
+  showShortcutsModal: false,
   confirmPromptOptions: null,
   showEditAuthorModal: false,
   rssFeedEntity: null,
@@ -160,6 +161,9 @@ export const mutations = {
   },
   setShowConfirmPrompt(state, val) {
     state.showConfirmPrompt = val
+  },
+  setShowShortcutsModal(state, val) {
+    state.showShortcutsModal = val
   },
   setConfirmPrompt(state, options) {
     state.confirmPromptOptions = options

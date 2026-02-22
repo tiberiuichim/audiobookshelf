@@ -54,8 +54,17 @@ const KeyNames = {
   38: 'ArrowUp',
   39: 'ArrowRight',
   40: 'ArrowDown',
+  57: 'Key9',
+  65: 'KeyA',
+  67: 'KeyC',
+  72: 'KeyH',
+  75: 'KeyK',
   76: 'KeyL',
-  77: 'KeyM'
+  77: 'KeyM',
+  81: 'KeyQ',
+  82: 'KeyR',
+  83: 'KeyS',
+  191: 'Slash'
 }
 const Hotkeys = {
   AudioPlayer: {
@@ -80,6 +89,31 @@ const Hotkeys = {
     PREV_PAGE: 'ArrowLeft',
     CLOSE: 'Escape',
     SUBMIT: 'Enter'
+  },
+  Global: {
+    SHORTCUTS_HELPER: 'Shift-Slash'
+  },
+  Navigation: {
+    HOME: 'Alt-KeyH',
+    LIBRARY: 'Alt-KeyL',
+    SERIES: 'Alt-KeyS',
+    COLLECTIONS: 'Alt-KeyC',
+    AUTHORS: 'Alt-KeyA'
+  },
+  Batch: {
+    SELECT_ALL: 'Alt-KeyA',
+    CONSOLIDATE: 'Alt-KeyK',
+    MERGE: 'Alt-KeyM',
+    MOVE: 'Shift-Alt-KeyM',
+    RESET: 'Alt-KeyR',
+    MATCH: 'Alt-KeyQ',
+    CANCEL: 'Escape'
+  },
+  Item: {
+    CONSOLIDATE: 'Alt-KeyK',
+    MOVE: 'Shift-Alt-KeyM',
+    RESET: 'Alt-KeyR',
+    MATCH: 'Alt-KeyQ'
   }
 }
 

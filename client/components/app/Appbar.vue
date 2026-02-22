@@ -48,6 +48,12 @@
           </ui-tooltip>
         </nuxt-link>
 
+        <div class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1" @click="$store.commit('globals/setShowShortcutsModal', true)">
+          <ui-tooltip text="Keyboard Shortcuts (?)" direction="bottom" class="flex items-center">
+            <span class="material-symbols text-2xl" aria-label="Keyboard Shortcuts" role="button">keyboard</span>
+          </ui-tooltip>
+        </div>
+
         <nuxt-link to="/account" class="relative w-9 h-9 md:w-32 bg-fg border border-gray-500 rounded-sm shadow-xs ml-1.5 sm:ml-3 md:ml-5 md:pl-3 md:pr-10 py-2 text-left sm:text-sm cursor-pointer hover:bg-bg/40" aria-haspopup="listbox" aria-expanded="true">
           <span class="items-center hidden md:flex">
             <span class="block truncate">{{ username }}</span>
@@ -177,7 +183,8 @@ export default {
       const options = [
         {
           text: this.$strings.ButtonQuickMatch,
-          action: 'quick-match'
+          action: 'quick-match',
+          shortcut: this.$hotkeys.Batch.MATCH
         }
       ]
 
@@ -195,7 +202,8 @@ export default {
 
       options.push({
         text: 'Reset Metadata',
-        action: 'reset-metadata'
+        action: 'reset-metadata',
+        shortcut: this.$hotkeys.Batch.RESET
       })
 
       // The limit of 50 is introduced because of the URL length. Each id has 36 chars, so 36 * 40 = 1440
@@ -211,21 +219,24 @@ export default {
       if (this.userCanDelete) {
         options.push({
           text: this.$strings.LabelMoveToLibrary,
-          action: 'move-to-library'
+          action: 'move-to-library',
+          shortcut: this.$hotkeys.Batch.MOVE
         })
 
         // Merge option - only for books and if multiple selected
         if (this.isBookLibrary && this.selectedMediaItems.length > 1) {
           options.push({
             text: this.$strings.LabelMerge,
-            action: 'merge'
+            action: 'merge',
+            shortcut: this.$hotkeys.Batch.MERGE
           })
         }
 
         if (this.isBookLibrary) {
           options.push({
             text: 'Consolidate',
-            action: 'consolidate'
+            action: 'consolidate',
+            shortcut: this.$hotkeys.Batch.CONSOLIDATE
           })
         }
       }
@@ -534,68 +545,74 @@ export default {
     batchAutoMatchClick() {
       this.$store.commit('globals/setShowBatchQuickMatchModal', true)
     },
+    getHotkeyName(e) {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return null
+      
+      var keyCode = e.keyCode || e.which
+      if (!this.$keynames[keyCode]) return null
+
+      var name = this.$keynames[keyCode]
+      if (e.ctrlKey || e.metaKey) name = 'Ctrl-' + name
+      if (e.altKey) name = 'Alt-' + name
+      if (e.shiftKey) name = 'Shift-' + name
+      return name
+    },
     handleKeyDown(e) {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-        return
-      }
+      const name = this.getHotkeyName(e)
+      if (!name) return
 
-      const ctrlOrMeta = e.ctrlKey || e.metaKey
-      const shift = e.shiftKey
-      const alt = e.altKey
-
-      if (ctrlOrMeta && e.key.toLowerCase() === 'a') {
+      if (name === this.$hotkeys.Batch.SELECT_ALL) {
         if (this.isBookshelfPage) {
           e.preventDefault()
           this.$eventBus.$emit('bookshelf_select_all')
         }
-      } else if (ctrlOrMeta && e.key.toLowerCase() === 'k') {
+      } else if (name === this.$hotkeys.Batch.CONSOLIDATE) {
         e.preventDefault()
         if (this.numMediaItemsSelected > 0) {
           this.batchConsolidate()
         } else if (this.isItemPage) {
           this.$eventBus.$emit('item_shortcut_consolidate')
         }
-      } else if (ctrlOrMeta && !shift && e.key.toLowerCase() === 'm') {
-        if (this.numMediaItemsSelected > 1) {
-          e.preventDefault()
-          this.batchMerge()
-        }
-      } else if ((ctrlOrMeta && shift && e.key.toLowerCase() === 'm') || (alt && e.key.toLowerCase() === 'm')) {
+      } else if (name === this.$hotkeys.Batch.MERGE || name === this.$hotkeys.Batch.MOVE) {
         e.preventDefault()
-        if (this.numMediaItemsSelected > 0) {
-          this.batchMoveToLibrary()
-        } else if (this.isItemPage) {
-          this.$eventBus.$emit('item_shortcut_move')
+        if (name === this.$hotkeys.Batch.MERGE && this.numMediaItemsSelected > 1) {
+          this.batchMerge()
+        } else if (name === this.$hotkeys.Batch.MOVE) {
+          if (this.numMediaItemsSelected > 0) {
+            this.batchMoveToLibrary()
+          } else if (this.isItemPage) {
+            this.$eventBus.$emit('item_shortcut_move')
+          }
         }
-      } else if (alt && e.key.toLowerCase() === 'r') {
+      } else if (name === this.$hotkeys.Batch.RESET) {
         e.preventDefault()
         if (this.numMediaItemsSelected > 0) {
           this.batchResetMetadata()
         } else if (this.isItemPage) {
           this.$eventBus.$emit('item_shortcut_reset')
         }
-      } else if (alt && e.key.toLowerCase() === 'q') {
+      } else if (name === this.$hotkeys.Batch.MATCH) {
         e.preventDefault()
         if (this.numMediaItemsSelected > 0) {
           this.batchAutoMatchClick()
         } else if (this.isItemPage) {
           this.$eventBus.$emit('item_shortcut_match')
         }
-      } else if (alt && this.currentLibrary?.id) {
+      } else if (this.currentLibrary?.id) {
         const libId = this.currentLibrary.id
-        if (e.key.toLowerCase() === 'h') {
+        if (name === this.$hotkeys.Navigation.HOME) {
           e.preventDefault()
           this.$router.push(`/library/${libId}`)
-        } else if (e.key.toLowerCase() === 'l') {
+        } else if (name === this.$hotkeys.Navigation.LIBRARY) {
           e.preventDefault()
           this.$router.push(`/library/${libId}/bookshelf`)
-        } else if (e.key.toLowerCase() === 's') {
+        } else if (name === this.$hotkeys.Navigation.SERIES) {
           e.preventDefault()
           this.$router.push(`/library/${libId}/bookshelf/series`)
-        } else if (e.key.toLowerCase() === 'c') {
+        } else if (name === this.$hotkeys.Navigation.COLLECTIONS) {
           e.preventDefault()
           this.$router.push(`/library/${libId}/bookshelf/collections`)
-        } else if (e.key.toLowerCase() === 'a') {
+        } else if (name === this.$hotkeys.Navigation.AUTHORS) {
           e.preventDefault()
           this.$router.push(`/library/${libId}/bookshelf/authors`)
         }

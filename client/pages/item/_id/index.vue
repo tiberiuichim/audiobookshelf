@@ -113,7 +113,7 @@
               <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
             </ui-tooltip>
 
-            <ui-tooltip v-if="userCanUpdate && !isPodcast" :text="isNotConsolidated ? 'Consolidate' : 'Already Consolidated'" direction="top">
+            <ui-tooltip v-if="userCanUpdate && !isPodcast" :text="isNotConsolidated ? `Consolidate (${$hotkeys.Item.CONSOLIDATE.replace(/Key/g, '').replace(/-/g, '+')})` : 'Already Consolidated'" direction="top">
               <ui-icon-btn icon="folder_open" class="mx-0.5" :class="isNotConsolidated ? 'text-warning' : 'opacity-50'" :disabled="!isNotConsolidated" @click="consolidate" />
             </ui-tooltip>
 
@@ -442,7 +442,8 @@ export default {
         })
         items.push({
           text: this.$strings.ButtonMoveToLibrary,
-          action: 'move'
+          action: 'move',
+          shortcut: this.$hotkeys.Item.MOVE
         })
         items.push({
           text: this.$strings.ButtonDelete,

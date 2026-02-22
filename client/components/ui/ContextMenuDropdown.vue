@@ -14,7 +14,8 @@
         <template v-for="(item, index) in items">
           <template v-if="item.subitems">
             <button :key="index" role="menuitem" aria-haspopup="menu" class="flex items-center px-2 py-1.5 hover:bg-white/5 text-white text-xs cursor-default w-full" :class="{ 'bg-white/5': mouseoverItemIndex == index }" @mouseover="mouseoverItem(index)" @mouseleave="mouseleaveItem(index)" @click.stop>
-              <p>{{ item.text }}</p>
+              <p class="text-left grow">{{ item.text }}</p>
+              <p v-if="item.shortcut" class="text-right text-gray-400 pl-4 whitespace-nowrap">{{ item.shortcut.replace(/Key/g, '').replace(/-/g, '+') }}</p>
             </button>
             <div
               v-if="mouseoverItemIndex === index"
@@ -26,12 +27,14 @@
               :style="{ left: submenuLeftPos + 'px', top: index * 28 + 'px', width: submenuWidth + 'px' }"
             >
               <button v-for="(subitem, subitemindex) in item.subitems" :key="`subitem-${subitemindex}`" role="menuitem" class="flex items-center px-2 py-1.5 hover:bg-white/5 text-white text-xs cursor-pointer w-full" @click.stop="clickAction(subitem.action, subitem.data)">
-                <p>{{ subitem.text }}</p>
+                <p class="text-left grow">{{ subitem.text }}</p>
+                <p v-if="subitem.shortcut" class="text-right text-gray-400 pl-4 whitespace-nowrap">{{ subitem.shortcut.replace(/Key/g, '').replace(/-/g, '+') }}</p>
               </button>
             </div>
           </template>
           <button v-else :key="index" role="menuitem" class="flex items-center px-2 py-1.5 hover:bg-white/5 text-white text-xs cursor-pointer w-full" @click.stop="clickAction(item.action)">
-            <p class="text-left">{{ item.text }}</p>
+            <p class="text-left grow">{{ item.text }}</p>
+            <p v-if="item.shortcut" class="text-right text-gray-400 pl-4 whitespace-nowrap">{{ item.shortcut.replace(/Key/g, '').replace(/-/g, '+') }}</p>
           </button>
         </template>
       </div>
