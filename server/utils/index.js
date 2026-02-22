@@ -192,6 +192,18 @@ module.exports.getTitleIgnorePrefix = (title) => {
 }
 
 /**
+ * Get normalized title to use for grouping duplicates
+ * Removes non-alphabetic characters (numbers, punctuation, spaces) 
+ * @param {string} title 
+ * @returns {string}
+ */
+module.exports.getNormalizedTitle = (title) => {
+  if (!title) return ''
+  const sortTitle = getTitleParts(title)[0] || title
+  return sortTitle.toLowerCase().replace(/[^\p{L}]/gu, '')
+}
+
+/**
  * Put sorting prefix at the end of title
  * @example "The Good Book" => "Good Book, The"
  * @param {string} title

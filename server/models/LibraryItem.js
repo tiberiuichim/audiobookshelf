@@ -78,6 +78,8 @@ class LibraryItem extends Model {
     /** @type {string} */
     this.titleIgnorePrefix // Only used for sorting
     /** @type {string} */
+    this.titleNormalized // Only used for sorting
+    /** @type {string} */
     this.authorNamesFirstLast // Only used for sorting
     /** @type {string} */
     this.authorNamesLastFirst // Only used for sorting
@@ -687,6 +689,7 @@ class LibraryItem extends Model {
         extraData: DataTypes.JSON,
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         authorNamesFirstLast: DataTypes.STRING,
         authorNamesLastFirst: DataTypes.STRING,
         isNotConsolidated: {
@@ -718,6 +721,9 @@ class LibraryItem extends Model {
           },
           {
             fields: ['libraryId', 'mediaType', { name: 'titleIgnorePrefix', collate: 'NOCASE' }]
+          },
+          {
+            fields: ['libraryId', 'mediaType', { name: 'titleNormalized', collate: 'NOCASE' }]
           },
           {
             fields: ['libraryId', 'mediaType', { name: 'authorNamesFirstLast', collate: 'NOCASE' }]
@@ -795,6 +801,7 @@ class LibraryItem extends Model {
       if (instance.media) {
         instance.title = instance.media.title
         instance.titleIgnorePrefix = instance.media.titleIgnorePrefix
+        instance.titleNormalized = instance.media.titleNormalized
         if (instance.isBook) {
           if (instance.media.authors !== undefined) {
             instance.authorNamesFirstLast = instance.media.authorName

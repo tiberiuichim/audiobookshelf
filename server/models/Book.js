@@ -146,6 +146,7 @@ class Book extends Model {
         },
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         subtitle: DataTypes.STRING,
         publishedYear: DataTypes.STRING,
         publishedDate: DataTypes.STRING,
@@ -407,7 +408,9 @@ class Book extends Model {
           this[key] = payload.metadata[key] || null
 
           if (key === 'title') {
+            const { getTitleIgnorePrefix, getNormalizedTitle } = require('../utils')
             this.titleIgnorePrefix = getTitleIgnorePrefix(this.title)
+            this.titleNormalized = getNormalizedTitle(this.title)
           }
 
           hasUpdates = true

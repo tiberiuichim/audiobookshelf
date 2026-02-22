@@ -138,6 +138,7 @@ OpenAPI documentation available at `docs/openapi.json`
 - Vue.js components with Composition API where applicable
 - Sequelize models for database operations
 - No comments in code unless explicitly requested
+- **Title Normalization**: When comparing or grouping by titles, always use `titleNormalized` or the `getNormalizedTitle` utility from `server/utils` to ignore prefixes, punctuation, and non-alphabetic characters. Do not use plain lowercase comparison.
 
 ### UI Components & Modals
 

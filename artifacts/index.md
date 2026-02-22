@@ -26,6 +26,7 @@ This index provides a quick reference for specification and documentation files 
 | **2026-02-22** | [centralized_keyboard_shortcuts.md](2026-02-22/centralized_keyboard_shortcuts.md) | Specification for centralizing keyboard shortcut definitions into a single configuration file. |
 | **2026-02-22** | [match_default_behavior.md](2026-02-22/match_default_behavior.md) | Specification for the new default "Direct Apply" match behavior and Review & Edit button. |
 | **2026-02-22** | [player_keyboard_shortcuts.md](2026-02-22/player_keyboard_shortcuts.md) | Specification for new player keyboard shortcuts including major skip and chapter jumps. |
+| **2026-02-22** | [normalized_title_filter.md](2026-02-22/normalized_title_filter.md) | Specification for the Normalized Title / Duplicate Title filter implementations and database columns. |
 | **General** | [docs/consolidate_feature.md](docs/consolidate_feature.md) | Comprehensive documentation for the "Consolidate" feature, including conflict resolution and technical details. |
 | **General** | [docs/item_restructuring_guide.md](docs/item_restructuring_guide.md) | Guide for Moving, Merging, and Splitting (Promoting) library items. |
 | **General** | [docs/metadata_management_tools.md](docs/metadata_management_tools.md) | Documentation for Reset Metadata and Batch Reset operations. |

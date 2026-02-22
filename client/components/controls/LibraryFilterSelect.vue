@@ -237,6 +237,11 @@ export default {
           sublist: false
         },
         {
+          text: this.$strings.LabelDuplicateTitle || 'Duplicate Title',
+          value: 'duplicates',
+          sublist: false
+        },
+        {
           text: this.$strings.LabelRSSFeedOpen,
           value: 'feed-open',
           sublist: false
@@ -292,6 +297,11 @@ export default {
         {
           text: this.$strings.ButtonIssues,
           value: 'issues',
+          sublist: false
+        },
+        {
+          text: this.$strings.LabelDuplicateTitle || 'Duplicate Title',
+          value: 'duplicates',
           sublist: false
         },
         {

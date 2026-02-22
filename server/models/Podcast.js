@@ -1,5 +1,5 @@
 const { DataTypes, Model } = require('sequelize')
-const { getTitlePrefixAtEnd, getTitleIgnorePrefix } = require('../utils')
+const { getTitlePrefixAtEnd, getTitleIgnorePrefix, getNormalizedTitle } = require('../utils')
 const Logger = require('../Logger')
 const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 const htmlSanitizer = require('../utils/htmlSanitizer')
@@ -93,6 +93,7 @@ class Podcast extends Model {
       {
         title,
         titleIgnorePrefix: getTitleIgnorePrefix(title),
+        titleNormalized: getNormalizedTitle(title),
         author: typeof payload.metadata.author === 'string' ? payload.metadata.author : null,
         releaseDate: typeof payload.metadata.releaseDate === 'string' ? payload.metadata.releaseDate : null,
         feedURL: typeof payload.metadata.feedUrl === 'string' ? payload.metadata.feedUrl : null,
@@ -130,6 +131,7 @@ class Podcast extends Model {
         },
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         author: DataTypes.STRING,
         releaseDate: DataTypes.STRING,
         feedURL: DataTypes.STRING,
@@ -257,6 +259,7 @@ class Podcast extends Model {
 
           if (key === 'title') {
             this.titleIgnorePrefix = getTitleIgnorePrefix(this.title)
+            this.titleNormalized = getNormalizedTitle(this.title)
           }
 
           hasUpdates = true
