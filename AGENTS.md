@@ -129,6 +129,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t advplyr/audiobookshelf
 - The `data/` directory contains test audiobooks and is git-ignored
 - Database is SQLite-based, stored in config location (not in repo)
 - Client must be regenerated after frontend changes: `(cd client; npm run generate)`
+- When running git commands that might invoke a pager (like `git diff` or `git log`), use `PAGER=cat git <command>` or `git --no-pager <command>` to avoid the `git-split-diffs: not found` error.
 
 ## API Documentation
 
