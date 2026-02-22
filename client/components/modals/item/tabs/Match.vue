@@ -567,12 +567,11 @@ export default {
     },
     async applyMatch(match) {
       this.parseMatchData(match)
-      console.log('Apply Match', match)
       this.selectedMatch = match
       for (const key in this.selectedMatchUsage) {
         this.selectedMatchUsage[key] = true
       }
-      await this.submitMatchUpdate()
+      await this.submitMatchUpdate(true)
     },
     buildMatchUpdatePayload() {
       var updatePayload = {}
@@ -626,7 +625,7 @@ export default {
 
       return updatePayload
     },
-    async submitMatchUpdate() {
+    async submitMatchUpdate(closeOnSuccess = false) {
       var updatePayload = this.buildMatchUpdatePayload()
       if (!Object.keys(updatePayload).length) {
         return
@@ -655,7 +654,11 @@ export default {
             this.$toast.info(this.$strings.ToastNoUpdatesNecessary)
           }
           this.clearSelectedMatch()
-          this.$emit('selectTab', 'details')
+          if (closeOnSuccess) {
+            this.$emit('close')
+          } else {
+            this.$emit('selectTab', 'details')
+          }
         } else {
           this.$toast.error(this.$strings.ToastFailedToUpdate)
         }
