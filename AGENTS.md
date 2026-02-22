@@ -219,6 +219,7 @@ Each new feature or major change should be documented in an artifact specificati
 ### Organization
 
 - **Location**: All artifact specifications are stored in the `artifacts/` directory.
+- **Index**: You can look up previous artifact specification files in `artifacts/index.md`.
 - **Dated Folders**: Specifications **MUST** be placed in a subfolder named by the current date (e.g., `artifacts/YYYY-MM-DD/`).
 - **CRITICAL**: Do **NOT** create specification files directly in the `artifacts/` root. Always use the dated folder.
 - **Filename**: Use descriptive names for the specification files (e.g., `move-to-library-specification.md`).

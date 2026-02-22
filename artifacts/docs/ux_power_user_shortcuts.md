@@ -28,6 +28,13 @@ To improve the efficiency of batch operations, global keyboard listeners have be
     - **Collections**: `Alt + C`.
     - **Authors**: `Alt + A`.
 
+- **Audio Player Shortcuts**:
+    - **Jump Forward**: `Shift + Right Arrow` (Standard), `Ctrl + Shift + Right Arrow` (Major, 60s).
+    - **Jump Backward**: `Shift + Left Arrow` (Standard), `Ctrl + Shift + Left Arrow` (Major, 60s).
+    - **Next Chapter**: `Shift + Up Arrow`.
+    - **Previous Chapter**: `Shift + Down Arrow`.
+    - **Playback Rate**: `]` (Increase), `[` (Decrease).
+
 - **Modal & Prompt Controls**:
     - **Confirm / Submit**: `Enter` (Works on confirmation prompts and many action modals like "Move", "Quick Match", and "Split").
     - **Cancel / Close**: `Escape` (Closes modals, cancels prompts, and clears batch selections).

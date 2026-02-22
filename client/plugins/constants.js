@@ -64,19 +64,27 @@ const KeyNames = {
   81: 'KeyQ',
   82: 'KeyR',
   83: 'KeyS',
-  191: 'Slash'
+  191: 'Slash',
+  219: 'BracketLeft',
+  221: 'BracketRight'
 }
 const Hotkeys = {
   AudioPlayer: {
     PLAY_PAUSE: 'Space',
     JUMP_FORWARD: 'ArrowRight',
     JUMP_BACKWARD: 'ArrowLeft',
+    JUMP_FORWARD_ALT: 'Shift-ArrowRight',
+    JUMP_BACKWARD_ALT: 'Shift-ArrowLeft',
+    JUMP_FORWARD_MAJOR: 'Shift-Ctrl-ArrowRight',
+    JUMP_BACKWARD_MAJOR: 'Shift-Ctrl-ArrowLeft',
     VOLUME_UP: 'ArrowUp',
     VOLUME_DOWN: 'ArrowDown',
     MUTE_UNMUTE: 'KeyM',
     SHOW_CHAPTERS: 'KeyL',
-    INCREASE_PLAYBACK_RATE: 'Shift-ArrowUp',
-    DECREASE_PLAYBACK_RATE: 'Shift-ArrowDown',
+    NEXT_CHAPTER: 'Shift-ArrowUp',
+    PREV_CHAPTER: 'Shift-ArrowDown',
+    INCREASE_PLAYBACK_RATE: 'BracketRight',
+    DECREASE_PLAYBACK_RATE: 'BracketLeft',
     CLOSE: 'Escape'
   },
   EReader: {
