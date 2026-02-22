@@ -138,7 +138,6 @@ OpenAPI documentation available at `docs/openapi.json`
 - Vue.js components with Composition API where applicable
 - Sequelize models for database operations
 - No comments in code unless explicitly requested
-- **Title Normalization**: When comparing or grouping by titles, always use `titleNormalized` or the `getNormalizedTitle` utility from `server/utils` to ignore prefixes, punctuation, and non-alphabetic characters. Do not use plain lowercase comparison.
 
 ### UI Components & Modals
 
@@ -155,6 +154,8 @@ Located in `server/migrations/`. Key migrations include:
 - v2.17.x - Foreign key constraints and indices
 - v2.19.x - Library item improvements
 - v2.26.0 - Authentication tables
+
+**CRITICAL**: If you execute or create a new database migration, you MUST bump the `version` in `package.json` to match the migration version (e.g., if you create `v2.32.9-my-migration.js`, you must update `package.json` version to `"2.32.9"`).
 
 Run migrations automatically on server startup.
 
