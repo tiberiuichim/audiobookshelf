@@ -55,6 +55,12 @@ export default {
           action: 'download'
         })
       }
+      if (this.userCanDelete && (this.file.audioFile || this.file.isEBookFile)) {
+        items.push({
+          text: this.$strings.LabelPromoteToBook || 'Promote to book',
+          action: 'promote'
+        })
+      }
       if (this.userCanDelete) {
         items.push({
           text: this.$strings.ButtonDelete,
@@ -77,6 +83,8 @@ export default {
         this.deleteLibraryFile()
       } else if (action === 'download') {
         this.downloadLibraryFile()
+      } else if (action === 'promote') {
+        this.promoteLibraryFile()
       } else if (action === 'more') {
         this.$emit('showMore', this.file.audioFile)
       }
@@ -103,6 +111,27 @@ export default {
     },
     downloadLibraryFile() {
       this.$downloadFile(this.downloadUrl, this.file.metadata.filename)
+    },
+    promoteLibraryFile() {
+      const payload = {
+        message: this.$strings.MessageConfirmPromoteFile || 'Are you sure you want to promote this file to a new book?',
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$axios
+              .$post(`/api/items/${this.libraryItemId}/file/${this.file.ino}/promote`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastPromoteFileSuccess || 'File successfully promoted to new book')
+              })
+              .catch((error) => {
+                console.error('Failed to promote file', error)
+                const errorMsg = error.response?.data || 'Unknown error'
+                this.$toast.error(this.$strings.ToastPromoteFileFailed || `Failed to promote file: ${errorMsg}`)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     }
   },
   mounted() {}

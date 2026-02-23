@@ -146,6 +146,7 @@ class Book extends Model {
         },
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         subtitle: DataTypes.STRING,
         publishedYear: DataTypes.STRING,
         publishedDate: DataTypes.STRING,
@@ -164,7 +165,9 @@ class Book extends Model {
         ebookFile: DataTypes.JSON,
         chapters: DataTypes.JSON,
         tags: DataTypes.JSON,
-        genres: DataTypes.JSON
+        genres: DataTypes.JSON,
+        coverWidth: DataTypes.INTEGER,
+        coverHeight: DataTypes.INTEGER
       },
       {
         sequelize,
@@ -200,6 +203,20 @@ class Book extends Model {
 
     Book.addHook('afterCreate', async (instance) => {
       libraryItemsBookFilters.clearCountCache('afterCreate')
+    })
+
+    Book.addHook('beforeSave', async (instance) => {
+      if (instance.changed('coverPath') && instance.coverPath) {
+        const { getImageDimensions } = require('../utils/ffmpegHelpers')
+        const dims = await getImageDimensions(instance.coverPath)
+        if (dims) {
+          instance.coverWidth = dims.width
+          instance.coverHeight = dims.height
+        } else {
+          instance.coverWidth = null
+          instance.coverHeight = null
+        }
+      }
     })
   }
 
@@ -391,7 +408,9 @@ class Book extends Model {
           this[key] = payload.metadata[key] || null
 
           if (key === 'title') {
+            const { getTitleIgnorePrefix, getNormalizedTitle } = require('../utils')
             this.titleIgnorePrefix = getTitleIgnorePrefix(this.title)
+            this.titleNormalized = getNormalizedTitle(this.title)
           }
 
           hasUpdates = true
@@ -629,6 +648,8 @@ class Book extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSON(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       audioFiles: structuredClone(this.audioFiles),
       chapters: structuredClone(this.chapters),
@@ -648,6 +669,8 @@ class Book extends Model {
       id: this.id,
       metadata: this.oldMetadataToJSONMinified(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       numTracks: this.includedAudioFiles.length,
       numAudioFiles: this.audioFiles?.length || 0,
@@ -674,6 +697,8 @@ class Book extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSONExpanded(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       audioFiles: structuredClone(this.audioFiles),
       chapters: structuredClone(this.chapters),

@@ -237,6 +237,11 @@ export default {
           sublist: false
         },
         {
+          text: this.$strings.LabelDuplicateTitle || 'Duplicate Title',
+          value: 'duplicates',
+          sublist: false
+        },
+        {
           text: this.$strings.LabelRSSFeedOpen,
           value: 'feed-open',
           sublist: false
@@ -258,6 +263,11 @@ export default {
           sublist: false
         })
       }
+      items.push({
+        text: 'Consolidated',
+        value: 'consolidated',
+        sublist: true
+      })
       return items
     },
     podcastItems() {
@@ -290,6 +300,11 @@ export default {
           sublist: false
         },
         {
+          text: this.$strings.LabelDuplicateTitle || 'Duplicate Title',
+          value: 'duplicates',
+          sublist: false
+        },
+        {
           text: this.$strings.LabelRSSFeedOpen,
           value: 'feed-open',
           sublist: false
@@ -303,7 +318,11 @@ export default {
           sublist: false
         })
       }
-
+      items.push({
+        text: 'Consolidated',
+        value: 'consolidated',
+        sublist: true
+      })
       return items
     },
     selectItems() {
@@ -349,6 +368,9 @@ export default {
           if (item) filterValue = item.name
         } else if (parts[0] === 'missing') {
           const item = this.missing.find((m) => m.id == decoded)
+          if (item) filterValue = item.name
+        } else if (parts[0] === 'consolidated') {
+          const item = this.consolidated.find((c) => c.id == decoded)
           if (item) filterValue = item.name
         } else {
           filterValue = decoded
@@ -501,6 +523,18 @@ export default {
         {
           id: 'tags',
           name: this.$strings.LabelTags
+        }
+      ]
+    },
+    consolidated() {
+      return [
+        {
+          id: 'consolidated',
+          name: 'Consolidated'
+        },
+        {
+          id: 'not-consolidated',
+          name: 'Not Consolidated'
         }
       ]
     },

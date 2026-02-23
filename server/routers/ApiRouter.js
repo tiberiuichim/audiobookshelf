@@ -84,6 +84,7 @@ class ApiRouter {
     this.router.get('/libraries/:id/search', LibraryController.middleware.bind(this), LibraryController.search.bind(this))
     this.router.get('/libraries/:id/stats', LibraryController.middleware.bind(this), LibraryController.stats.bind(this))
     this.router.get('/libraries/:id/authors', LibraryController.middleware.bind(this), LibraryController.getAuthors.bind(this))
+    this.router.delete('/libraries/:id/authors/cleanup', LibraryController.middleware.bind(this), LibraryController.cleanupAuthorsWithNoBooks.bind(this))
     this.router.get('/libraries/:id/narrators', LibraryController.middleware.bind(this), LibraryController.getNarrators.bind(this))
     this.router.patch('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.updateNarrator.bind(this))
     this.router.delete('/libraries/:id/narrators/:narratorId', LibraryController.middleware.bind(this), LibraryController.removeNarrator.bind(this))
@@ -93,6 +94,9 @@ class ApiRouter {
     this.router.get('/libraries/:id/opml', LibraryController.middleware.bind(this), LibraryController.getOPMLFile.bind(this))
     this.router.post('/libraries/order', LibraryController.reorder.bind(this))
     this.router.post('/libraries/:id/remove-metadata', LibraryController.middleware.bind(this), LibraryController.removeAllMetadataFiles.bind(this))
+    this.router.post('/libraries/:id/update-consolidation', LibraryController.middleware.bind(this), LibraryController.updateConsolidationStatus.bind(this))
+    this.router.post('/libraries/:id/update-cover-dimensions', LibraryController.middleware.bind(this), LibraryController.updateCoverDimensions.bind(this))
+    this.router.post('/libraries/:id/write-metadata-files', LibraryController.middleware.bind(this), LibraryController.writeMetadataFiles.bind(this))
     this.router.get('/libraries/:id/podcast-titles', LibraryController.middleware.bind(this), LibraryController.getPodcastTitles.bind(this))
     this.router.get('/libraries/:id/download', LibraryController.middleware.bind(this), LibraryController.downloadMultiple.bind(this))
 
@@ -104,6 +108,10 @@ class ApiRouter {
     this.router.post('/items/batch/get', LibraryItemController.batchGet.bind(this))
     this.router.post('/items/batch/quickmatch', LibraryItemController.batchQuickMatch.bind(this))
     this.router.post('/items/batch/scan', LibraryItemController.batchScan.bind(this))
+    this.router.post('/items/batch/move', LibraryItemController.batchMove.bind(this))
+    this.router.post('/items/batch/merge', LibraryItemController.batchMerge.bind(this))
+    this.router.post('/items/batch/consolidate', LibraryItemController.batchConsolidate.bind(this))
+    this.router.post('/items/batch/reset-metadata', LibraryItemController.batchResetMetadata.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
@@ -114,6 +122,7 @@ class ApiRouter {
     this.router.patch('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.updateCover.bind(this))
     this.router.delete('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.removeCover.bind(this))
     this.router.post('/items/:id/match', LibraryItemController.middleware.bind(this), LibraryItemController.match.bind(this))
+    this.router.post('/items/:id/reset-metadata', LibraryItemController.middleware.bind(this), LibraryItemController.resetMetadata.bind(this))
     this.router.post('/items/:id/play', LibraryItemController.middleware.bind(this), LibraryItemController.startPlaybackSession.bind(this))
     this.router.post('/items/:id/play/:episodeId', LibraryItemController.middleware.bind(this), LibraryItemController.startEpisodePlaybackSession.bind(this))
     this.router.patch('/items/:id/tracks', LibraryItemController.middleware.bind(this), LibraryItemController.updateTracks.bind(this))
@@ -123,10 +132,13 @@ class ApiRouter {
     this.router.get('/items/:id/ffprobe/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
     this.router.get('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getLibraryFile.bind(this))
     this.router.delete('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.deleteLibraryFile.bind(this))
+    this.router.post('/items/:id/file/:fileid/promote', LibraryItemController.middleware.bind(this), LibraryItemController.promoteLibraryFile.bind(this))
     this.router.get('/items/:id/file/:fileid/download', LibraryItemController.middleware.bind(this), LibraryItemController.downloadLibraryFile.bind(this))
     this.router.get('/items/:id/ebook/:fileid?', LibraryItemController.middleware.bind(this), LibraryItemController.getEBookFile.bind(this))
     this.router.patch('/items/:id/ebook/:fileid/status', LibraryItemController.middleware.bind(this), LibraryItemController.updateEbookFileStatus.bind(this))
+    this.router.post('/items/:id/split', LibraryItemController.middleware.bind(this), LibraryItemController.splitLibraryItem.bind(this))
     this.router.post('/items/:id/move', LibraryItemController.middleware.bind(this), LibraryItemController.move.bind(this))
+    this.router.post('/items/:id/consolidate', LibraryItemController.middleware.bind(this), LibraryItemController.consolidate.bind(this))
 
     //
     // User Routes
@@ -463,29 +475,36 @@ class ApiRouter {
    * @param {string[]} authorIds
    * @returns {Promise<void>}
    */
-  async checkRemoveAuthorsWithNoBooks(authorIds) {
+  async checkRemoveAuthorsWithNoBooks(authorIds, force = false) {
     if (!authorIds?.length) return
 
     const transaction = await Database.sequelize.transaction()
     try {
+      const where = [sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)]
+
+      if (!force) {
+        where.push({
+          id: authorIds,
+          asin: {
+            [sequelize.Op.or]: [null, '']
+          },
+          description: {
+            [sequelize.Op.or]: [null, '']
+          },
+          imagePath: {
+            [sequelize.Op.or]: [null, '']
+          }
+        })
+      } else {
+        where.push({
+          id: authorIds
+        })
+      }
+
       // Select authors with locking to prevent concurrent updates
       const bookAuthorsToRemove = (
         await Database.authorModel.findAll({
-          where: [
-            {
-              id: authorIds,
-              asin: {
-                [sequelize.Op.or]: [null, '']
-              },
-              description: {
-                [sequelize.Op.or]: [null, '']
-              },
-              imagePath: {
-                [sequelize.Op.or]: [null, '']
-              }
-            },
-            sequelize.where(sequelize.literal('(SELECT count(*) FROM bookAuthors ba WHERE ba.authorId = author.id)'), 0)
-          ],
+          where,
           attributes: ['id', 'name', 'libraryId'],
           raw: true,
           transaction

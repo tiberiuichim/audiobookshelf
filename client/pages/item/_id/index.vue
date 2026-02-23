@@ -29,6 +29,11 @@
                   {{ title }}
                   <widgets-explicit-indicator v-if="isExplicit" />
                   <widgets-abridged-indicator v-if="isAbridged" />
+                  <ui-tooltip v-if="isNotConsolidated" text="Not Consolidated" direction="bottom" class="ml-2">
+                    <div class="rounded-full bg-warning flex items-center justify-center border border-black/20 shadow-sm w-6 h-6">
+                      <span class="material-symbols text-black text-sm">folder_open</span>
+                    </div>
+                  </ui-tooltip>
                 </div>
               </h1>
 
@@ -106,6 +111,10 @@
 
             <ui-tooltip v-if="!isPodcast" :text="userIsFinished ? $strings.MessageMarkAsNotFinished : $strings.MessageMarkAsFinished" direction="top">
               <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" class="mx-0.5" @click="toggleFinished" />
+            </ui-tooltip>
+
+            <ui-tooltip v-if="userCanUpdate && !isPodcast" :text="isNotConsolidated ? `Consolidate (${$hotkeys.Item.CONSOLIDATE.replace(/Key/g, '').replace(/-/g, '+')})` : 'Already Consolidated'" direction="top">
+              <ui-icon-btn icon="folder_open" class="mx-0.5" :class="isNotConsolidated ? 'text-warning' : 'opacity-50'" :disabled="!isNotConsolidated" @click="consolidate" />
             </ui-tooltip>
 
             <!-- Only admin or root user can download new episodes -->
@@ -221,6 +230,9 @@ export default {
     },
     isInvalid() {
       return this.libraryItem.isInvalid
+    },
+    isNotConsolidated() {
+      return !!this.libraryItem.isNotConsolidated
     },
     isExplicit() {
       return !!this.mediaMetadata.explicit
@@ -430,7 +442,8 @@ export default {
         })
         items.push({
           text: this.$strings.ButtonMoveToLibrary,
-          action: 'move'
+          action: 'move',
+          shortcut: this.$hotkeys.Item.MOVE
         })
         items.push({
           text: this.$strings.ButtonDelete,
@@ -504,6 +517,10 @@ export default {
     showEditCover() {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'cover' })
+    },
+    showEditMatch() {
+      this.$store.commit('setBookshelfBookIds', [])
+      this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
     },
     openEbook() {
       this.$store.commit('showEReader', { libraryItem: this.libraryItem, keepProgress: true })
@@ -786,6 +803,70 @@ export default {
           this.processing = false
         })
     },
+    consolidate() {
+      const author = this.authors?.[0]?.name || 'Unknown Author'
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.title, `${author} - ${this.title}`]),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            this.$axios
+              .$post(`/api/items/${this.libraryItemId}/consolidate`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastConsolidateSuccess)
+              })
+              .catch((error) => {
+                console.error('Failed to consolidate', error)
+                if (error.response?.status === 409) {
+                  const data = error.response.data
+                  const author = this.mediaMetadata.authorName?.split(',')[0]?.trim() || 'Unknown Author'
+                  const title = this.mediaMetadata.title || 'Unknown Title'
+                  this.$eventBus.$emit('show-consolidation-conflict', {
+                    item: this.libraryItem,
+                    path: data.path,
+                    folderName: this.$getConsolidatedFolderName(author, title),
+                    existingLibraryItemId: data.existingLibraryItemId
+                  })
+                } else {
+                  this.$toast.error(error.response?.data?.error || error.response?.data || this.$strings.ToastConsolidateFailed)
+                }
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    resetMetadata() {
+      const payload = {
+        message: `Are you sure you want to reset metadata for "${this.title}"? This will remove metadata files and re-scan the item from files.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            this.$axios
+              .$post('/api/items/batch/reset-metadata', {
+                libraryItemIds: [this.libraryItemId]
+              })
+              .then(() => {
+                this.$toast.success('Reset metadata successful')
+              })
+              .catch((error) => {
+                console.error('Reset metadata failed', error)
+                const errorMsg = error.response?.data || 'Reset metadata failed'
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
     contextMenuAction({ action, data }) {
       if (action === 'collections') {
         this.$store.commit('setSelectedLibraryItem', this.libraryItem)
@@ -830,6 +911,13 @@ export default {
     this.$root.socket.on('episode_download_started', this.episodeDownloadStarted)
     this.$root.socket.on('episode_download_finished', this.episodeDownloadFinished)
     this.$root.socket.on('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
+
+    this.$eventBus.$on('item_shortcut_consolidate', this.consolidate)
+    this.$eventBus.$on('item_shortcut_move', () => {
+      this.contextMenuAction({ action: 'move' })
+    })
+    this.$eventBus.$on('item_shortcut_reset', this.resetMetadata)
+    this.$eventBus.$on('item_shortcut_match', this.showEditMatch)
   },
   beforeDestroy() {
     this.$eventBus.$off(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
@@ -842,6 +930,11 @@ export default {
     this.$root.socket.off('episode_download_started', this.episodeDownloadStarted)
     this.$root.socket.off('episode_download_finished', this.episodeDownloadFinished)
     this.$root.socket.off('episode_download_queue_cleared', this.episodeDownloadQueueCleared)
+
+    this.$eventBus.$off('item_shortcut_consolidate', this.consolidate)
+    this.$eventBus.$off('item_shortcut_move')
+    this.$eventBus.$off('item_shortcut_reset', this.resetMetadata)
+    this.$eventBus.$off('item_shortcut_match', this.showEditMatch)
   }
 }
 </script>

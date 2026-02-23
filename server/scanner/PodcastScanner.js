@@ -232,8 +232,24 @@ class PodcastScanner {
     }
 
     existingLibraryItem.media = media
-
     let libraryItemUpdated = false
+    const isNotConsolidated = existingLibraryItem.checkIsNotConsolidated()
+    if (existingLibraryItem.isNotConsolidated !== isNotConsolidated) {
+      existingLibraryItem.isNotConsolidated = isNotConsolidated
+      libraryItemUpdated = true
+    }
+
+    if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
+      if (existingLibraryItem.isMissing) {
+        libraryScan.addLog(LogLevel.INFO, `Podcast "${podcastMetadata.title}" was missing but is now found. Setting library item as NOT missing`)
+        existingLibraryItem.isMissing = false
+      }
+      if (existingLibraryItem.isInvalid) {
+        libraryScan.addLog(LogLevel.INFO, `Podcast "${podcastMetadata.title}" was invalid but is now found. Setting library item as NOT invalid`)
+        existingLibraryItem.isInvalid = false
+      }
+      libraryItemUpdated = true
+    }
 
     // Save Podcast changes to db
     if (hasMediaChanges) {
@@ -337,6 +353,7 @@ class PodcastScanner {
     }
 
     libraryItemObj.podcast = podcastObject
+    libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.podcastModel,

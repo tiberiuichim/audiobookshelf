@@ -19,6 +19,7 @@ const LibraryFile = require('../objects/files/LibraryFile')
 
 const RssFeedManager = require('../managers/RssFeedManager')
 const CoverManager = require('../managers/CoverManager')
+const { getImageDimensions } = require('../utils/ffmpegHelpers')
 
 const LibraryScan = require('./LibraryScan')
 const OpfFileScanner = require('./OpfFileScanner')
@@ -382,8 +383,12 @@ class BookScanner {
     }
 
     existingLibraryItem.media = media
-
     let libraryItemUpdated = false
+    const isNotConsolidated = existingLibraryItem.checkIsNotConsolidated()
+    if (existingLibraryItem.isNotConsolidated !== isNotConsolidated) {
+      existingLibraryItem.isNotConsolidated = isNotConsolidated
+      libraryItemUpdated = true
+    }
 
     // Save Book changes to db
     if (hasMediaChanges) {
@@ -399,9 +404,15 @@ class BookScanner {
         existingLibraryItem.isMissing = true
         libraryItemUpdated = true
       }
-    } else if (existingLibraryItem.isMissing) {
-      libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was missing but now has media files. Setting library item as NOT missing`)
-      existingLibraryItem.isMissing = false
+    } else if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
+      if (existingLibraryItem.isMissing) {
+        libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was missing but now has media files. Setting library item as NOT missing`)
+        existingLibraryItem.isMissing = false
+      }
+      if (existingLibraryItem.isInvalid) {
+        libraryScan.addLog(LogLevel.INFO, `Book "${bookMetadata.title}" was invalid but now has media files. Setting library item as NOT invalid`)
+        existingLibraryItem.isInvalid = false
+      }
       libraryItemUpdated = true
     }
 
@@ -560,6 +571,7 @@ class BookScanner {
     }
 
     libraryItemObj.book = bookObject
+    libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.bookModel,

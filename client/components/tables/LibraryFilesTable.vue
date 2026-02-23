@@ -7,6 +7,7 @@
       </div>
       <div class="grow" />
       <ui-btn v-if="userIsAdmin" small :color="showFullPath ? 'bg-gray-600' : 'bg-primary'" class="mr-2 hidden md:block" @click.stop="toggleFullPath">{{ $strings.ButtonFullPath }}</ui-btn>
+      <ui-btn v-if="userCanDelete" small color="bg-primary" class="mr-2" @click.stop="showSplitBookModal = true">{{ $strings.ButtonSplitBook || 'Split Book' }}</ui-btn>
       <div class="cursor-pointer h-10 w-10 rounded-full hover:bg-black-400 flex justify-center items-center duration-500" :class="showFiles ? 'transform rotate-180' : ''">
         <span class="material-symbols text-4xl">&#xe313;</span>
       </div>
@@ -28,6 +29,7 @@
     </transition>
 
     <modals-audio-file-data-modal v-model="showAudioFileDataModal" :library-item-id="libraryItemId" :audio-file="selectedAudioFile" />
+    <modals-item-split-book-modal v-model="showSplitBookModal" :library-item="libraryItem" />
   </div>
 </template>
 
@@ -46,6 +48,7 @@ export default {
       showFiles: false,
       showFullPath: false,
       showAudioFileDataModal: false,
+      showSplitBookModal: false,
       selectedAudioFile: null
     }
   },

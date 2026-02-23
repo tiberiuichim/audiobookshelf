@@ -38,6 +38,11 @@
       <div class="relative text-center categoryPlacard transform z-30 top-0 left-4e md:left-8e w-44e rounded-md">
         <div class="w-full h-full shinyBlack flex items-center justify-center rounded-xs border" :style="{ padding: `0em 0.5em` }">
           <h2 :style="{ fontSize: 0.9 + 'em' }">{{ $strings[shelf.labelStringKey] }}</h2>
+          <ui-tooltip v-if="isLinkableShelf" :text="$strings.ButtonViewAll" direction="top" class="ml-2">
+            <button class="flex items-center justify-center hover:text-yellow-400 opacity-60 hover:opacity-100 transition-opacity" @click.stop="goToShelfFullPage">
+              <span class="material-symbols text-xl"> arrow_forward </span>
+            </button>
+          </ui-tooltip>
         </div>
       </div>
 
@@ -84,9 +89,24 @@ export default {
     },
     isSelectionMode() {
       return this.$store.getters['globals/getIsBatchSelectingMediaItems']
+    },
+    isLinkableShelf() {
+      return ['recently-added', 'recent-series', 'newest-authors', 'series', 'authors'].includes(this.shelf.id)
     }
   },
   methods: {
+    goToShelfFullPage() {
+      if (this.shelf.id === 'recently-added') {
+        this.$store.dispatch('user/updateUserSettings', { orderBy: 'addedAt', orderDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf`)
+      } else if (this.shelf.id === 'recent-series' || this.shelf.id === 'series') {
+        this.$store.dispatch('user/updateUserSettings', { seriesSortBy: 'addedAt', seriesSortDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf/series`)
+      } else if (this.shelf.id === 'newest-authors' || this.shelf.id === 'authors') {
+        this.$store.dispatch('user/updateUserSettings', { authorSortBy: 'addedAt', authorSortDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf/authors`)
+      }
+    },
     clearSelectedEntities() {
       this.updateSelectionMode(false)
     },

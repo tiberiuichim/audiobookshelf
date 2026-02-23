@@ -41,16 +41,18 @@ class Series extends Model {
    *
    * @param {string} seriesName
    * @param {string} libraryId
+   * @param {import('sequelize').Transaction} [transaction]
    * @returns {Promise<Series>}
    */
-  static async getByNameAndLibrary(seriesName, libraryId) {
+  static async getByNameAndLibrary(seriesName, libraryId, transaction = null) {
     return this.findOne({
       where: [
         where(fn('lower', col('name')), seriesName.toLowerCase()),
         {
           libraryId
         }
-      ]
+      ],
+      transaction
     })
   }
 
@@ -70,16 +72,20 @@ class Series extends Model {
    *
    * @param {string} seriesName
    * @param {string} libraryId
+   * @param {import('sequelize').Transaction} [transaction]
    * @returns {Promise<Series>}
    */
-  static async findOrCreateByNameAndLibrary(seriesName, libraryId) {
-    const series = await this.getByNameAndLibrary(seriesName, libraryId)
+  static async findOrCreateByNameAndLibrary(seriesName, libraryId, transaction = null) {
+    const series = await this.getByNameAndLibrary(seriesName, libraryId, transaction)
     if (series) return series
-    return this.create({
-      name: seriesName,
-      nameIgnorePrefix: getTitleIgnorePrefix(seriesName),
-      libraryId
-    })
+    return this.create(
+      {
+        name: seriesName,
+        nameIgnorePrefix: getTitleIgnorePrefix(seriesName),
+        libraryId
+      },
+      { transaction }
+    )
   }
 
   /**

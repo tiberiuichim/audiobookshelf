@@ -314,9 +314,10 @@ export default {
         return null
       }
 
-      var keyName = this.$keynames[keyCode]
-      var name = keyName
-      if (e.shiftKey) name = 'Shift-' + keyName
+      var name = this.$keynames[keyCode]
+      if (e.ctrlKey || e.metaKey) name = 'Ctrl-' + name
+      if (e.altKey) name = 'Alt-' + name
+      if (e.shiftKey) name = 'Shift-' + name
       if (process.env.NODE_ENV !== 'production') {
         console.log('Hotkey command', name)
       }

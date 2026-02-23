@@ -1,5 +1,5 @@
 const { DataTypes, Model } = require('sequelize')
-const { getTitlePrefixAtEnd, getTitleIgnorePrefix } = require('../utils')
+const { getTitlePrefixAtEnd, getTitleIgnorePrefix, getNormalizedTitle } = require('../utils')
 const Logger = require('../Logger')
 const libraryItemsPodcastFilters = require('../utils/queries/libraryItemsPodcastFilters')
 const htmlSanitizer = require('../utils/htmlSanitizer')
@@ -93,6 +93,7 @@ class Podcast extends Model {
       {
         title,
         titleIgnorePrefix: getTitleIgnorePrefix(title),
+        titleNormalized: getNormalizedTitle(title),
         author: typeof payload.metadata.author === 'string' ? payload.metadata.author : null,
         releaseDate: typeof payload.metadata.releaseDate === 'string' ? payload.metadata.releaseDate : null,
         feedURL: typeof payload.metadata.feedUrl === 'string' ? payload.metadata.feedUrl : null,
@@ -130,6 +131,7 @@ class Podcast extends Model {
         },
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         author: DataTypes.STRING,
         releaseDate: DataTypes.STRING,
         feedURL: DataTypes.STRING,
@@ -150,7 +152,9 @@ class Podcast extends Model {
         coverPath: DataTypes.STRING,
         tags: DataTypes.JSON,
         genres: DataTypes.JSON,
-        numEpisodes: DataTypes.INTEGER
+        numEpisodes: DataTypes.INTEGER,
+        coverWidth: DataTypes.INTEGER,
+        coverHeight: DataTypes.INTEGER
       },
       {
         sequelize,
@@ -164,6 +168,20 @@ class Podcast extends Model {
 
     Podcast.addHook('afterCreate', async (instance) => {
       libraryItemsPodcastFilters.clearCountCache('podcast', 'afterCreate')
+    })
+
+    Podcast.addHook('beforeSave', async (instance) => {
+      if (instance.changed('coverPath') && instance.coverPath) {
+        const { getImageDimensions } = require('../utils/ffmpegHelpers')
+        const dims = await getImageDimensions(instance.coverPath)
+        if (dims) {
+          instance.coverWidth = dims.width
+          instance.coverHeight = dims.height
+        } else {
+          instance.coverWidth = null
+          instance.coverHeight = null
+        }
+      }
     })
   }
 
@@ -241,6 +259,7 @@ class Podcast extends Model {
 
           if (key === 'title') {
             this.titleIgnorePrefix = getTitleIgnorePrefix(this.title)
+            this.titleNormalized = getNormalizedTitle(this.title)
           }
 
           hasUpdates = true
@@ -436,6 +455,8 @@ class Podcast extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSON(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       episodes: this.podcastEpisodes.map((episode) => episode.toOldJSON(libraryItemId)),
       autoDownloadEpisodes: this.autoDownloadEpisodes,
@@ -452,6 +473,8 @@ class Podcast extends Model {
       // Minified metadata and expanded metadata are the same
       metadata: this.oldMetadataToJSONExpanded(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       numEpisodes: this.podcastEpisodes?.length || 0,
       autoDownloadEpisodes: this.autoDownloadEpisodes,
@@ -476,6 +499,8 @@ class Podcast extends Model {
       libraryItemId: libraryItemId,
       metadata: this.oldMetadataToJSONExpanded(),
       coverPath: this.coverPath,
+      coverWidth: this.coverWidth,
+      coverHeight: this.coverHeight,
       tags: [...(this.tags || [])],
       episodes: this.podcastEpisodes.map((e) => e.toOldJSONExpanded(libraryItemId)),
       autoDownloadEpisodes: this.autoDownloadEpisodes,

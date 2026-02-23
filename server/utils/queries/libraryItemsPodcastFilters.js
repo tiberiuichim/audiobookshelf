@@ -168,10 +168,16 @@ module.exports = {
           isInvalid: true
         }
       ]
+    } else if (filterGroup === 'duplicates') {
+      libraryItemWhere['titleNormalized'] = {
+        [Sequelize.Op.in]: Sequelize.literal(`(SELECT titleNormalized FROM libraryItems WHERE libraryId = '${libraryId}' AND titleNormalized IS NOT NULL AND titleNormalized != '' GROUP BY titleNormalized HAVING COUNT(titleNormalized) > 1)`)
+      }
     } else if (filterGroup === 'recent') {
       libraryItemWhere['createdAt'] = {
         [Sequelize.Op.gte]: new Date(new Date() - 60 * 24 * 60 * 60 * 1000) // 60 days ago
       }
+    } else if (filterGroup === 'consolidated') {
+      libraryItemWhere['isNotConsolidated'] = filterValue === 'not-consolidated'
     }
 
     const podcastIncludes = []

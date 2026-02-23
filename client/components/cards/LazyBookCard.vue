@@ -115,6 +115,18 @@
         <div cy-id="numEpisodesIncomplete" v-else-if="numEpisodesIncomplete && !isHovering && !isSelectionMode" class="absolute rounded-full bg-yellow-400 text-black font-semibold box-shadow-md z-10 flex items-center justify-center" :style="{ top: 0.375 + 'em', right: 0.375 + 'em', width: 1.25 + 'em', height: 1.25 + 'em' }">
           <p :style="{ fontSize: 0.8 + 'em' }">{{ numEpisodesIncomplete }}</p>
         </div>
+
+        <!-- Not Consolidated Button -->
+        <ui-tooltip v-if="isNotConsolidated && !isSelectionMode" :text="userCanUpdate ? 'Consolidate' : 'Not Consolidated'" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: ebookFormat ? '1.51em' : '0.38em' }">
+          <button class="rounded-full bg-yellow-500 flex items-center justify-center border border-black/20 shadow-sm transition-transform duration-200" :class="userCanUpdate ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }" @click.stop.prevent="userCanUpdate ? consolidate() : null">
+            <span class="material-symbols text-black" :style="{ fontSize: 0.875 + 'em' }">folder_open</span>
+          </button>
+        </ui-tooltip>
+
+        <!-- Cover Size Badge -->
+        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20" :class="coverBadge.color" :style="{ bottom: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+          {{ coverBadge.text }}
+        </div>
       </div>
     </div>
 
@@ -169,7 +181,9 @@ export default {
       isSelectionMode: false,
       displayTitleTruncated: false,
       displaySubtitleTruncated: false,
-      showCoverBg: false
+      showCoverBg: false,
+      naturalWidth: 0,
+      naturalHeight: 0
     }
   },
   watch: {
@@ -242,6 +256,18 @@ export default {
     seriesName() {
       if (this.collapsedSeries?.name) return this.collapsedSeries.name
       return this.series?.name || null
+    },
+    coverBadge() {
+      const width = this.media?.coverWidth || this.coverWidth
+      const height = this.media?.coverHeight || this.coverHeight
+      if (!width || !height) return null
+      if (width >= 1200 || height >= 1200) {
+        return { text: 'BIG', color: 'bg-success' }
+      }
+      if (width >= 450 || height >= 450) {
+        return { text: 'MED', color: 'bg-info' }
+      }
+      return { text: 'SML', color: 'bg-warning' }
     },
     seriesSequence() {
       return this.series?.sequence || null
@@ -447,6 +473,9 @@ export default {
     isInvalid() {
       return this._libraryItem.isInvalid
     },
+    isNotConsolidated() {
+      return !!this._libraryItem.isNotConsolidated
+    },
     errorText() {
       if (this.isMissing) return 'Item directory is missing!'
       else if (this.isInvalid) {
@@ -565,6 +594,12 @@ export default {
           func: 'showEditModalMatch',
           text: this.$strings.HeaderMatch
         })
+        if (!this.isPodcast) {
+          items.push({
+            func: 'consolidate',
+            text: 'Consolidate'
+          })
+        }
       }
       if ((this.userIsAdminOrUp || this.userCanDelete) && !this.isFile) {
         items.push({
@@ -695,6 +730,7 @@ export default {
       }
 
       this.libraryItem = libraryItem
+      this.selected = this.store.state.globals.selectedMediaItems.some((i) => i.id === this.libraryItemId)
 
       this.$nextTick(() => {
         if (this.$refs.displayTitle) {
@@ -797,6 +833,44 @@ export default {
     showEditModalMatch() {
       // More menu func
       this.$emit('edit', this.libraryItem, 'match')
+    },
+    consolidate() {
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.title, `${this.author} - ${this.title}`]),
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.processing = true
+            const axios = this.$axios || this.$nuxt.$axios
+            axios
+              .$post(`/api/items/${this.libraryItemId}/consolidate`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidate successful')
+                this.$router.push(`/item/${this.libraryItemId}`)
+              })
+              .catch((error) => {
+                console.error('Failed to consolidate', error)
+                if (error.response?.status === 409) {
+                  const data = error.response.data
+                  const author = this.mediaMetadata.authorName?.split(',')[0]?.trim() || 'Unknown Author'
+                  const title = this.mediaMetadata.title || 'Unknown Title'
+                  this.$eventBus.$emit('show-consolidation-conflict', {
+                    item: this._libraryItem,
+                    path: data.path,
+                    folderName: this.$getConsolidatedFolderName(author, title),
+                    existingLibraryItemId: data.existingLibraryItemId
+                  })
+                } else {
+                  this.$toast.error(error.response?.data?.error || error.response?.data || this.$strings.ToastConsolidateFailed || 'Consolidate failed')
+                }
+              })
+              .finally(() => {
+                this.processing = false
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.store.commit('globals/setConfirmPrompt', payload)
     },
     sendToDevice(deviceName) {
       // More menu func
@@ -1093,6 +1167,8 @@ export default {
 
       if (this.$refs.cover && this.bookCoverSrc !== this.placeholderUrl) {
         var { naturalWidth, naturalHeight } = this.$refs.cover
+        this.naturalWidth = naturalWidth
+        this.naturalHeight = naturalHeight
         var aspectRatio = naturalHeight / naturalWidth
         var arDiff = Math.abs(aspectRatio - this.bookCoverAspectRatio)
 

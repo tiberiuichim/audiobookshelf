@@ -17,7 +17,14 @@
     <div v-else-if="isAlternativeBookshelfView" class="w-full mb-24e">
       <template v-for="(shelf, index) in supportedShelves">
         <widgets-item-slider :shelf-id="shelf.id" :key="index + '.'" :items="shelf.entities" :continue-listening-shelf="shelf.id === 'continue-listening' || shelf.id === 'continue-reading'" :type="shelf.type" class="bookshelf-row pl-8e my-6e" @selectEntity="(payload) => selectEntity(payload, index)">
-          <h2 class="font-semibold text-gray-100">{{ $strings[shelf.labelStringKey] }}</h2>
+          <div class="flex items-center">
+            <h2 class="font-semibold text-gray-100">{{ $strings[shelf.labelStringKey] }}</h2>
+            <ui-tooltip v-if="['recently-added', 'recent-series', 'newest-authors', 'series', 'authors'].includes(shelf.id)" :text="viewAllButtonTooltip" direction="top" class="ml-2">
+              <button class="flex items-center justify-center hover:text-yellow-400 opacity-60 hover:opacity-100 transition-opacity" @click.stop="goToShelfFullPage(shelf)">
+                <span class="material-symbols text-xl"> arrow_forward </span>
+              </button>
+            </ui-tooltip>
+          </div>
         </widgets-item-slider>
       </template>
     </div>
@@ -91,9 +98,24 @@ export default {
     },
     isScanningLibrary() {
       return !!this.$store.getters['tasks/getRunningLibraryScanTask'](this.currentLibraryId)
+    },
+    viewAllButtonTooltip() {
+      return this.$strings.ButtonViewAll
     }
   },
   methods: {
+    goToShelfFullPage(shelf) {
+      if (shelf.id === 'recently-added') {
+        this.$store.dispatch('user/updateUserSettings', { orderBy: 'addedAt', orderDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf`)
+      } else if (shelf.id === 'recent-series' || shelf.id === 'series') {
+        this.$store.dispatch('user/updateUserSettings', { seriesSortBy: 'addedAt', seriesSortDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf/series`)
+      } else if (shelf.id === 'newest-authors' || shelf.id === 'authors') {
+        this.$store.dispatch('user/updateUserSettings', { authorSortBy: 'addedAt', authorSortDesc: true })
+        this.$router.push(`/library/${this.currentLibraryId}/bookshelf/authors`)
+      }
+    },
     selectEntity({ entity, shiftKey }, shelfIndex) {
       const shelf = this.shelves[shelfIndex]
       const entityShelfIndex = shelf.entities.findIndex((ent) => ent.id === entity.id)
@@ -135,6 +157,7 @@ export default {
           if (thisEntity) {
             const mediaItem = {
               id: thisEntity.id,
+              libraryId: thisEntity.libraryId,
               mediaType: thisEntity.mediaType,
               hasTracks: thisEntity.mediaType === 'podcast' || thisEntity.media.audioFile || thisEntity.media.numTracks || (thisEntity.media.tracks && thisEntity.media.tracks.length)
             }
@@ -146,6 +169,7 @@ export default {
       } else {
         const mediaItem = {
           id: entity.id,
+          libraryId: entity.libraryId,
           mediaType: entity.mediaType,
           hasTracks: entity.mediaType === 'podcast' || entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)
         }
@@ -155,6 +179,29 @@ export default {
       this.$nextTick(() => {
         this.$eventBus.$emit('item-selected', entity)
       })
+    },
+    selectAll() {
+      const itemsToSelect = []
+      this.supportedShelves.forEach((shelf) => {
+        if (shelf.type === 'book' || shelf.type === 'podcast' || shelf.type === 'episode') {
+          shelf.entities.forEach((entity) => {
+            const mediaItem = {
+              id: entity.id,
+              libraryId: entity.libraryId,
+              mediaType: entity.mediaType,
+              hasTracks: entity.mediaType === 'podcast' || (entity.media && (entity.media.audioFile || entity.media.numTracks || (entity.media.tracks && entity.media.tracks.length)))
+            }
+            itemsToSelect.push(mediaItem)
+          })
+        }
+      })
+
+      if (itemsToSelect.length) {
+        this.$store.commit('globals/addBatchMediaItemsSelected', itemsToSelect)
+        this.$nextTick(() => {
+          this.$eventBus.$emit('item-selected')
+        })
+      }
     },
     async init() {
       this.wrapperClientWidth = this.$refs.wrapper ? this.$refs.wrapper.clientWidth : 0
@@ -482,6 +529,7 @@ export default {
       } else {
         console.error('Error socket not initialized')
       }
+      this.$eventBus.$on('bookshelf_select_all', this.selectAll)
     },
     removeListeners() {
       if (this.$root.socket) {
@@ -499,6 +547,7 @@ export default {
       } else {
         console.error('Error socket not initialized')
       }
+      this.$eventBus.$off('bookshelf_select_all', this.selectAll)
     }
   },
   mounted() {

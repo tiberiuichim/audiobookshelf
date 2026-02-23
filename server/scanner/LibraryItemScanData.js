@@ -211,9 +211,10 @@ class LibraryItemScanData {
       existingLibraryItem.ctime = this.ctimeMs
       this.hasChanges = true
     }
-    if (existingLibraryItem.isMissing) {
-      libraryScan.addLog(LogLevel.DEBUG, `Library item "${existingLibraryItem.relPath}" was missing but now found`)
+    if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
+      libraryScan.addLog(LogLevel.DEBUG, `Library item "${existingLibraryItem.relPath}" was missing or invalid but now found`)
       existingLibraryItem.isMissing = false
+      existingLibraryItem.isInvalid = false
       this.hasChanges = true
     }
 

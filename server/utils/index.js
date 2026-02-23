@@ -171,7 +171,7 @@ module.exports.cleanStringForSearch = (str) => {
 
 const getTitleParts = (title) => {
   if (!title) return ['', null]
-  const prefixesToIgnore = global.ServerSettings.sortingPrefixes || []
+  const prefixesToIgnore = global.ServerSettings?.sortingPrefixes || []
   for (const prefix of prefixesToIgnore) {
     // e.g. for prefix "the". If title is "The Book" return "Book, The"
     if (title.toLowerCase().startsWith(`${prefix} `)) {
@@ -189,6 +189,18 @@ const getTitleParts = (title) => {
  */
 module.exports.getTitleIgnorePrefix = (title) => {
   return getTitleParts(title)[0]
+}
+
+/**
+ * Get normalized title to use for grouping duplicates
+ * Removes non-alphabetic characters (numbers, punctuation, spaces) 
+ * @param {string} title 
+ * @returns {string}
+ */
+module.exports.getNormalizedTitle = (title) => {
+  if (!title) return ''
+  const sortTitle = getTitleParts(title)[0] || title
+  return sortTitle.toLowerCase().replace(/[^\p{L}]/gu, '')
 }
 
 /**

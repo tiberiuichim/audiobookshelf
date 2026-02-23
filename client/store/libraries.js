@@ -119,7 +119,7 @@ export const actions = {
         const issues = data.issues || 0
         const numUserPlaylists = data.numUserPlaylists
 
-        dispatch('user/checkUpdateLibrarySortFilter', library.mediaType, { root: true })
+        dispatch('user/checkUpdateLibrarySortFilter', { mediaType: library.mediaType, libraryChanging }, { root: true })
 
         if (libraryChanging) {
           commit('setCollections', [])

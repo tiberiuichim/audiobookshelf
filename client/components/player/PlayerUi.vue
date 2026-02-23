@@ -203,6 +203,12 @@ export default {
     jumpForward() {
       this.$emit('jumpForward')
     },
+    jumpBackwardMajor() {
+      this.seek(Math.max(this.currentTime - 60, 0))
+    },
+    jumpForwardMajor() {
+      this.seek(Math.min(this.currentTime + 60, this.duration))
+    },
     increaseVolume() {
       if (this.volume >= 1) return
       this.volume = Math.min(1, this.volume + 0.1)
@@ -343,8 +349,12 @@ export default {
     },
     hotkey(action) {
       if (action === this.$hotkeys.AudioPlayer.PLAY_PAUSE) this.playPause()
-      else if (action === this.$hotkeys.AudioPlayer.JUMP_FORWARD) this.jumpForward()
-      else if (action === this.$hotkeys.AudioPlayer.JUMP_BACKWARD) this.jumpBackward()
+      else if (action === this.$hotkeys.AudioPlayer.JUMP_FORWARD || action === this.$hotkeys.AudioPlayer.JUMP_FORWARD_ALT) this.jumpForward()
+      else if (action === this.$hotkeys.AudioPlayer.JUMP_BACKWARD || action === this.$hotkeys.AudioPlayer.JUMP_BACKWARD_ALT) this.jumpBackward()
+      else if (action === this.$hotkeys.AudioPlayer.JUMP_FORWARD_MAJOR) this.jumpForwardMajor()
+      else if (action === this.$hotkeys.AudioPlayer.JUMP_BACKWARD_MAJOR) this.jumpBackwardMajor()
+      else if (action === this.$hotkeys.AudioPlayer.NEXT_CHAPTER) this.goToNext()
+      else if (action === this.$hotkeys.AudioPlayer.PREV_CHAPTER) this.prevChapter()
       else if (action === this.$hotkeys.AudioPlayer.VOLUME_UP) this.increaseVolume()
       else if (action === this.$hotkeys.AudioPlayer.VOLUME_DOWN) this.decreaseVolume()
       else if (action === this.$hotkeys.AudioPlayer.MUTE_UNMUTE) this.toggleMute()

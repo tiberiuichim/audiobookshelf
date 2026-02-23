@@ -96,6 +96,24 @@ async function resizeImage(filePath, outputPath, width, height) {
 }
 module.exports.resizeImage = resizeImage
 
+async function getImageDimensions(filePath) {
+  return new Promise((resolve) => {
+    Ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        Logger.error(`[FfmpegHelpers] ffprobe Error ${err}`)
+        return resolve(null)
+      }
+      const stream = metadata?.streams?.find((s) => s.codec_type === 'video')
+      if (stream) {
+        resolve({ width: stream.width, height: stream.height })
+      } else {
+        resolve(null)
+      }
+    })
+  })
+}
+module.exports.getImageDimensions = getImageDimensions
+
 /**
  *
  * @param {import('../objects/PodcastEpisodeDownload')} podcastEpisodeDownload
@@ -444,9 +462,7 @@ async function mergeAudioFiles(audioTracks, duration, itemCachePath, outputFileP
   const audioCodec = encodingOptions.codec || 'aac'
   const audioChannels = encodingOptions.channels || 2
 
-  // TODO: Updated in 2.2.11 to always encode even if merging multiple m4b. This is because just using the file extension as was being done before is not enough. This can be an option or do more to check if a concat is possible.
-  // const audioRequiresEncode = audioTracks[0].metadata.ext !== '.m4b'
-  const audioRequiresEncode = true
+  const audioRequiresEncode = audioCodec !== 'copy'
 
   const firstTrackIsM4b = audioTracks[0].metadata.ext.toLowerCase() === '.m4b'
   const isOneTrack = audioTracks.length === 1

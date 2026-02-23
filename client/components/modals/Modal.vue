@@ -108,6 +108,13 @@ export default {
       if (this.$store.state.innerModalOpen) return
       if (action === this.$hotkeys.Modal.CLOSE) {
         this.show = false
+      } else if (action === this.$hotkeys.Modal.SUBMIT) {
+        const activeElement = document.activeElement
+        // Don't submit if we are in a textarea or certain inputs
+        if (activeElement && ['TEXTAREA'].includes(activeElement.tagName)) {
+          return
+        }
+        this.$emit('submit')
       }
     },
     setShow() {

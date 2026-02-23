@@ -1,23 +1,36 @@
 <template>
-  <modals-modal ref="modal" v-model="show" name="move-to-library" :width="400" :height="'unset'" :processing="processing">
+  <modals-modal ref="modal" v-model="show" name="move-to-library" :width="500" :height="'unset'" :processing="processing" @submit="moveItems">
     <template #outer>
       <div class="absolute top-0 left-0 p-5 w-2/3 overflow-hidden">
         <p class="text-3xl text-white truncate">{{ $strings.LabelMoveToLibrary }}</p>
       </div>
     </template>
     <div class="px-6 py-8 w-full text-sm rounded-lg bg-bg shadow-lg border border-black-300 overflow-y-auto overflow-x-hidden" style="max-height: 80vh">
-      <template v-if="libraryItem">
+      <template v-if="hasItems">
         <div class="w-full mb-4">
-          <p class="text-gray-300 mb-2">{{ $strings.LabelMovingItem }}:</p>
-          <p class="text-lg font-semibold text-white">{{ itemTitle }}</p>
+          <p class="text-gray-300 mb-2">{{ isBatchMode ? $strings.LabelMovingItems : $strings.LabelMovingItem }}:</p>
+          <p v-if="isBatchMode" class="text-lg font-semibold text-white">{{ $getString('MessageItemsSelected', [selectedItems.length]) }}</p>
+          <p v-else class="text-lg font-semibold text-white">{{ itemTitle }}</p>
         </div>
 
         <template v-if="targetLibraries.length">
+          <!-- Library shortcut buttons -->
           <div class="w-full mb-4">
-            <label class="px-1 text-sm font-semibold block mb-1">{{ $strings.LabelSelectTargetLibrary }}</label>
-            <ui-dropdown v-model="selectedLibraryId" :items="libraryOptions" />
+            <label class="px-1 text-sm font-semibold block mb-2">{{ $strings.LabelSelectTargetLibrary }}</label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="lib in libraryShortcuts"
+                :key="lib.id"
+                class="library-shortcut-btn"
+                :class="{ 'active': selectedLibraryId === lib.id }"
+                @click="selectLibrary(lib)"
+              >
+                <span>{{ lib.before }}</span><span class="shortcut-char">{{ lib.shortcutChar }}</span><span>{{ lib.after }}</span>
+              </button>
+            </div>
           </div>
 
+          <!-- Folder picker (only when selected library has multiple folders) -->
           <div v-if="selectedLibraryFolders.length > 1" class="w-full mb-4">
             <label class="px-1 text-sm font-semibold block mb-1">{{ $strings.LabelSelectTargetFolder }}</label>
             <ui-dropdown v-model="selectedFolderId" :items="folderOptions" />
@@ -33,7 +46,7 @@
 
       <div class="flex items-center pt-4">
         <div class="grow" />
-        <ui-btn v-if="targetLibraries.length" color="success" :disabled="!selectedLibraryId" small @click="moveItem">{{ $strings.ButtonMove }}</ui-btn>
+        <ui-btn v-if="targetLibraries.length && hasItems" color="success" :disabled="!selectedLibraryId" small @click="moveItems">{{ $strings.ButtonMove }}</ui-btn>
       </div>
     </div>
   </modals-modal>
@@ -53,6 +66,9 @@ export default {
       handler(newVal) {
         if (newVal) {
           this.init()
+          window.addEventListener('keydown', this.keydownHandler)
+        } else {
+          window.removeEventListener('keydown', this.keydownHandler)
         }
       }
     },
@@ -74,29 +90,66 @@ export default {
         this.$store.commit('globals/setShowMoveToLibraryModal', val)
       }
     },
+    // Single item mode (from context menu on a single item)
     libraryItem() {
       return this.$store.state.selectedLibraryItem
+    },
+    // Batch mode (from batch selection)
+    selectedItems() {
+      return this.$store.state.globals.selectedMediaItems || []
+    },
+    isBatchMode() {
+      // Use batch mode if we have multiple selected items OR no single item selected
+      return this.selectedItems.length > 0 && !this.libraryItem
+    },
+    hasItems() {
+      return this.isBatchMode ? this.selectedItems.length > 0 : !!this.libraryItem
     },
     itemTitle() {
       return this.libraryItem?.media?.title || this.libraryItem?.media?.metadata?.title || ''
     },
     currentLibraryId() {
-      return this.libraryItem?.libraryId
+      if (this.isBatchMode && this.selectedItems.length > 0) {
+        return this.selectedItems[0].libraryId
+      }
+      return this.libraryItem?.libraryId || this.$store.state.libraries.currentLibraryId
     },
     currentMediaType() {
-      // Get media type from the current library
-      const currentLibrary = this.$store.state.libraries.libraries.find((l) => l.id === this.currentLibraryId)
-      return currentLibrary?.mediaType || 'book'
+      if (this.isBatchMode && this.selectedItems.length > 0) {
+        return this.selectedItems[0].mediaType
+      }
+      return this.libraryItem?.mediaType || 'book'
     },
     targetLibraries() {
       // Filter libraries to only show compatible ones (same media type, different library)
       return this.$store.state.libraries.libraries.filter((l) => l.mediaType === this.currentMediaType && l.id !== this.currentLibraryId)
     },
-    libraryOptions() {
-      return this.targetLibraries.map((lib) => ({
-        text: lib.name,
-        value: lib.id
-      }))
+    libraryShortcuts() {
+      const used = new Set()
+      return this.targetLibraries.map((lib) => {
+        const name = lib.name
+        let shortcutIndex = -1
+        for (let i = 0; i < name.length; i++) {
+          const letter = name[i].toLowerCase()
+          if (/[a-z]/.test(letter) && !used.has(letter)) {
+            used.add(letter)
+            shortcutIndex = i
+            break
+          }
+        }
+        if (shortcutIndex === -1) {
+          return { id: lib.id, name, before: name, shortcutChar: '', after: '', shortcutKey: null, folders: lib.folders || [] }
+        }
+        return {
+          id: lib.id,
+          name,
+          before: name.slice(0, shortcutIndex),
+          shortcutChar: name[shortcutIndex],
+          after: name.slice(shortcutIndex + 1),
+          shortcutKey: name[shortcutIndex].toLowerCase(),
+          folders: lib.folders || []
+        }
+      })
     },
     selectedLibrary() {
       return this.targetLibraries.find((l) => l.id === this.selectedLibraryId)
@@ -112,7 +165,27 @@ export default {
     }
   },
   methods: {
-    async moveItem() {
+    keydownHandler(e) {
+      // Ignore events when a form element inside the modal is focused (e.g., folder dropdown)
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return
+
+      const key = e.key.toLowerCase()
+      const match = this.libraryShortcuts.find((lib) => lib.shortcutKey === key)
+      if (match) {
+        e.preventDefault()
+        this.selectLibrary(match)
+      }
+    },
+    selectLibrary(lib) {
+      this.selectedLibraryId = lib.id
+      // Auto-trigger move if only one folder
+      const folders = lib.folders || this.selectedLibraryFolders
+      if (folders.length <= 1) {
+        this.$nextTick(() => this.moveItems())
+      }
+    },
+    async moveItems() {
       if (!this.selectedLibraryId) return
 
       const payload = {
@@ -125,13 +198,36 @@ export default {
 
       this.processing = true
       try {
-        const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
-        if (response.success) {
-          this.$toast.success(this.$strings.ToastItemMoved)
-          this.show = false
+        if (this.isBatchMode) {
+          // Batch move
+          payload.libraryItemIds = this.selectedItems.map((i) => i.id)
+          const response = await this.$axios.$post('/api/items/batch/move', payload)
+          if (response.successCount > 0) {
+            this.$toast.success(this.$getString('ToastItemsMoved', [response.successCount]))
+          }
+          if (response.failCount > 0) {
+            this.$toast.warning(this.$getString('ToastItemsMoveFailed', [response.failCount]))
+          }
+          // Store the current library ID before clearing the selected items so we know where to redirect to
+          const redirectLibraryId = this.currentLibraryId
+          
+          // Clear selection after batch move
+          this.$store.commit('globals/resetSelectedMediaItems')
+          if (response.successCount > 0) {
+            this.$router.push(`/library/${redirectLibraryId}`)
+          }
+        } else {
+          // Single item move
+          const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
+          if (response.success) {
+            this.$toast.success(this.$strings.ToastItemMoved)
+            this.$store.commit('setSelectedLibraryItem', null)
+            this.$router.push(`/library/${this.currentLibraryId}`)
+          }
         }
+        this.show = false
       } catch (error) {
-        console.error('Failed to move item', error)
+        console.error('Failed to move item(s)', error)
         const errorMsg = error.response?.data || this.$strings.ToastItemMoveFailed
         this.$toast.error(errorMsg)
       } finally {
@@ -147,6 +243,41 @@ export default {
       }
     }
   },
-  mounted() {}
+  beforeDestroy() {
+    window.removeEventListener('keydown', this.keydownHandler)
+  }
 }
 </script>
+
+<style scoped>
+.library-shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.375rem;
+  border: 1px solid #4b5563;
+  background-color: #1f2937;
+  color: #d1d5db;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.library-shortcut-btn:hover {
+  background-color: #374151;
+  border-color: #6b7280;
+  color: #f9fafb;
+}
+.library-shortcut-btn.active {
+  background-color: #1e3a5f;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+.shortcut-char {
+  text-decoration: underline;
+  color: #60a5fa;
+  font-weight: 600;
+}
+.library-shortcut-btn.active .shortcut-char {
+  color: #bfdbfe;
+}
+</style>

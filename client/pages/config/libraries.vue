@@ -32,12 +32,32 @@ export default {
     }
   },
   computed: {},
+  watch: {
+    '$route.query.edit': {
+      handler(val) {
+        if (val) {
+          const library = this.$store.state.libraries.libraries.find((lib) => lib.id === val)
+          if (library) {
+            this.setShowLibraryModal(library)
+          }
+        }
+      }
+    }
+  },
   methods: {
     setShowLibraryModal(selectedLibrary) {
       this.selectedLibrary = selectedLibrary
       this.showLibraryModal = true
     }
   },
-  mounted() {}
+  mounted() {
+    const editLibraryId = this.$route.query.edit
+    if (editLibraryId) {
+      const library = this.$store.state.libraries.libraries.find((lib) => lib.id === editLibraryId)
+      if (library) {
+        this.setShowLibraryModal(library)
+      }
+    }
+  }
 }
 </script>

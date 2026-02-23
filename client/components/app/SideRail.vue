@@ -5,9 +5,10 @@
 
     <div id="siderail-buttons-container" role="navigation" aria-label="Library Navigation" :class="{ 'player-open': streamLibraryItem }" class="w-full overflow-y-auto overflow-x-hidden">
       <nuxt-link :to="`/library/${currentLibraryId}`" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="homePage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">home</span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonHome }}</p>
+        <ui-tooltip :text="`${$strings.ButtonHome} (${$hotkeys.Navigation.HOME.replace(/Key/g, '').replace(/-/g, '+')})`" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">home</span>
+          <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonHome }}</p>
+        </ui-tooltip>
 
         <div v-show="homePage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
@@ -21,25 +22,28 @@
       </nuxt-link>
 
       <nuxt-link :to="`/library/${currentLibraryId}/bookshelf`" class="w-full h-20 flex flex-col items-center justify-center text-white border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="showLibrary ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">import_contacts</span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonLibrary }}</p>
+        <ui-tooltip :text="`${$strings.ButtonLibrary} (${$hotkeys.Navigation.LIBRARY.replace(/Key/g, '').replace(/-/g, '+')})`" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">import_contacts</span>
+          <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonLibrary }}</p>
+        </ui-tooltip>
 
         <div v-show="showLibrary" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/series`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isSeriesPage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">view_column</span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonSeries }}</p>
+        <ui-tooltip :text="`${$strings.ButtonSeries} (${$hotkeys.Navigation.SERIES.replace(/Key/g, '').replace(/-/g, '+')})`" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">view_column</span>
+          <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonSeries }}</p>
+        </ui-tooltip>
 
         <div v-show="isSeriesPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/collections`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="paramId === 'collections' ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">&#xe431;</span>
-
-        <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonCollections }}</p>
+        <ui-tooltip :text="`${$strings.ButtonCollections} (${$hotkeys.Navigation.COLLECTIONS.replace(/Key/g, '').replace(/-/g, '+')})`" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">&#xe431;</span>
+          <p class="pt-1.5 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonCollections }}</p>
+        </ui-tooltip>
 
         <div v-show="paramId === 'collections'" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
@@ -53,9 +57,10 @@
       </nuxt-link>
 
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/authors`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isAuthorsPage ? 'bg-primary/80' : 'bg-bg/60'">
-        <span class="material-symbols text-2xl">groups</span>
-
-        <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonAuthors }}</p>
+        <ui-tooltip :text="`${$strings.ButtonAuthors} (${$hotkeys.Navigation.AUTHORS.replace(/Key/g, '').replace(/-/g, '+')})`" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">groups</span>
+          <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.ButtonAuthors }}</p>
+        </ui-tooltip>
 
         <div v-show="isAuthorsPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>

@@ -1,5 +1,7 @@
 # Audiobookshelf Development Project
 
+**CRITICAL INSTRUCTION FOR ALL AI AGENTS**: For *every* new feature, script, or development task, you **MUST ALWAYS** create an artifact specification file in `artifacts/YYYY-MM-DD/` to document your work. Never start feature development without an artifact specification. See the "Artifact Specifications" section below for details.
+
 ## Overview
 
 This is a **local development deployment** of [Audiobookshelf](https://audiobookshelf.org/) - a self-hosted audiobook and podcast server. The project is cloned from the original repository and configured for personal enhancements and development.
@@ -127,6 +129,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t advplyr/audiobookshelf
 - The `data/` directory contains test audiobooks and is git-ignored
 - Database is SQLite-based, stored in config location (not in repo)
 - Client must be regenerated after frontend changes: `(cd client; npm run generate)`
+- When running git commands that might invoke a pager (like `git diff` or `git log`), use `PAGER=cat git <command>` or `git --no-pager <command>` to avoid the `git-split-diffs: not found` error.
 
 ## API Documentation
 
@@ -139,6 +142,13 @@ OpenAPI documentation available at `docs/openapi.json`
 - Sequelize models for database operations
 - No comments in code unless explicitly requested
 
+### UI Components & Modals
+
+- **Modals**: Do **NOT** use `<ui-modal>`. The correct component for creating modals in this project is `<modals-modal>`.
+  - When creating a new modal, it must be imported/registered in `client/layouts/default.vue` (e.g., `<modals-my-new-modal />`).
+  - The modal title should be placed inside a `<template #outer>` slot, following the design pattern of other modals.
+  - State for whether the modal is open or closed should be managed in `client/store/globals.js` and toggled via a Vuex mutation.
+
 ## Database Migrations
 
 Located in `server/migrations/`. Key migrations include:
@@ -147,6 +157,8 @@ Located in `server/migrations/`. Key migrations include:
 - v2.17.x - Foreign key constraints and indices
 - v2.19.x - Library item improvements
 - v2.26.0 - Authentication tables
+
+**CRITICAL**: If you execute or create a new database migration, you MUST bump the `version` in `package.json` to match the migration version (e.g., if you create `v2.32.9-my-migration.js`, you must update `package.json` version to `"2.32.9"`).
 
 Run migrations automatically on server startup.
 
@@ -204,6 +216,50 @@ npm run dev
 ```
 
 The server will resolve all paths relative to the current working directory.
+
+## Artifact Specifications
+
+Each new feature or major change should be documented in an artifact specification file. These files serve as the planning and record of implementation for the feature.
+
+### Organization
+
+- **Location**: All artifact specifications are stored in the `artifacts/` directory.
+- **Index**: You can look up previous artifact specification files in `artifacts/index.md`.
+- **Dated Folders**: Specifications **MUST** be placed in a subfolder named by the current date (e.g., `artifacts/YYYY-MM-DD/`).
+- **CRITICAL**: Do **NOT** create specification files directly in the `artifacts/` root. Always use the dated folder.
+- **Filename**: Use descriptive names for the specification files (e.g., `move-to-library-specification.md`).
+
+### Managing Folders
+
+A `Makefile` is provided in the `artifacts/` directory to quickly set up the folder for the current day. **AI Assistants should always run this command first** if the today folder does not exist:
+
+```bash
+cd artifacts
+make  # Runs the 'today' target to create the dated folder (e.g. artifacts/2026-02-17)
+```
+
+### Purpose
+
+Artifact specifications should serve as a source of truth for the feature's lifecycle. A high-quality specification includes:
+
+1.  **Detailed Overview**: Clear summary of the user-facing functionality.
+2.  **API & Data Contracts**: Explicit documentation of new endpoints (methods, paths, payloads) and schema changes.
+3.  **Traceability (Files Modified)**: A table of all files touched in the implementation, categorized (e.g., Backend, Frontend, Docs).
+4.  **Architectural Decisions**: Explanation of *why* certain patterns were used (e.g., shared utility functions, state management choices).
+5.  **Localization**: Tracking of new string keys or translation updates.
+6.  **Verification Plan**: Concrete testing steps (manual or automated) to verify the implementation.
+7.  **Limitations & Future Work**: Explicitly stating what is *not* supported or known edge cases that weren't addressed.
+
+### Best Practices
+
+- **Use for Every Feature**: For *every* new feature or significant development, start by creating a specification file in today's dated folder. **You MUST produce an artifact specification file for ALL development work.**
+- **Index Management**: **It is CRITICAL that you update `artifacts/index.md` whenever you create a new artifact specification file.** The index must always be kept up to date.
+- **Initialization**: Always run `make` (or `make today`) in the `artifacts/` directory before starting work on a new specification to ensure the correct dated folder exists.
+- **Relevant Naming**: Name the specification file according to the task/feature (e.g., `feature_name_specification.md`).
+- **Update as you go**: The artifact should be updated during implementation if the plan changes.
+- **Be Specific**: Avoid vague descriptions. If a function is moved to a controller, name the function and the controller.
+- **Use Tables**: Tables are great for listing files or comparing before/after states.
+- **Include Code Snippets**: For API definitions or complex logic flows, short code/JSON snippets are highly encouraged.
 
 ## Related Documentation
 

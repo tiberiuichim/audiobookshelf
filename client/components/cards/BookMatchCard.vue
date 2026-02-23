@@ -1,6 +1,6 @@
 <template>
   <div v-if="book" class="w-full border-b border-gray-700 pb-2">
-    <div class="flex py-1 hover:bg-gray-300/10 cursor-pointer" @click="selectMatch">
+    <div class="flex py-1 hover:bg-gray-300/10 cursor-pointer group" @click="selectMatch">
       <div class="min-w-12 max-w-12 md:min-w-20 md:max-w-20">
         <div class="w-full bg-primary">
           <img v-if="selectedCover" :src="selectedCover" class="h-full w-full object-contain" />
@@ -21,7 +21,10 @@
             <p v-if="book.duration" class="text-gray-400 text-xs">{{ $strings.LabelDuration }}: {{ $elapsedPrettyExtended(bookDuration, false) }} {{ bookDurationComparison }}</p>
           </div>
           <div class="grow" />
-          <div v-if="book.matchConfidence" class="rounded-full px-2 py-1 text-xs whitespace-nowrap text-white" :class="book.matchConfidence > 0.95 ? 'bg-success/80' : 'bg-info/80'">{{ $strings.LabelMatchConfidence }}: {{ (book.matchConfidence * 100).toFixed(0) }}%</div>
+          <div class="flex items-center gap-2">
+            <ui-btn small color="bg-primary hover:bg-bg" class="hidden group-hover:block" @click.stop="reviewMatch">{{ $strings.ButtonReviewAndEdit || 'Review & Edit' }}</ui-btn>
+            <div v-if="book.matchConfidence" class="rounded-full px-2 py-1 text-xs whitespace-nowrap text-white" :class="book.matchConfidence > 0.95 ? 'bg-success/80' : 'bg-info/80'">{{ $strings.LabelMatchConfidence }}: {{ (book.matchConfidence * 100).toFixed(0) }}%</div>
+          </div>
         </div>
 
         <div v-if="book.series?.length" class="flex py-1 -mx-1">
@@ -95,6 +98,11 @@ export default {
       const book = { ...this.book }
       book.cover = this.selectedCover
       this.$emit('select', book)
+    },
+    reviewMatch() {
+      const book = { ...this.book }
+      book.cover = this.selectedCover
+      this.$emit('review', book)
     },
     clickCover(cover) {
       this.selectedCover = cover

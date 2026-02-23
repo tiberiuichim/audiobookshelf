@@ -36,11 +36,23 @@
           </ui-tooltip>
         </nuxt-link>
 
+        <nuxt-link v-if="userIsAdminOrUp && currentLibrary" :to="`/config/libraries?edit=${currentLibrary.id}`" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1">
+          <ui-tooltip :text="$strings.HeaderUpdateLibrary" direction="bottom" class="flex items-center">
+            <span class="material-symbols text-2xl" aria-label="Edit Library" role="button">&#xe3c9;</span>
+          </ui-tooltip>
+        </nuxt-link>
+
         <nuxt-link v-if="userIsAdminOrUp" to="/config" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1">
           <ui-tooltip :text="$strings.HeaderSettings" direction="bottom" class="flex items-center">
             <span class="material-symbols text-2xl" aria-label="System Settings" role="button">&#xe8b8;</span>
           </ui-tooltip>
         </nuxt-link>
+
+        <div class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1" @click="$store.commit('globals/setShowShortcutsModal', true)">
+          <ui-tooltip text="Keyboard Shortcuts (?)" direction="bottom" class="flex items-center">
+            <span class="material-symbols text-2xl" aria-label="Keyboard Shortcuts" role="button">keyboard</span>
+          </ui-tooltip>
+        </div>
 
         <nuxt-link to="/account" class="relative w-9 h-9 md:w-32 bg-fg border border-gray-500 rounded-sm shadow-xs ml-1.5 sm:ml-3 md:ml-5 md:pl-3 md:pr-10 py-2 text-left sm:text-sm cursor-pointer hover:bg-bg/40" aria-haspopup="listbox" aria-expanded="true">
           <span class="items-center hidden md:flex">
@@ -75,7 +87,7 @@
 
         <ui-context-menu-dropdown v-if="contextMenuItems.length && !processingBatch" :items="contextMenuItems" class="ml-1" @action="contextMenuAction" />
 
-        <ui-tooltip :text="$strings.LabelDeselectAll" direction="bottom" class="flex items-center">
+        <ui-tooltip :text="`${$strings.LabelDeselectAll} (${$hotkeys.Batch.CANCEL.replace(/Key/g, '').replace(/-/g, '+')})`" direction="bottom" class="flex items-center">
           <span class="material-symbols text-3xl px-4 hover:text-gray-100 cursor-pointer" :class="processingBatch ? 'text-gray-400' : ''" @click="cancelSelectionMode">close</span>
         </ui-tooltip>
       </div>
@@ -122,7 +134,14 @@ export default {
       return this.selectedMediaItems.length
     },
     selectedMediaItems() {
-      return this.$store.state.globals.selectedMediaItems
+      return this.$store.state.globals.selectedMediaItems || []
+    },
+    isItemPage() {
+      return this.$route.name === 'item-id'
+    },
+    isBookshelfPage() {
+      if (!this.$route.name) return false
+      return this.$route.name.startsWith('library-library')
     },
     selectedMediaItemsArePlayable() {
       return !this.selectedMediaItems.some((i) => !i.hasTracks)
@@ -164,7 +183,8 @@ export default {
       const options = [
         {
           text: this.$strings.ButtonQuickMatch,
-          action: 'quick-match'
+          action: 'quick-match',
+          shortcut: this.$hotkeys.Batch.MATCH
         }
       ]
 
@@ -180,6 +200,12 @@ export default {
         action: 'rescan'
       })
 
+      options.push({
+        text: 'Reset Metadata',
+        action: 'reset-metadata',
+        shortcut: this.$hotkeys.Batch.RESET
+      })
+
       // The limit of 50 is introduced because of the URL length. Each id has 36 chars, so 36 * 40 = 1440
       // + 40 , separators = 1480 chars + base path 280 chars = 1760 chars. This keeps the URL under 2000 chars even with longer domains
       if (this.selectedMediaItems.length <= 40) {
@@ -187,6 +213,32 @@ export default {
           text: this.$strings.LabelDownload,
           action: 'download'
         })
+      }
+
+      // Move to library option - only show if user has delete permission (same as delete)
+      if (this.userCanDelete) {
+        options.push({
+          text: this.$strings.LabelMoveToLibrary,
+          action: 'move-to-library',
+          shortcut: this.$hotkeys.Batch.MOVE
+        })
+
+        // Merge option - only for books and if multiple selected
+        if (this.isBookLibrary && this.selectedMediaItems.length > 1) {
+          options.push({
+            text: this.$strings.LabelMerge,
+            action: 'merge',
+            shortcut: this.$hotkeys.Batch.MERGE
+          })
+        }
+
+        if (this.isBookLibrary) {
+          options.push({
+            text: 'Consolidate',
+            action: 'consolidate',
+            shortcut: this.$hotkeys.Batch.CONSOLIDATE
+          })
+        }
       }
 
       return options
@@ -226,7 +278,124 @@ export default {
         this.batchRescan()
       } else if (action === 'download') {
         this.batchDownload()
+      } else if (action === 'move-to-library') {
+        this.batchMoveToLibrary()
+      } else if (action === 'merge') {
+        this.batchMerge()
+      } else if (action === 'consolidate') {
+        this.batchConsolidate()
+      } else if (action === 'reset-metadata') {
+        this.batchResetMetadata()
       }
+    },
+    batchConsolidate() {
+      const payload = {
+        message: this.$getString('MessageConfirmConsolidate', [this.$getString('MessageItemsSelected', [this.numMediaItemsSelected]), 'Author - Title']),
+        checkboxLabel: 'Merge contents on conflict',
+        checkboxType: 'checkbox',
+        callback: (confirmed, merge) => {
+          if (confirmed) {
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/consolidate', {
+                libraryItemIds: this.selectedMediaItems.map((i) => i.id),
+                merge
+              })
+              .then((data) => {
+                if (data.success) {
+                  this.$toast.success(this.$strings.ToastBatchConsolidateSuccess)
+                } else {
+                  const numFailed = data.results.filter((r) => !r.success).length
+                  this.$toast.warning(`${numFailed} items failed to consolidate. They may already exist or have other errors.`)
+                }
+
+                if (this.numMediaItemsSelected === 1 && data.success) {
+                  this.$router.push(`/item/${this.selectedMediaItems[0].id}`)
+                }
+                this.cancelSelectionMode()
+              })
+              .catch((error) => {
+                console.error('Batch consolidation failed', error)
+                const errorMsg = error.response?.data || this.$strings.ToastBatchConsolidateFailed
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    batchResetMetadata() {
+      const payload = {
+        message: `Are you sure you want to reset metadata for ${this.numMediaItemsSelected} items? This will remove metadata files and re-scan the items from files.`,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/reset-metadata', {
+                libraryItemIds: this.selectedMediaItems.map((i) => i.id)
+              })
+              .then(() => {
+                this.$toast.success('Batch reset metadata successful')
+                this.cancelSelectionMode()
+              })
+              .catch((error) => {
+                console.error('Batch reset metadata failed', error)
+                const errorMsg = error.response?.data || 'Batch reset metadata failed'
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    batchMerge() {
+      const payload = {
+        message: this.$strings.MessageConfirmBatchMerge,
+        callback: (confirmed) => {
+          if (confirmed) {
+            const libraryItemIds = this.selectedMediaItems.map((i) => i.id)
+            this.$store.commit('setProcessingBatch', true)
+            this.$axios
+              .$post('/api/items/batch/merge', { libraryItemIds })
+              .then((data) => {
+                if (data.success) {
+                  this.$toast.success(this.$strings.ToastBatchMergeSuccess)
+                  if (data.mergedItemId) {
+                    this.$router.push(`/item/${data.mergedItemId}`)
+                  }
+                } else {
+                  this.$toast.warning(this.$strings.ToastBatchMergePartiallySuccess)
+                }
+                this.$store.commit('globals/resetSelectedMediaItems', [])
+                this.$eventBus.$emit('bookshelf_clear_selection')
+              })
+              .catch((error) => {
+                console.error('Batch merge failed', error)
+                const errorMsg = error.response.data || this.$strings.ToastBatchMergeFailed
+                this.$toast.error(errorMsg)
+              })
+              .finally(() => {
+                this.$store.commit('setProcessingBatch', false)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    batchMoveToLibrary() {
+      // Clear any single library item that might be lingering
+      this.$store.commit('setSelectedLibraryItem', null)
+      // Open the move to library modal - it will pick up items from selectedMediaItems
+      this.$store.commit('globals/setShowMoveToLibraryModal', true)
     },
     async batchRescan() {
       const payload = {
@@ -375,13 +544,88 @@ export default {
     },
     batchAutoMatchClick() {
       this.$store.commit('globals/setShowBatchQuickMatchModal', true)
+    },
+    getHotkeyName(e) {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return null
+      
+      var keyCode = e.keyCode || e.which
+      if (!this.$keynames[keyCode]) return null
+
+      var name = this.$keynames[keyCode]
+      if (e.ctrlKey || e.metaKey) name = 'Ctrl-' + name
+      if (e.altKey) name = 'Alt-' + name
+      if (e.shiftKey) name = 'Shift-' + name
+      return name
+    },
+    handleKeyDown(e) {
+      const name = this.getHotkeyName(e)
+      if (!name) return
+
+      if (name === this.$hotkeys.Batch.SELECT_ALL) {
+        if (this.isBookshelfPage) {
+          e.preventDefault()
+          this.$eventBus.$emit('bookshelf_select_all')
+        }
+      } else if (name === this.$hotkeys.Batch.CONSOLIDATE) {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchConsolidate()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_consolidate')
+        }
+      } else if (name === this.$hotkeys.Batch.MERGE || name === this.$hotkeys.Batch.MOVE) {
+        e.preventDefault()
+        if (name === this.$hotkeys.Batch.MERGE && this.numMediaItemsSelected > 1) {
+          this.batchMerge()
+        } else if (name === this.$hotkeys.Batch.MOVE) {
+          if (this.numMediaItemsSelected > 0) {
+            this.batchMoveToLibrary()
+          } else if (this.isItemPage) {
+            this.$eventBus.$emit('item_shortcut_move')
+          }
+        }
+      } else if (name === this.$hotkeys.Batch.RESET) {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchResetMetadata()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_reset')
+        }
+      } else if (name === this.$hotkeys.Batch.MATCH) {
+        e.preventDefault()
+        if (this.numMediaItemsSelected > 0) {
+          this.batchAutoMatchClick()
+        } else if (this.isItemPage) {
+          this.$eventBus.$emit('item_shortcut_match')
+        }
+      } else if (this.currentLibrary?.id) {
+        const libId = this.currentLibrary.id
+        if (name === this.$hotkeys.Navigation.HOME) {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}`)
+        } else if (name === this.$hotkeys.Navigation.LIBRARY) {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf`)
+        } else if (name === this.$hotkeys.Navigation.SERIES) {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/series`)
+        } else if (name === this.$hotkeys.Navigation.COLLECTIONS) {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/collections`)
+        } else if (name === this.$hotkeys.Navigation.AUTHORS) {
+          e.preventDefault()
+          this.$router.push(`/library/${libId}/bookshelf/authors`)
+        }
+      }
     }
   },
   mounted() {
     this.$eventBus.$on('bookshelf-total-entities', this.setBookshelfTotalEntities)
+    window.addEventListener('keydown', this.handleKeyDown)
   },
   beforeDestroy() {
     this.$eventBus.$off('bookshelf-total-entities', this.setBookshelfTotalEntities)
+    window.removeEventListener('keydown', this.handleKeyDown)
   }
 }
 </script>

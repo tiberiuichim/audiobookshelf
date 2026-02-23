@@ -3,7 +3,7 @@ const { DataTypes, Model } = require('sequelize')
 const fsExtra = require('../libs/fsExtra')
 const Logger = require('../Logger')
 const libraryFilters = require('../utils/queries/libraryFilters')
-const { filePathToPOSIX, getFileTimestampsWithIno } = require('../utils/fileUtils')
+const { filePathToPOSIX, getFileTimestampsWithIno, sanitizeFilename } = require('../utils/fileUtils')
 const LibraryFile = require('../objects/files/LibraryFile')
 const Book = require('./Book')
 const Podcast = require('./Podcast')
@@ -77,6 +77,8 @@ class LibraryItem extends Model {
     this.title // Only used for sorting
     /** @type {string} */
     this.titleIgnorePrefix // Only used for sorting
+    /** @type {string} */
+    this.titleNormalized // Only used for sorting
     /** @type {string} */
     this.authorNamesFirstLast // Only used for sorting
     /** @type {string} */
@@ -687,8 +689,13 @@ class LibraryItem extends Model {
         extraData: DataTypes.JSON,
         title: DataTypes.STRING,
         titleIgnorePrefix: DataTypes.STRING,
+        titleNormalized: DataTypes.STRING,
         authorNamesFirstLast: DataTypes.STRING,
-        authorNamesLastFirst: DataTypes.STRING
+        authorNamesLastFirst: DataTypes.STRING,
+        isNotConsolidated: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: false
+        }
       },
       {
         sequelize,
@@ -714,6 +721,9 @@ class LibraryItem extends Model {
           },
           {
             fields: ['libraryId', 'mediaType', { name: 'titleIgnorePrefix', collate: 'NOCASE' }]
+          },
+          {
+            fields: ['libraryId', 'mediaType', { name: 'titleNormalized', collate: 'NOCASE' }]
           },
           {
             fields: ['libraryId', 'mediaType', { name: 'authorNamesFirstLast', collate: 'NOCASE' }]
@@ -785,6 +795,24 @@ class LibraryItem extends Model {
       if (media) {
         media.destroy()
       }
+    })
+
+    LibraryItem.addHook('beforeSave', (instance) => {
+      if (instance.media) {
+        instance.title = instance.media.title
+        instance.titleIgnorePrefix = instance.media.titleIgnorePrefix
+        instance.titleNormalized = instance.media.titleNormalized
+        if (instance.isBook) {
+          if (instance.media.authors !== undefined) {
+            instance.authorNamesFirstLast = instance.media.authorName
+            instance.authorNamesLastFirst = instance.media.authorNameLF
+          }
+        } else if (instance.isPodcast) {
+          instance.authorNamesFirstLast = instance.media.author
+          instance.authorNamesLastFirst = instance.media.author
+        }
+      }
+      instance.isNotConsolidated = instance.checkIsNotConsolidated()
     })
   }
 
@@ -916,6 +944,38 @@ class LibraryItem extends Model {
     return this.libraryFiles.map((lf) => new LibraryFile(lf).toJSON())
   }
 
+  checkIsNotConsolidated() {
+    if (!this.isBook) return false
+    if (this.isFile) return true
+
+    let author = null
+    let title = null
+
+    if (this.media && this.isBook) {
+      author = this.media.authorName
+      title = this.media.title
+    }
+
+    author = author || this.authorNamesFirstLast || 'Unknown Author'
+    title = title || this.title || 'Unknown Title'
+
+    const firstAuthor = author.split(',')[0].trim() || 'Unknown Author'
+    const folderName = LibraryItem.getConsolidatedFolderName(firstAuthor, title)
+
+    const cleanPath = filePathToPOSIX(this.path || '').replace(/\/$/, '')
+    const currentFolderName = Path.posix.basename(cleanPath)
+
+    if (currentFolderName !== folderName) return true
+
+    // Check if it is in a subfolder
+    const relPathPOSIX = filePathToPOSIX(this.relPath || '').replace(/\/$/, '')
+    return relPathPOSIX !== currentFolderName
+  }
+
+  static getConsolidatedFolderName(author, title) {
+    return sanitizeFilename(`${author} - ${title}`)
+  }
+
   toOldJSON() {
     if (!this.media) {
       throw new Error(`[LibraryItem] Cannot convert to old JSON without media for library item "${this.id}"`)
@@ -939,6 +999,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSON(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
@@ -967,6 +1028,7 @@ class LibraryItem extends Model {
       updatedAt: this.updatedAt.valueOf(),
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSONMinified(),
       numFiles: this.libraryFiles.length,
@@ -993,6 +1055,7 @@ class LibraryItem extends Model {
       scanVersion: this.lastScanVersion,
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
+      isNotConsolidated: !!this.isNotConsolidated,
       mediaType: this.mediaType,
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database

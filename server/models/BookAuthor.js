@@ -27,13 +27,15 @@ class BookAuthor extends Model {
    * Get number of books for author
    *
    * @param {string} authorId
+   * @param {import('sequelize').Transaction} [transaction]
    * @returns {Promise<number>}
    */
-  static getCountForAuthor(authorId) {
+  static getCountForAuthor(authorId, transaction = null) {
     return this.count({
       where: {
         authorId
-      }
+      },
+      transaction
     })
   }
 

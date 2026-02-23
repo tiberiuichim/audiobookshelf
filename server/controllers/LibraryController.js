@@ -1375,6 +1375,72 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/update-consolidation
+   * Update isNotConsolidated flag for all items in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateConsolidationStatus(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update consolidation status`)
+      return res.sendStatus(403)
+    }
+
+    const items = await Database.libraryItemModel.findAllExpandedWhere({
+      libraryId: req.library.id
+    })
+
+    let updatedCount = 0
+    for (const item of items) {
+      const isNotConsolidated = item.checkIsNotConsolidated()
+      if (item.isNotConsolidated !== isNotConsolidated) {
+        item.isNotConsolidated = isNotConsolidated
+        await item.save()
+        updatedCount++
+      }
+    }
+
+    Logger.info(`[LibraryController] Updated consolidation status for ${updatedCount} items in library "${req.library.name}"`)
+    res.json({
+      updated: updatedCount
+    })
+  }
+
+  /**
+   * POST: /api/libraries/:id/update-cover-dimensions
+   * Recompute cover dimensions for all items in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateCoverDimensions(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update cover dimensions`)
+      return res.sendStatus(403)
+    }
+
+    const items = await Database.libraryItemModel.findAllExpandedWhere({
+      libraryId: req.library.id
+    })
+
+    let updatedCount = 0
+    for (const item of items) {
+      if (item.media?.coverPath) {
+        // Force coverPath to be seen as changed to trigger beforeSave hook
+        item.media.changed('coverPath', true)
+        await item.media.save()
+        updatedCount++
+      }
+    }
+
+    Logger.info(`[LibraryController] Updated cover dimensions for ${updatedCount} items in library "${req.library.name}"`)
+    res.json({
+      updated: updatedCount
+    })
+  }
+
+  /**
    * GET: /api/libraries/:id/podcast-titles
    *
    * Get podcast titles with itunesId and libraryItemId for library
@@ -1409,6 +1475,57 @@ class LibraryController {
           libraryId: p.libraryItem.libraryId
         }
       })
+    })
+  }
+
+  /**
+   * DELETE: /api/libraries/:id/authors/cleanup
+   * Remove authors with no books, no description and no image
+   *
+   * @this {import('../routers/ApiRouter')}
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async cleanupAuthorsWithNoBooks(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to cleanup authors`)
+      return res.sendStatus(403)
+    }
+
+    const force = req.query.force === '1'
+
+    const authors = await Database.authorModel.findAll({
+      where: {
+        libraryId: req.library.id
+      },
+      attributes: ['id']
+    })
+
+    if (!authors.length) {
+      return res.json({
+        removed: 0
+      })
+    }
+
+    const authorIds = authors.map((a) => a.id)
+    const initialCount = authorIds.length
+
+    // This method is defined on ApiRouter
+    await this.checkRemoveAuthorsWithNoBooks(authorIds, force)
+
+    // Check how many are left
+    const remainingCount = await Database.authorModel.count({
+      where: {
+        id: authorIds
+      }
+    })
+
+    const removed = initialCount - remainingCount
+    Logger.info(`[LibraryController] Cleaned up ${removed} authors (force=${force}) with no books for library "${req.library.name}"`)
+
+    res.json({
+      removed
     })
   }
 
@@ -1456,6 +1573,56 @@ class LibraryController {
       Logger.error(`[LibraryController] Download failed for items "${filename}" at ${pathObjects.map((po) => po.path).join(', ')}`, error)
       zipHelpers.handleDownloadError(error, res)
     }
+  }
+
+  /**
+   * POST: /api/libraries/:id/write-metadata-files
+   * Write metadata.json files for all items in library that don't already have one
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async writeMetadataFiles(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to write metadata files`)
+      return res.sendStatus(403)
+    }
+
+    const absMetadataMigration = require('../utils/migrations/absMetadataMigration')
+
+    Logger.info(`[LibraryController] Writing metadata files for library "${req.library.name}"`)
+
+    let created = 0
+    let skipped = 0
+    let failed = 0
+    let offset = 0
+    const batchSize = 500
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const libraryItems = await Database.libraryItemModel.getLibraryItemsIncrement(offset, batchSize, {
+        libraryId: req.library.id,
+        isMissing: false
+      })
+      if (!libraryItems.length) break
+
+      for (const libraryItem of libraryItems) {
+        const result = await absMetadataMigration.writeMetadataFileForItem(libraryItem)
+        if (result === null) {
+          skipped++ // Already existed
+        } else if (result === false) {
+          failed++
+        } else {
+          created++
+        }
+      }
+
+      if (libraryItems.length < batchSize) break
+      offset += libraryItems.length
+    }
+
+    Logger.info(`[LibraryController] Finished writing metadata files for library "${req.library.name}" (created=${created}, skipped=${skipped}, failed=${failed})`)
+    res.json({ created, skipped, failed })
   }
 
   /**

@@ -13,6 +13,7 @@ export const state = () => ({
   showShareModal: false,
   showConfirmPrompt: false,
   showRawCoverPreviewModal: false,
+  showShortcutsModal: false,
   confirmPromptOptions: null,
   showEditAuthorModal: false,
   rssFeedEntity: null,
@@ -161,6 +162,9 @@ export const mutations = {
   setShowConfirmPrompt(state, val) {
     state.showConfirmPrompt = val
   },
+  setShowShortcutsModal(state, val) {
+    state.showShortcutsModal = val
+  },
   setConfirmPrompt(state, options) {
     state.confirmPromptOptions = options
     state.showConfirmPrompt = true
@@ -225,5 +229,12 @@ export const mutations = {
     } else if (selected && !isAlreadySelected) {
       state.selectedMediaItems.push(item)
     }
+  },
+  addBatchMediaItemsSelected(state, items) {
+    items.forEach((item) => {
+      if (!state.selectedMediaItems.some((i) => i.id === item.id)) {
+        state.selectedMediaItems.push(item)
+      }
+    })
   }
 }

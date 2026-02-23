@@ -22,6 +22,16 @@
     <modals-raw-cover-preview-modal />
     <modals-share-modal />
     <modals-item-move-to-library-modal />
+    <modals-shortcuts-modal />
+    <modals-consolidation-conflict-modal
+      v-model="showConsolidationConflictModal"
+      :item="consolidationConflictItem"
+      :folder-path="consolidationConflictPath"
+      :folder-name="consolidationConflictFolderName"
+      :existing-library-item-id="consolidationConflictExistingItemId"
+      :processing="processingConsolidationConflict"
+      @confirm="resolveConsolidationConflict"
+    />
     <prompt-confirm />
     <readers-reader />
   </div>
@@ -39,7 +49,13 @@ export default {
       socketConnectionToastId: null,
       currentLang: null,
       multiSessionOtherSessionId: null, // Used for multiple sessions open warning toast
-      multiSessionCurrentSessionId: null // Used for multiple sessions open warning toast
+      multiSessionCurrentSessionId: null, // Used for multiple sessions open warning toast
+      showConsolidationConflictModal: false,
+      consolidationConflictItem: null,
+      consolidationConflictPath: '',
+      consolidationConflictFolderName: '',
+      consolidationConflictExistingItemId: null,
+      processingConsolidationConflict: false
     }
   },
   watch: {
@@ -515,9 +531,10 @@ export default {
         return null
       }
 
-      var keyName = this.$keynames[keyCode]
-      var name = keyName
-      if (e.shiftKey) name = 'Shift-' + keyName
+      var name = this.$keynames[keyCode]
+      if (e.ctrlKey || e.metaKey) name = 'Ctrl-' + name
+      if (e.altKey) name = 'Alt-' + name
+      if (e.shiftKey) name = 'Shift-' + name
       if (process.env.NODE_ENV !== 'production') {
         console.log('Hotkey command', name)
       }
@@ -529,6 +546,13 @@ export default {
 
       // Input is focused then ignore key press
       if (this.checkActiveElementIsInput()) {
+        return
+      }
+
+      // Show Shortcuts modal prompt
+      if (name === this.$hotkeys.Global.SHORTCUTS_HELPER) {
+        this.$store.commit('globals/setShowShortcutsModal', true)
+        e.preventDefault()
         return
       }
 
@@ -547,7 +571,7 @@ export default {
       }
 
       // Batch selecting
-      if (this.$store.getters['globals/getIsBatchSelectingMediaItems'] && name === 'Escape') {
+      if (this.$store.getters['globals/getIsBatchSelectingMediaItems'] && name === this.$hotkeys.Batch.CANCEL) {
         // ESCAPE key cancels batch selection
         this.$store.commit('globals/resetSelectedMediaItems', [])
         this.$eventBus.$emit('bookshelf_clear_selection')
@@ -600,6 +624,34 @@ export default {
       console.log('Changed lang', code)
       this.currentLang = code
       document.documentElement.lang = code
+    },
+    openConsolidationConflict(data) {
+      this.consolidationConflictItem = data.item
+      this.consolidationConflictPath = data.path
+      this.consolidationConflictFolderName = data.folderName
+      this.consolidationConflictExistingItemId = data.existingLibraryItemId
+      this.showConsolidationConflictModal = true
+    },
+    async resolveConsolidationConflict(payload) {
+      this.processingConsolidationConflict = true
+      const axios = this.$axios || this.$nuxt.$axios
+      try {
+        const data = await axios.$post(`/api/items/${this.consolidationConflictItem.id}/consolidate`, payload)
+        this.$toast.success(this.$strings.ToastConsolidateSuccess || 'Consolidation successful')
+        this.showConsolidationConflictModal = false
+
+        if (data.mergedInto) {
+          const id = data.mergedInto
+          if (this.$route.name.startsWith('item') && this.$route.params.id === this.consolidationConflictItem.id) {
+            this.$router.push(`/item/${id}`)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to resolve consolidation conflict', error)
+        this.$toast.error(error.response?.data?.error || error.response?.data || 'Failed to resolve conflict')
+      } finally {
+        this.processingConsolidationConflict = false
+      }
     }
   },
   beforeMount() {
@@ -610,6 +662,7 @@ export default {
     this.resize()
     this.$eventBus.$on('change-lang', this.changeLanguage)
     this.$eventBus.$on('token_refreshed', this.tokenRefreshed)
+    this.$eventBus.$on('show-consolidation-conflict', this.openConsolidationConflict)
     window.addEventListener('resize', this.resize)
     window.addEventListener('keydown', this.keyDown)
 
@@ -634,6 +687,7 @@ export default {
   beforeDestroy() {
     this.$eventBus.$off('change-lang', this.changeLanguage)
     this.$eventBus.$off('token_refreshed', this.tokenRefreshed)
+    this.$eventBus.$off('show-consolidation-conflict', this.openConsolidationConflict)
     window.removeEventListener('resize', this.resize)
     window.removeEventListener('keydown', this.keyDown)
   }

@@ -192,6 +192,15 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
     relPathToReplace = path
   }
 
+  // Handle symlinked directories by using the real path for string replacements
+  let realPathToReplace = relPathToReplace
+  try {
+    realPathToReplace = await fs.realpath(relPathToReplace)
+    realPathToReplace = filePathToPOSIX(realPathToReplace)
+    if (!realPathToReplace.endsWith('/')) realPathToReplace += '/'
+  } catch (err) {}
+
+
   const options = {
     mode: rra.LIST,
     recursive: true,
@@ -219,7 +228,7 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
 
       item.fullname = filePathToPOSIX(item.fullname)
       item.path = filePathToPOSIX(item.path)
-      const relpath = item.fullname.replace(relPathToReplace, '')
+      const relpath = item.fullname.replace(realPathToReplace, '')
       let reldirname = Path.dirname(relpath)
       if (reldirname === '.') reldirname = ''
       const dirname = Path.dirname(item.fullname)
@@ -249,11 +258,11 @@ module.exports.recurseFiles = async (path, relPathToReplace = null) => {
       return true
     })
     .map((item) => {
-      var isInRoot = item.path + '/' === relPathToReplace
+      var isInRoot = item.path + '/' === realPathToReplace
       return {
         name: item.name,
-        path: item.fullname.replace(relPathToReplace, ''),
-        reldirpath: isInRoot ? '' : item.path.replace(relPathToReplace, ''),
+        path: item.fullname.replace(realPathToReplace, ''),
+        reldirpath: isInRoot ? '' : item.path.replace(realPathToReplace, ''),
         fullpath: item.fullname,
         extension: item.extension,
         deep: item.deep

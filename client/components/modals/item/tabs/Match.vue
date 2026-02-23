@@ -22,7 +22,7 @@
     </div>
     <div v-show="!processing" class="w-full max-h-full overflow-y-auto overflow-x-hidden matchListWrapper mt-4">
       <template v-for="(res, index) in searchResults">
-        <cards-book-match-card :key="index" :book="res" :current-book-duration="currentBookDuration" :is-podcast="isPodcast" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="selectMatch" />
+        <cards-book-match-card :key="index" :book="res" :current-book-duration="currentBookDuration" :is-podcast="isPodcast" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="applyMatch" @review="selectMatch" />
       </template>
     </div>
     <div v-if="selectedMatchOrig" class="absolute top-0 left-0 w-full bg-bg h-full px-2 py-6 md:p-8 max-h-full overflow-y-auto overflow-x-hidden">
@@ -533,37 +533,45 @@ export default {
         this.waitingForProviders = true
       }
     },
-    selectMatch(match) {
-      if (match) {
-        if (match.series) {
-          if (!match.series.length) {
-            delete match.series
-          } else {
-            match.series = match.series.map((se) => {
-              return {
-                id: `new-${Math.floor(Math.random() * 10000)}`,
-                displayName: se.sequence ? `${se.series} #${se.sequence}` : se.series,
-                name: se.series,
-                sequence: se.sequence || ''
-              }
-            })
-          }
-        }
-        if (match.genres && !Array.isArray(match.genres)) {
-          // match.genres = match.genres.join(',')
-          match.genres = match.genres.split(',').map((g) => g.trim())
-        }
-        if (match.tags && !Array.isArray(match.tags)) {
-          match.tags = match.tags.split(',').map((g) => g.trim())
-        }
-        if (match.narrator && !Array.isArray(match.narrator)) {
-          match.narrator = match.narrator.split(',').map((g) => g.trim())
+    parseMatchData(match) {
+      if (!match) return
+      if (match.series) {
+        if (!match.series.length) {
+          delete match.series
+        } else {
+          match.series = match.series.map((se) => {
+            return {
+              id: `new-${Math.floor(Math.random() * 10000)}`,
+              displayName: se.sequence ? `${se.series} #${se.sequence}` : se.series,
+              name: se.series,
+              sequence: se.sequence || ''
+            }
+          })
         }
       }
-
+      if (match.genres && !Array.isArray(match.genres)) {
+        match.genres = match.genres.split(',').map((g) => g.trim())
+      }
+      if (match.tags && !Array.isArray(match.tags)) {
+        match.tags = match.tags.split(',').map((g) => g.trim())
+      }
+      if (match.narrator && !Array.isArray(match.narrator)) {
+        match.narrator = match.narrator.split(',').map((g) => g.trim())
+      }
+    },
+    selectMatch(match) {
+      this.parseMatchData(match)
       console.log('Select Match', match)
       this.selectedMatch = match
       this.selectedMatchOrig = JSON.parse(JSON.stringify(match))
+    },
+    async applyMatch(match) {
+      this.parseMatchData(match)
+      this.selectedMatch = match
+      for (const key in this.selectedMatchUsage) {
+        this.selectedMatchUsage[key] = true
+      }
+      await this.submitMatchUpdate(true)
     },
     buildMatchUpdatePayload() {
       var updatePayload = {}
@@ -617,7 +625,7 @@ export default {
 
       return updatePayload
     },
-    async submitMatchUpdate() {
+    async submitMatchUpdate(closeOnSuccess = false) {
       var updatePayload = this.buildMatchUpdatePayload()
       if (!Object.keys(updatePayload).length) {
         return
@@ -646,7 +654,11 @@ export default {
             this.$toast.info(this.$strings.ToastNoUpdatesNecessary)
           }
           this.clearSelectedMatch()
-          this.$emit('selectTab', 'details')
+          if (closeOnSuccess) {
+            this.$emit('close')
+          } else {
+            this.$emit('selectTab', 'details')
+          }
         } else {
           this.$toast.error(this.$strings.ToastFailedToUpdate)
         }

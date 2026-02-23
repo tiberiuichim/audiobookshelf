@@ -3,6 +3,18 @@
     <div class="w-full border border-black-200 p-4 my-8">
       <div class="flex flex-wrap items-center">
         <div>
+          <p class="text-lg">{{ $strings.LabelWriteMetadataFiles }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelWriteMetadataFilesHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="writeMetadataFilesClick">{{ $strings.LabelWriteMetadataFiles }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
           <p class="text-lg">{{ $strings.LabelRemoveMetadataFile }}</p>
           <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $getString('LabelRemoveMetadataFileHelp', [mediaType]) }}</p>
         </div>
@@ -10,6 +22,54 @@
         <div>
           <ui-btn class="mb-4 block" @click.stop="removeAllMetadataClick('json')">{{ $strings.LabelRemoveAllMetadataJson }}</ui-btn>
           <ui-btn @click.stop="removeAllMetadataClick('abs')">{{ $strings.LabelRemoveAllMetadataAbs }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelRemoveItemsWithIssues }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelRemoveItemsWithIssuesHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="removeItemsWithIssuesClick">{{ $strings.ButtonRemove }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div v-if="isBookLibrary" class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelCleanupAuthors }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelCleanupAuthorsHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="cleanupAuthorsClick">{{ $strings.ButtonRemove }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div v-if="isBookLibrary" class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelUpdateConsolidationStatus }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelUpdateConsolidationStatusHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="updateConsolidationStatusClick">{{ $strings.ButtonUpdate }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelUpdateCoverDimensions }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelUpdateCoverDimensionsHelp }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="updateCoverDimensionsClick">{{ $strings.ButtonUpdate }}</ui-btn>
         </div>
       </div>
     </div>
@@ -41,6 +101,34 @@ export default {
     }
   },
   methods: {
+    writeMetadataFilesClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmWriteMetadataFiles,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.writeMetadataFiles()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    writeMetadataFiles() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/write-metadata-files`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastWriteMetadataFilesSuccess', [data.created, data.skipped]))
+        })
+        .catch((error) => {
+          console.error('Failed to write metadata files', error)
+          this.$toast.error(this.$strings.ToastWriteMetadataFilesFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
     removeAllMetadataClick(ext) {
       const payload = {
         message: this.$getString('MessageConfirmRemoveMetadataFiles', [ext]),
@@ -70,6 +158,122 @@ export default {
         .catch((error) => {
           console.error('Failed to remove metadata files', error)
           this.$toast.error(this.$getString('ToastMetadataFilesRemovedError', [ext]))
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    removeItemsWithIssuesClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmRemoveItemsWithIssues,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.removeItemsWithIssuesInLibrary()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    removeItemsWithIssuesInLibrary() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$delete(`/api/libraries/${this.libraryId}/issues`)
+        .then(() => {
+          this.$toast.success(this.$strings.ToastLibraryItemsWithIssuesRemoved)
+        })
+        .catch((error) => {
+          console.error('Failed to remove items with issues', error)
+          this.$toast.error(this.$strings.ToastLibraryItemsWithIssuesRemoveFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    cleanupAuthorsClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmCleanupAuthors,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.cleanupAuthors()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    cleanupAuthors() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$delete(`/api/libraries/${this.libraryId}/authors/cleanup?force=1`)
+        .then((data) => {
+          if (data.removed) {
+            this.$toast.success(this.$getString('ToastCleanupAuthorsSuccess', [data.removed]))
+          } else {
+            this.$toast.info(this.$strings.ToastCleanupAuthorsNoAuthors)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to cleanup authors', error)
+          this.$toast.error(this.$strings.ToastCleanupAuthorsFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    updateConsolidationStatusClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmUpdateConsolidationStatus,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.updateConsolidationStatus()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    updateConsolidationStatus() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/update-consolidation`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastUpdateConsolidationStatusSuccess', [data.updated]))
+        })
+        .catch((error) => {
+          console.error('Failed to update consolidation status', error)
+          this.$toast.error(this.$strings.ToastUpdateConsolidationStatusFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    updateCoverDimensionsClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmUpdateCoverDimensions,
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.updateCoverDimensions()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    updateCoverDimensions() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/update-cover-dimensions`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastUpdateCoverDimensionsSuccess', [data.updated]))
+        })
+        .catch((error) => {
+          console.error('Failed to update cover dimensions', error)
+          this.$toast.error(this.$strings.ToastUpdateCoverDimensionsFailed)
         })
         .finally(() => {
           this.$emit('update:processing', false)

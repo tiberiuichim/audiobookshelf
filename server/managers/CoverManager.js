@@ -6,7 +6,7 @@ const imageType = require('../libs/imageType')
 
 const globals = require('../utils/globals')
 const { downloadImageFile, filePathToPOSIX, checkPathIsFile } = require('../utils/fileUtils')
-const { extractCoverArt } = require('../utils/ffmpegHelpers')
+const { extractCoverArt, getImageDimensions } = require('../utils/ffmpegHelpers')
 const parseEbookMetadata = require('../utils/parsers/parseEbookMetadata')
 
 const CacheManager = require('../managers/CacheManager')
@@ -115,11 +115,14 @@ class CoverManager {
 
     await this.removeOldCovers(coverDirPath, extname)
     await CacheManager.purgeCoverCache(libraryItem.id)
+    const dims = await getImageDimensions(coverFullPath)
 
     Logger.info(`[CoverManager] Uploaded libraryItem cover "${coverFullPath}" for "${libraryItem.media.title}"`)
 
     return {
-      cover: coverFullPath
+      cover: coverFullPath,
+      width: dims?.width || null,
+      height: dims?.height || null
     }
   }
 
@@ -197,10 +200,13 @@ class CoverManager {
     }
 
     await CacheManager.purgeCoverCache(libraryItem.id)
+    const dims = await getImageDimensions(coverPath)
 
     return {
       cover: coverPath,
-      updated: true
+      updated: true,
+      width: dims?.width || null,
+      height: dims?.height || null
     }
   }
 
@@ -321,10 +327,13 @@ class CoverManager {
 
       await this.removeOldCovers(coverDirPath, '.' + imgtype.ext)
       await CacheManager.purgeCoverCache(libraryItemId)
+      const dims = await getImageDimensions(coverFullPath)
 
       Logger.info(`[CoverManager] Downloaded libraryItem cover "${coverFullPath}" from url "${url}"`)
       return {
-        cover: coverFullPath
+        cover: coverFullPath,
+        width: dims?.width || null,
+        height: dims?.height || null
       }
     } catch (error) {
       Logger.error(`[CoverManager] Fetch cover image from url "${url}" failed`, error)

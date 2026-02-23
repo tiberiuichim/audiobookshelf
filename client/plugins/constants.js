@@ -47,26 +47,44 @@ const Constants = {
 }
 
 const KeyNames = {
+  13: 'Enter',
   27: 'Escape',
   32: 'Space',
   37: 'ArrowLeft',
   38: 'ArrowUp',
   39: 'ArrowRight',
   40: 'ArrowDown',
+  57: 'Key9',
+  65: 'KeyA',
+  67: 'KeyC',
+  72: 'KeyH',
+  75: 'KeyK',
   76: 'KeyL',
-  77: 'KeyM'
+  77: 'KeyM',
+  81: 'KeyQ',
+  82: 'KeyR',
+  83: 'KeyS',
+  191: 'Slash',
+  219: 'BracketLeft',
+  221: 'BracketRight'
 }
 const Hotkeys = {
   AudioPlayer: {
     PLAY_PAUSE: 'Space',
     JUMP_FORWARD: 'ArrowRight',
     JUMP_BACKWARD: 'ArrowLeft',
+    JUMP_FORWARD_ALT: 'Shift-ArrowRight',
+    JUMP_BACKWARD_ALT: 'Shift-ArrowLeft',
+    JUMP_FORWARD_MAJOR: 'Shift-Ctrl-ArrowRight',
+    JUMP_BACKWARD_MAJOR: 'Shift-Ctrl-ArrowLeft',
     VOLUME_UP: 'ArrowUp',
     VOLUME_DOWN: 'ArrowDown',
     MUTE_UNMUTE: 'KeyM',
     SHOW_CHAPTERS: 'KeyL',
-    INCREASE_PLAYBACK_RATE: 'Shift-ArrowUp',
-    DECREASE_PLAYBACK_RATE: 'Shift-ArrowDown',
+    NEXT_CHAPTER: 'Shift-ArrowUp',
+    PREV_CHAPTER: 'Shift-ArrowDown',
+    INCREASE_PLAYBACK_RATE: 'BracketRight',
+    DECREASE_PLAYBACK_RATE: 'BracketLeft',
     CLOSE: 'Escape'
   },
   EReader: {
@@ -77,7 +95,33 @@ const Hotkeys = {
   Modal: {
     NEXT_PAGE: 'ArrowRight',
     PREV_PAGE: 'ArrowLeft',
-    CLOSE: 'Escape'
+    CLOSE: 'Escape',
+    SUBMIT: 'Enter'
+  },
+  Global: {
+    SHORTCUTS_HELPER: 'Shift-Slash'
+  },
+  Navigation: {
+    HOME: 'Alt-KeyH',
+    LIBRARY: 'Alt-KeyL',
+    SERIES: 'Alt-KeyS',
+    COLLECTIONS: 'Alt-KeyC',
+    AUTHORS: 'Alt-KeyA'
+  },
+  Batch: {
+    SELECT_ALL: 'Alt-KeyA',
+    CONSOLIDATE: 'Alt-KeyK',
+    MERGE: 'Alt-KeyM',
+    MOVE: 'Shift-Alt-KeyM',
+    RESET: 'Alt-KeyR',
+    MATCH: 'Alt-KeyQ',
+    CANCEL: 'Escape'
+  },
+  Item: {
+    CONSOLIDATE: 'Alt-KeyK',
+    MOVE: 'Shift-Alt-KeyM',
+    RESET: 'Alt-KeyR',
+    MATCH: 'Alt-KeyQ'
   }
 }
 

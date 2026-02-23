@@ -401,6 +401,7 @@ class Database {
 
     // Update server settings with version/build
     let updateServerSettings = false
+    const oldVersion = this.serverSettings.version
     if (packageJson.version !== this.serverSettings.version) {
       Logger.info(`[Database] Server upgrade detected from ${this.serverSettings.version} to ${packageJson.version}`)
       this.serverSettings.version = packageJson.version
@@ -413,7 +414,46 @@ class Database {
     }
     if (updateServerSettings) {
       await this.updateServerSettings()
+
+      if (this.compareVersions(oldVersion, '2.32.7') < 0) {
+        await this.populateIsNotConsolidated()
+      }
     }
+  }
+
+  async populateIsNotConsolidated() {
+    Logger.info(`[Database] Populating isNotConsolidated flag for all items...`)
+    const items = await this.models.libraryItem.findAll({
+      include: [
+        {
+          model: this.models.book,
+          include: {
+            model: this.models.author,
+            through: {
+              attributes: ['createdAt']
+            }
+          }
+        },
+        {
+          model: this.models.podcast
+        }
+      ]
+    })
+    let count = 0
+    let updatedCount = 0
+    for (const item of items) {
+      count++
+      // LibraryItem.js hook afterFind sets item.media
+      const isNotConsolidated = item.checkIsNotConsolidated()
+
+      if (item.isNotConsolidated !== isNotConsolidated) {
+        Logger.debug(`[Database] Updating isNotConsolidated for ${item.relPath} to ${isNotConsolidated} (was ${item.isNotConsolidated})`)
+        item.isNotConsolidated = isNotConsolidated
+        await item.save()
+        updatedCount++
+      }
+    }
+    Logger.info(`[Database] Finished populating isNotConsolidated flag. Checked ${count} items, updated ${updatedCount}`)
   }
 
   /**

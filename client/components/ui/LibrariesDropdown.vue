@@ -88,7 +88,7 @@ export default {
         // For series item page redirect to root series page
         this.$router.push(`/library/${library.id}/bookshelf/series`)
       } else if (this.$route.name === 'library-library-search') {
-        this.$router.push(this.$route.fullPath.replace(currLibraryId, library.id))
+        this.$router.push(`/library/${library.id}/bookshelf`)
       } else if (this.$route.name.startsWith('library')) {
         this.$router.push(this.$route.path.replace(currLibraryId, library.id))
       } else {
