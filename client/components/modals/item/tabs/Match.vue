@@ -381,20 +381,12 @@ export default {
     checkboxToggled() {
       this.selectAll = Object.values(this.selectedMatchUsage).findIndex((v) => v == false) < 0
     },
-    persistProvider() {
-      try {
-        localStorage.setItem('book-provider', this.provider)
-      } catch (error) {
-        console.error('PersistProvider', error)
-      }
-    },
     getDefaultBookProvider() {
-      let provider = localStorage.getItem('book-provider')
-      if (!provider) return 'google'
+      const provider = this.$store.getters['libraries/getLibraryProvider'](this.libraryItem.libraryId) || 'google'
+
       // Validate book provider
       if (!this.$store.getters['scanners/checkBookProviderExists'](provider)) {
-        console.error('Stored book provider does not exist', provider)
-        localStorage.removeItem('book-provider')
+        console.error('Library default book provider does not exist', provider)
         return 'google'
       }
       return provider
@@ -410,9 +402,6 @@ export default {
       if (!this.searchTitle) {
         this.$toast.warning(this.$strings.ToastTitleRequired)
         return
-      }
-      if (!this.isPodcast) {
-        this.persistProvider()
       }
       this.runSearch()
     },
