@@ -244,17 +244,8 @@ export default {
       this.searchAuthor = this.mediaMetadata.authorName || ''
       if (this.isPodcast) this.provider = 'itunes'
       else {
-        // Migrate from 'all' to 'best' (only once)
-        const migrationKey = 'book-cover-provider-migrated'
-        const currentProvider = localStorage.getItem('book-cover-provider') || localStorage.getItem('book-provider') || 'google'
-
-        if (!localStorage.getItem(migrationKey) && currentProvider === 'all') {
-          localStorage.setItem('book-cover-provider', 'best')
-          localStorage.setItem(migrationKey, 'true')
-          this.provider = 'best'
-        } else {
-          this.provider = currentProvider
-        }
+        const libraryProvider = this.$store.getters['libraries/getLibraryProvider'](this.libraryItem.libraryId) || 'google'
+        this.provider = libraryProvider === 'all' ? 'best' : libraryProvider
       }
     },
     removeCover() {
@@ -304,13 +295,7 @@ export default {
       if (this.isPodcast) searchQuery += '&podcast=1'
       return searchQuery
     },
-    persistProvider() {
-      try {
-        localStorage.setItem('book-cover-provider', this.provider)
-      } catch (error) {
-        console.error('PersistProvider', error)
-      }
-    },
+
     generateRequestId() {
       return `cover-search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     },
@@ -397,9 +382,6 @@ export default {
       if (this.searchInProgress) {
         this.cancelCurrentSearch()
       }
-
-      // Store provider in local storage
-      this.persistProvider()
 
       // Setup socket listeners if not already done
       this.addSocketListeners()
