@@ -42,6 +42,12 @@
           </ui-tooltip>
         </nuxt-link>
 
+        <div v-if="userCanUpdate && currentLibrary" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1" @click.stop.prevent="resetLibraryProgressClick">
+          <ui-tooltip :text="$strings.ButtonResetLibraryProgress || 'Reset Library Progress'" direction="bottom" class="flex items-center">
+            <span class="material-symbols text-2xl" aria-label="Reset Library Progress" role="button">restart_alt</span>
+          </ui-tooltip>
+        </div>
+
         <nuxt-link v-if="userIsAdminOrUp" to="/config" class="hover:text-gray-200 cursor-pointer w-8 h-8 flex items-center justify-center mx-1">
           <ui-tooltip :text="$strings.HeaderSettings" direction="bottom" class="flex items-center">
             <span class="material-symbols text-2xl" aria-label="System Settings" role="button">&#xe8b8;</span>
@@ -473,6 +479,28 @@ export default {
       if (this.processingBatch) return
       this.$store.commit('globals/resetSelectedMediaItems', [])
       this.$eventBus.$emit('bookshelf_clear_selection')
+    },
+    resetLibraryProgressClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmResetLibraryProgress || 'Are you sure you want to reset all listening progress for all items in this library?',
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.$axios
+              .$delete(`/api/me/library/${this.currentLibrary.id}/progress`)
+              .then(() => {
+                this.$toast.success(this.$strings.ToastResetLibraryProgressSuccess || 'Library progress reset successfully')
+                // No need to clear selection or do anything else, user progress is automatically synced via websocket
+              })
+              .catch((error) => {
+                console.error('Failed to reset library progress', error)
+                const errorMsg = error.response?.data || this.$strings.ToastResetLibraryProgressFailed || 'Failed to reset library progress'
+                this.$toast.error(errorMsg)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     },
     toggleBatchRead() {
       this.$store.commit('setProcessingBatch', true)

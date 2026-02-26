@@ -473,5 +473,51 @@ class MeController {
     const data = await userStats.getStatsForYear(req.user.id, year)
     res.json(data)
   }
+
+  /**
+   * DELETE: /api/me/library/:id/progress
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async resetLibraryProgress(req, res) {
+    if (!(await Database.libraryModel.checkExistsById(req.params.id))) {
+      return res.status(404).send('Library not found')
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAll({
+      where: { libraryId: req.params.id },
+      attributes: ['id', 'mediaId']
+    })
+
+    const libraryItemIds = libraryItems.map((li) => li.id)
+    const mediaIds = libraryItems.map((li) => li.mediaId)
+
+    const progressesToRemove = req.user.mediaProgresses.filter((mp) => {
+      if (mp.extraData?.libraryItemId && libraryItemIds.includes(mp.extraData.libraryItemId)) {
+        return true
+      }
+      if (mp.mediaItemType === 'book' && mediaIds.includes(mp.mediaItemId)) {
+        return true
+      }
+      if (mp.mediaItemType === 'podcastEpisode' && mp.podcastId && mediaIds.includes(mp.podcastId)) {
+        return true
+      }
+      return false
+    })
+
+    let hasRemoved = false
+    for (const mp of progressesToRemove) {
+      await Database.mediaProgressModel.removeById(mp.id)
+      req.user.mediaProgresses = req.user.mediaProgresses.filter((p) => p.id !== mp.id)
+      hasRemoved = true
+    }
+
+    if (hasRemoved) {
+      SocketAuthority.clientEmitter(req.user.id, 'user_updated', req.user.toOldJSONForBrowser())
+    }
+
+    res.sendStatus(200)
+  }
 }
 module.exports = new MeController()
