@@ -830,6 +830,7 @@ export default {
       this.$eventBus.$on('bookshelf_clear_selection', this.clearSelectedEntities)
       this.$eventBus.$on('bookshelf_select_all', this.selectAll)
       this.$eventBus.$on('user-settings', this.settingsUpdated)
+      this.$eventBus.$on('refresh-library', this.resetEntities)
 
       if (this.$root.socket) {
         this.$root.socket.on('item_updated', this.libraryItemUpdated)
@@ -862,6 +863,7 @@ export default {
       this.$eventBus.$off('bookshelf_clear_selection', this.clearSelectedEntities)
       this.$eventBus.$off('bookshelf_select_all', this.selectAll)
       this.$eventBus.$off('user-settings', this.settingsUpdated)
+      this.$eventBus.$off('refresh-library', this.resetEntities)
 
       if (this.$root.socket) {
         this.$root.socket.off('item_updated', this.libraryItemUpdated)

@@ -489,7 +489,7 @@ export default {
               .$delete(`/api/me/library/${this.currentLibrary.id}/progress`)
               .then(() => {
                 this.$toast.success(this.$strings.ToastResetLibraryProgressSuccess || 'Library progress reset successfully')
-                // No need to clear selection or do anything else, user progress is automatically synced via websocket
+                this.$eventBus.$emit('refresh-library')
               })
               .catch((error) => {
                 console.error('Failed to reset library progress', error)
@@ -575,7 +575,7 @@ export default {
     },
     getHotkeyName(e) {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return null
-      
+
       var keyCode = e.keyCode || e.which
       if (!this.$keynames[keyCode]) return null
 

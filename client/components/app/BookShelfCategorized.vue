@@ -530,6 +530,7 @@ export default {
         console.error('Error socket not initialized')
       }
       this.$eventBus.$on('bookshelf_select_all', this.selectAll)
+      this.$eventBus.$on('refresh-library', this.init)
     },
     removeListeners() {
       if (this.$root.socket) {
@@ -548,6 +549,7 @@ export default {
         console.error('Error socket not initialized')
       }
       this.$eventBus.$off('bookshelf_select_all', this.selectAll)
+      this.$eventBus.$off('refresh-library', this.init)
     }
   },
   mounted() {
