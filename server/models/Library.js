@@ -108,6 +108,15 @@ class Library extends Model {
   }
 
   /**
+   * Check if library exists
+   * @param {string} libraryId
+   * @returns {Promise<boolean>}
+   */
+  static async checkExistsById(libraryId) {
+    return (await this.count({ where: { id: libraryId } })) > 0
+  }
+
+  /**
    * Get all library ids
    * @returns {Promise<string[]>} array of library ids
    */
