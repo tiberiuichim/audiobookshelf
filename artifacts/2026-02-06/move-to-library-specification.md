@@ -25,7 +25,8 @@ POST /api/items/batch/move
 ```json
 {
   "targetLibraryId": "uuid-of-target-library",
-  "targetFolderId": "uuid-of-target-folder" // optional, uses first folder if not provided
+  "targetFolderId": "uuid-of-target-folder", // optional, uses first folder if not provided
+  "merge": true // optional, skips EEXIST check and merges files into existing item
 }
 ```
 
@@ -35,7 +36,8 @@ POST /api/items/batch/move
 {
   "libraryItemIds": ["uuid1", "uuid2"],
   "targetLibraryId": "uuid-of-target-library",
-  "targetFolderId": "uuid-of-target-folder" // optional
+  "targetFolderId": "uuid-of-target-folder", // optional
+  "merge": true // optional, applies force merge to all conflicted items
 }
 ```
 
@@ -46,9 +48,9 @@ POST /api/items/batch/move
 - Target library must exist
 - Target library must have same `mediaType` as source (book ↔ book, podcast ↔ podcast)
 - Cannot move to the same library
-- Destination path must not already exist (checked per item)
+- Destination path must not already exist (unless `merge: true` is sent)
 
-**Response (Single):** Returns updated library item JSON on success **Response (Batch):** Returns summary of successes, failures, and error details
+**Response (Single):** Returns updated library item JSON on success (or `409 Conflict` with `EEXIST` if destination exists and `merge` is false). **Response (Batch):** Returns summary of successes, failures, and error details. `EEXIST` conflicts are explicitly stringified in the `errors` array.
 
 ---
 
@@ -72,8 +74,8 @@ POST /api/items/batch/move
 | `client/pages/item/_id/index.vue`                      | Single item page context menu integration        |
 | `client/layouts/default.vue`                           | Modal registration                               |
 | `client/strings/en-us.json`                            | Localization strings                             |
-| `client/components/app/LazyBookshelf.vue`             | Enhanced selection payload (added libraryId)      |
-| `client/components/app/BookShelfCategorized.vue`      | Enhanced selection payload (added libraryId)      |
+| `client/components/app/LazyBookshelf.vue`              | Enhanced selection payload (added libraryId)     |
+| `client/components/app/BookShelfCategorized.vue`       | Enhanced selection payload (added libraryId)     |
 
 ### Localization Strings Added
 
@@ -84,6 +86,16 @@ POST /api/items/batch/move
 ---
 
 ## Implementation Details
+
+### Duplicate Handling (Merge)
+
+If a folder with the same name already exists in the target library, an `EEXIST` (HTTP 409 Conflict) error is normally returned. The frontend UI catches this and prompts the user to resolve the conflict. If the `merge: true` flag is then provided:
+
+- The system recursively merges the source directory into the existing destination directory.
+- **Identical files** (same name & size) are deduplicated (the source is deleted).
+- **Differing files** (same name but different size) are kept by appending a timestamp suffix to the source file.
+- The redundant source library item database record is deleted.
+- The existing target library item is re-scanned to absorb the new files.
 
 ### Shared Moving Logic (`handleMoveLibraryItem`)
 
@@ -130,41 +142,49 @@ The `MoveToLibraryModal` automatically detects if it's in batch mode by checking
 Following the initial implementation, several critical areas were improved:
 
 ### 1. Socket Event Omissions - FIXED
+
 - **Issue**: Source series and authors were destroyed in the DB when empty, but no `series_removed` or `author_removed` events were emitted.
 - **Fix**: Added `SocketAuthority.emitter` calls for `series_removed` and `author_removed` in `handleMoveLibraryItem`.
 
 ### 2. Batch Move Efficiency - FIXED
+
 - **Issue**: `Database.resetLibraryIssuesFilterData` and count cache updates were called inside the loop for every item.
 - **Fix**: Moved these calls out of `handleMoveLibraryItem` and into the parent `move` and `batchMove` controllers, ensuring they only run once per request (or per library set in batch moves).
 
 ### 3. Async/Await Inconsistency - FIXED
+
 - **Issue**: Metadata `save()` calls for newly created series/authors were not awaited.
 - **Fix**: Ensured all `.save()` calls are properly awaited.
 
 ### 4. Transactional Integrity & Lock Optimization - FIXED
+
 - **Issue**: The move logic was not wrapped in a DB transaction, and long-running file moves inside transactions would lock the SQLite database for several seconds (causing `SQLITE_BUSY`).
-- **Fix**: 
+- **Fix**:
   - Wrapped the DB update portion of `handleMoveLibraryItem` in a Sequelize transaction.
   - **Optimization**: Moved the `fs.move` operation **outside** the transaction. The files are moved first, then the transaction handles the lightning-fast DB updates. If the DB update fails, the files are moved back to their original location.
   - **Transaction Propagation**: Updated `Series`, `Author`, and `BookAuthor` model helpers to correctly accept and propagate the transaction object.
 
 ### 5. Scanner "ENOTDIR" Error - FIXED
+
 - **Issue**: Single-file items (e.g., `.m4b`) were being scanned as directories, leading to `ENOTDIR` errors and causing items to appear with the "has issues" icon.
 - **Fix**: Updated `LibraryItemScanner.js` to correctly honor the `isFile` property of the library item during re-scans.
 
 ### 6. Scanner/Watcher Race Conditions (ENOENT) - FIXED
+
 - **Issue**: The automatic folder watcher would trigger scans while the move was in progress, leading to "file not found" warnings for the source path.
-- **Fix**: 
+- **Fix**:
   - Integrated `Watcher.addIgnoreDir` and `removeIgnoreDir` into the move process to temporarily silence the watcher for the relevant paths.
   - Added existence checks in `LibraryScanner.js` before performing inode lookups.
 
 ### 7. Incomplete Path Updates - FIXED
+
 - **Issue**: Nested paths like `media.coverPath` and `libraryFiles.metadata.relPath` were not being updated during moves.
 - **Fix**: Improved `handleMoveLibraryItem` to perform recursive path replacement on all associated metadata objects.
 
 ### 8. Improved Library Picker Filtering - FIXED
+
 - **Issue**: The "Move to Library" dialog showed all libraries of the same type, including the source library itself, which was redundant and confusing.
-- **Fix**: 
+- **Fix**:
   - Updated selection logic in `LazyBookshelf.vue` and `BookShelfCategorized.vue` to include the source `libraryId` in the selection payload.
   - Refactored `MoveToLibraryModal.vue` to compare the source library with available targets and automatically omit the source from the dropdown list.
   - Added robust media type detection in the modal to ensure compatibility even when items are moved from mixed-content views like search results.
