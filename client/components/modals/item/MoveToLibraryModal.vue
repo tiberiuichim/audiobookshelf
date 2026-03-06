@@ -208,21 +208,28 @@ export default {
           if (response.failCount > 0) {
             this.$toast.warning(this.$getString('ToastItemsMoveFailed', [response.failCount]))
           }
-          // Store the current library ID before clearing the selected items so we know where to redirect to
+          // Store variables needed for redirect before clearing selection
           const redirectLibraryId = this.currentLibraryId
-          
+          const mediaType = this.currentMediaType
+
           // Clear selection after batch move
           this.$store.commit('globals/resetSelectedMediaItems')
           if (response.successCount > 0) {
-            this.$router.push(`/library/${redirectLibraryId}`)
+            const redirectPath = mediaType === 'podcast' ? `/library/${redirectLibraryId}/podcast/latest` : `/library/${redirectLibraryId}/bookshelf`
+            this.$router.push(redirectPath)
           }
         } else {
           // Single item move
+          const redirectLibraryId = this.currentLibraryId
+          const mediaType = this.currentMediaType
+
           const response = await this.$axios.$post(`/api/items/${this.libraryItem.id}/move`, payload)
           if (response.success) {
             this.$toast.success(this.$strings.ToastItemMoved)
             this.$store.commit('setSelectedLibraryItem', null)
-            this.$router.push(`/library/${this.currentLibraryId}`)
+
+            const redirectPath = mediaType === 'podcast' ? `/library/${redirectLibraryId}/podcast/latest` : `/library/${redirectLibraryId}/bookshelf`
+            this.$router.push(redirectPath)
           }
         }
         this.show = false
