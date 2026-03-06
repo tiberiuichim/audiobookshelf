@@ -42,6 +42,47 @@ const ShareManager = require('../managers/ShareManager')
  */
 
 /**
+ * Recursively merges two directories, deleting duplicate files (same name & size)
+ * and renaming differing files with a timestamp suffix.
+ *
+ * @param {string} src
+ * @param {string} dest
+ */
+async function mergeDirectories(src, dest) {
+  await fs.ensureDir(dest)
+  const items = await fs.readdir(src)
+  for (const item of items) {
+    const srcPath = Path.join(src, item)
+    let destPath = Path.join(dest, item)
+
+    const srcStat = await fs.stat(srcPath)
+    if (srcStat.isDirectory()) {
+      await mergeDirectories(srcPath, destPath)
+    } else {
+      if (await fs.pathExists(destPath)) {
+        const destStat = await fs.stat(destPath)
+        if (srcStat.size === destStat.size) {
+          Logger.info(`[LibraryItemController] Skipping duplicate file "${item}" (same name & size)`)
+          await fs.remove(srcPath)
+          continue
+        }
+        // Different size — rename with suffix to keep both
+        const name = Path.parse(item).name
+        const ext = Path.parse(item).ext
+        destPath = Path.join(dest, `${name}_${Date.now()}${ext}`)
+      }
+      await fs.move(srcPath, destPath)
+    }
+  }
+
+  // Remove the now empty directory (if all items matched and were skipped/moved)
+  const remaining = await fs.readdir(src)
+  if (remaining.length === 0) {
+    await fs.remove(src)
+  }
+}
+
+/**
  * Internal helper to move a single library item to a target library/folder
  *
  * @param {import('../models/LibraryItem')} libraryItem
@@ -89,21 +130,8 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
         await fs.move(oldPath, destPath)
         libraryItem.isFile = false
       } else if (forceMerge && destinationExists) {
-        // Move all files from this directory to target directory
-        const files = await fs.readdir(oldPath)
-        for (const file of files) {
-          const srcFile = Path.join(oldPath, file)
-          let destFile = Path.join(newPath, file)
-
-          if (await fs.pathExists(destFile)) {
-            const name = Path.parse(file).name
-            const ext = Path.parse(file).ext
-            destFile = Path.join(newPath, `${name}_${Date.now()}${ext}`)
-          }
-          await fs.move(srcFile, destFile)
-        }
-        // Remove the now empty directory
-        await fs.remove(oldPath)
+        // Move all files from this directory to target directory recursively
+        await mergeDirectories(oldPath, newPath)
       } else {
         await fs.move(oldPath, newPath)
       }
@@ -194,8 +222,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
           }
         }
         await libraryItem.media.save({ transaction })
-      }
- else if (libraryItem.isPodcast) {
+      } else if (libraryItem.isPodcast) {
         // Update coverPath
         if (libraryItem.media.coverPath) {
           libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
@@ -1171,7 +1198,7 @@ class LibraryItemController {
       return res.sendStatus(403)
     }
 
-    const { libraryItemIds, targetLibraryId, targetFolderId } = req.body
+    const { libraryItemIds, targetLibraryId, targetFolderId, merge } = req.body
 
     if (!libraryItemIds?.length || !Array.isArray(libraryItemIds)) {
       return res.status(400).send('libraryItemIds must be an array')
@@ -1235,11 +1262,41 @@ class LibraryItemController {
           continue
         }
 
-        await handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder)
+        const expectedPath = Path.join(targetFolder.path, libraryItem.isFile ? Path.basename(libraryItem.path) : libraryItem.relPath)
+        let existingItem = null
+        if (merge && (await fs.pathExists(expectedPath))) {
+          existingItem = await Database.libraryItemModel.findOne({
+            where: {
+              path: expectedPath
+            }
+          })
+        }
+
+        await handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, null, !!merge)
+
+        if (merge && existingItem) {
+          Logger.info(`[LibraryItemController] Batch Move: Moved item "${libraryItem.id}" was merged into existing item "${existingItem.id}"`)
+
+          const authorIds = libraryItem.media.authors?.map((au) => au.id) || []
+          const seriesIds = libraryItem.media.series?.map((se) => se.id) || []
+
+          await this.handleDeleteLibraryItem(libraryItem.id, [libraryItem.media.id])
+          await libraryItem.destroy()
+
+          if (authorIds.length) {
+            await this.checkRemoveAuthorsWithNoBooks(authorIds)
+          }
+          if (seriesIds.length) {
+            await this.checkRemoveEmptySeries(seriesIds)
+          }
+
+          await LibraryItemScanner.scanLibraryItem(existingItem.id)
+        }
+
         successCount++
       } catch (error) {
         failCount++
-        errors.push({ id: libraryItem.id, error: error.message || 'Failed to move item' })
+        errors.push({ id: libraryItem.id, error: error.code === 'EEXIST' ? 'EEXIST' : error.message || 'Failed to move item' })
       }
     }
 
@@ -1611,7 +1668,7 @@ class LibraryItemController {
 
           // Remove the file from original library item
           req.libraryItem.libraryFiles = req.libraryItem.libraryFiles.filter((lf) => lf.ino !== ino)
-          
+
           if (req.libraryItem.media.audioFiles.some((af) => af.ino === ino)) {
             req.libraryItem.media.audioFiles = req.libraryItem.media.audioFiles.filter((af) => af.ino !== ino)
           } else if (req.libraryItem.media.ebookFile?.ino === ino) {
@@ -1810,7 +1867,7 @@ class LibraryItemController {
       return res.sendStatus(403)
     }
 
-    const { targetLibraryId, targetFolderId } = req.body
+    const { targetLibraryId, targetFolderId, merge } = req.body
 
     if (!targetLibraryId) {
       return res.status(400).send('Target library ID is required')
@@ -1854,8 +1911,61 @@ class LibraryItemController {
       return res.status(400).send('Target library has no folders')
     }
 
+    const expectedPath = Path.join(targetFolder.path, req.libraryItem.isFile ? Path.basename(req.libraryItem.path) : req.libraryItem.relPath)
+    let existingItem = null
+    if (merge && (await fs.pathExists(expectedPath))) {
+      existingItem = await Database.libraryItemModel.findOne({
+        where: {
+          path: expectedPath
+        }
+      })
+    }
+
     try {
-      await handleMoveLibraryItem(req.libraryItem, targetLibrary, targetFolder)
+      await handleMoveLibraryItem(req.libraryItem, targetLibrary, targetFolder, null, !!merge)
+
+      if (merge && existingItem) {
+        Logger.info(`[LibraryItemController] Moved item "${req.libraryItem.id}" was merged into existing item "${existingItem.id}"`)
+
+        const authorIds = req.libraryItem.media.authors?.map((au) => au.id) || []
+        const seriesIds = req.libraryItem.media.series?.map((se) => se.id) || []
+
+        // Cleanup associations for the item being absorbed
+        // Note: we need to use call/apply or bind since handleDeleteLibraryItem is an instance method
+        await this.handleDeleteLibraryItem(req.libraryItem.id, [req.libraryItem.media.id])
+
+        // Delete the redundant database record
+        await req.libraryItem.destroy()
+
+        if (authorIds.length) {
+          await this.checkRemoveAuthorsWithNoBooks(authorIds)
+        }
+        if (seriesIds.length) {
+          await this.checkRemoveEmptySeries(seriesIds)
+        }
+
+        // Rescan target item to pick up merged files
+        await LibraryItemScanner.scanLibraryItem(existingItem.id)
+
+        const updatedExistingItem = await Database.libraryItemModel.getExpandedById(existingItem.id)
+
+        // Reset filter data
+        await Database.resetLibraryIssuesFilterData(sourceLibrary.id)
+        await Database.resetLibraryIssuesFilterData(targetLibrary.id)
+        if (Database.libraryFilterData[sourceLibrary.id]) delete Database.libraryFilterData[sourceLibrary.id]
+        if (Database.libraryFilterData[targetLibrary.id]) delete Database.libraryFilterData[targetLibrary.id]
+        if (req.libraryItem.isBook) {
+          libraryItemsBookFilters.clearCountCache('move_item')
+        } else if (req.libraryItem.isPodcast) {
+          libraryItemsPodcastFilters.clearCountCache('podcast', 'move_item')
+        }
+
+        return res.json({
+          success: true,
+          mergedInto: existingItem.id,
+          libraryItem: updatedExistingItem.toOldJSONExpanded()
+        })
+      }
 
       await Database.resetLibraryIssuesFilterData(sourceLibrary.id)
       await Database.resetLibraryIssuesFilterData(targetLibrary.id)
@@ -1874,6 +1984,13 @@ class LibraryItemController {
         libraryItem: req.libraryItem.toOldJSONExpanded()
       })
     } catch (error) {
+      if (error.code === 'EEXIST') {
+        return res.status(409).json({
+          error: 'EEXIST',
+          message: error.message,
+          path: error.path
+        })
+      }
       return res.status(500).send(error.message || 'Failed to move item')
     }
   }

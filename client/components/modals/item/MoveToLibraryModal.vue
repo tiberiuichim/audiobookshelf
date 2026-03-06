@@ -44,9 +44,28 @@
         </template>
       </template>
 
+      <!-- Merge Confirmation Prompt -->
+      <template v-if="showingMergePrompt">
+        <div class="w-full py-4 mt-2 border-t border-white/10">
+          <div class="flex items-start gap-3 p-3 bg-error/10 border border-error/20 rounded-lg">
+            <span class="material-symbols-outline text-error text-xl mt-0.5">warning</span>
+            <div>
+              <p class="text-white font-medium mb-1">{{ isBatchMode ? $getString('MessageBatchMoveConflicts', [batchConflictCount]) : $strings.MessageMoveConflict }}</p>
+              <p class="text-gray-300 text-xs">{{ $strings.MessageMoveConflictDetail || 'Duplicate media files (same name and size) will be skipped. Unique files will be merged into the existing item.' }}</p>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <div class="flex items-center pt-4">
         <div class="grow" />
-        <ui-btn v-if="targetLibraries.length && hasItems" color="success" :disabled="!selectedLibraryId" small @click="moveItems">{{ $strings.ButtonMove }}</ui-btn>
+        <template v-if="showingMergePrompt">
+          <ui-btn class="mr-2" @click="cancelMerge">{{ $strings.ButtonCancel || 'Cancel' }}</ui-btn>
+          <ui-btn color="error" :disabled="!selectedLibraryId" small @click="confirmMergeItems">{{ $strings.ButtonMergeAndMove || 'Merge & Move' }}</ui-btn>
+        </template>
+        <template v-else>
+          <ui-btn v-if="targetLibraries.length && hasItems" color="success" :disabled="!selectedLibraryId" small @click="moveItems">{{ $strings.ButtonMove }}</ui-btn>
+        </template>
       </div>
     </div>
   </modals-modal>
@@ -58,7 +77,9 @@ export default {
     return {
       processing: false,
       selectedLibraryId: null,
-      selectedFolderId: null
+      selectedFolderId: null,
+      showingMergePrompt: false,
+      batchConflictCount: 0
     }
   },
   watch: {
@@ -185,11 +206,14 @@ export default {
         this.$nextTick(() => this.moveItems())
       }
     },
-    async moveItems() {
+    async moveItems(merge = false) {
       if (!this.selectedLibraryId) return
 
       const payload = {
         targetLibraryId: this.selectedLibraryId
+      }
+      if (merge) {
+        payload.merge = true
       }
 
       if (this.selectedFolderId && this.selectedLibraryFolders.length > 1) {
@@ -202,6 +226,16 @@ export default {
           // Batch move
           payload.libraryItemIds = this.selectedItems.map((i) => i.id)
           const response = await this.$axios.$post('/api/items/batch/move', payload)
+
+          if (response.failCount > 0) {
+            const conflictErrors = response.errors?.filter(e => e.error === 'EEXIST' || e.error?.includes?.('EEXIST') || e.error?.includes?.('exists')) || []
+            if (conflictErrors.length > 0 && !merge) {
+              this.batchConflictCount = conflictErrors.length
+              this.showingMergePrompt = true
+              return // Keep modal open
+            }
+          }
+
           if (response.successCount > 0) {
             this.$toast.success(this.$getString('ToastItemsMoved', [response.successCount]))
           }
@@ -235,15 +269,32 @@ export default {
         this.show = false
       } catch (error) {
         console.error('Failed to move item(s)', error)
-        const errorMsg = error.response?.data || this.$strings.ToastItemMoveFailed
+
+        // Handle EEXIST conflict
+        const errorData = error.response?.data
+        if (!merge && (errorData === 'EEXIST' || errorData?.error === 'EEXIST' || errorData?.includes?.('EEXIST') || (errorData?.errors && errorData.errors.some(e => e.error?.includes('EEXIST') || e.error?.includes('exists'))))) {
+          this.showingMergePrompt = true
+          return // Keep modal open
+        }
+
+        const errorMsg = typeof errorData === 'string' ? errorData : errorData?.error || this.$strings.ToastItemMoveFailed
         this.$toast.error(errorMsg)
       } finally {
         this.processing = false
       }
     },
+    confirmMergeItems() {
+      this.moveItems(true)
+    },
+    cancelMerge() {
+      this.showingMergePrompt = false
+      this.batchConflictCount = 0
+    },
     init() {
       this.selectedLibraryId = null
       this.selectedFolderId = null
+      this.showingMergePrompt = false
+      this.batchConflictCount = 0
       // Pre-select first available library if any
       if (this.targetLibraries.length) {
         this.selectedLibraryId = this.targetLibraries[0].id
