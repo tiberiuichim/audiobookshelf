@@ -11,6 +11,9 @@
         <div v-show="provider != 'itunes'" class="w-60 md:w-72 px-1">
           <ui-text-input-with-label v-model="searchAuthor" :label="$strings.LabelAuthor" />
         </div>
+        <ui-tooltip text="Reset metadata to file tags" direction="bottom" class="mt-5 ml-1 inline-block">
+          <ui-btn :loading="resetting" color="bg-error" type="button" @click.stop.prevent="resetMatch">Reset</ui-btn>
+        </ui-tooltip>
         <ui-btn class="mt-5 ml-1" type="submit">{{ $strings.ButtonSearch }}</ui-btn>
       </div>
     </form>
@@ -244,6 +247,7 @@ export default {
   },
   data() {
     return {
+      resetting: false,
       libraryItemId: null,
       searchTitle: null,
       searchAuthor: null,
@@ -366,6 +370,36 @@ export default {
     }
   },
   methods: {
+    resetMatch() {
+      const payload = {
+        message: 'Are you sure you want to reset metadata? This will remove the metadata file and re-scan the item from files.',
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.runResetMatch()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    runResetMatch() {
+      this.resetting = true
+      this.$axios
+        .$post(`/api/items/${this.libraryItemId}/reset-metadata`)
+        .then((data) => {
+          this.resetting = false
+          this.$toast.success('Metadata reset successfully')
+          if (data && data.media && data.media.metadata) {
+            this.searchTitle = data.media.metadata.title || ''
+            this.searchAuthor = data.media.metadata.authorName || ''
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to reset metadata', error)
+          this.$toast.error('Failed to reset metadata')
+          this.resetting = false
+        })
+    },
     setMatchFieldValue(field, value) {
       if (Array.isArray(value)) {
         this.selectedMatch[field] = [...value]
