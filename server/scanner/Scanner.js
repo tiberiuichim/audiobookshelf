@@ -170,12 +170,18 @@ class Scanner {
         }
       }
 
-      // 3. Fallback to first image in folder if still no cover
+      // 3. Fallback to local metadata file if present
+      if (!libraryItem.media.coverPath && (libraryItem.media.metadataAbsPath || libraryItem.media.metadataJsonPath)) {
+        // If there's a metadata file, it might point to a cover path we can use
+        // But usually coverPath in DB is relative already.
+      }
+
+      // 4. Fallback to first image in folder if still no cover
       if (!libraryItem.media.coverPath && !libraryItem.isFile) {
-        const imageFiles = libraryItem.libraryFiles.filter((lf) => globals.SupportedImageTypes.includes(lf.metadata.ext.slice(1).toLowerCase()))
+        const imageFiles = libraryItem.libraryFiles.filter((lf) => globals.SupportedImageTypes.includes(lf.metadata.ext.slice(1).toLowerCase())).map((lf) => lf.metadata.path)
         if (imageFiles.length) {
-          const coverMatch = imageFiles.find((lf) => /\/cover\.[^.\/]*$/.test(lf.metadata.path))
-          libraryItem.media.coverPath = coverMatch?.metadata.path || imageFiles[0].metadata.path
+          const coverMatch = imageFiles.find((p) => /\/cover\.[^.\/]*$/.test(p))
+          libraryItem.media.coverPath = coverMatch || imageFiles[0]
           hasUpdated = true
         }
       }
@@ -200,6 +206,7 @@ class Scanner {
       SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
     } else {
       // Restore original if no new cover found or it's the same
+      // If we cleared it at the start but found no better one, its basically "not updated"
       libraryItem.media.coverPath = originalCoverPath
       hasUpdated = false
     }

@@ -729,11 +729,15 @@ class LibraryItemController {
       return res.sendStatus(403)
     }
 
-    const { updated, libraryItem } = await Scanner.resetCoverLibraryItem(req.libraryItem)
+    const { updated, libraryItem: resultItem } = await Scanner.resetCoverLibraryItem(req.libraryItem)
+    if (updated) {
+      await CacheManager.purgeCoverCache(req.libraryItem.id)
+      await req.libraryItem.reload()
+    }
     res.json({
       success: true,
       updated,
-      libraryItem
+      libraryItem: updated ? req.libraryItem.toOldJSONExpanded() : resultItem
     })
   }
 
@@ -1260,6 +1264,7 @@ class LibraryItemController {
       const resetResult = await Scanner.resetCoverLibraryItem(libraryItem)
       if (resetResult.updated) {
         itemsUpdated++
+        await CacheManager.purgeCoverCache(libraryItem.id)
       }
     }
 
