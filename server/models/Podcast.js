@@ -177,9 +177,6 @@ class Podcast extends Model {
         if (dims) {
           instance.coverWidth = dims.width
           instance.coverHeight = dims.height
-        } else {
-          instance.coverWidth = null
-          instance.coverHeight = null
         }
       }
     })
