@@ -41,3 +41,22 @@ Allows users to select multiple books and trigger an API process that searches c
 2. **Launch:** Selecting `Quick Match Covers` under the batch context menu toggles the modal.
 3. **Configuration:** The user switches the API Provider dropdown target to one with superior covers for their collection (e.g. `audible`).
 4. **Processing:** Submission marks the UI as `processingBatch`. The server downloads missing covers async. Once complete, it clears processing and reports success visually, updating the thumbnail indicators.
+
+## 3. Single Item Quick Match Cover (Item Details Page)
+
+### Purpose
+
+Provides a fast, 1-click method to fix a missing or low-quality cover for a specific book directly from its details page without opening the full Edit or Match dialog.
+
+### User Interface Changes
+
+- **Cover Overlay Action:** A new `Quick Match Cover` button (using the `image_search` material symbol) was added to the book cover overlay on the Item Details page (`client/pages/item/_id/index.vue`).
+- **Placement:** The button is placed in the bottom right corner of the cover image on hover, directly next to the existing `edit` button.
+
+### Interactions & Behavior
+
+1. **Hover:** The user hovers over the book cover on the details page.
+2. **Action:** The user clicks the `image_search` icon.
+3. **Processing:** The UI shows a "Quick Match Cover started" toast and `processingBatch` prevents duplicate actions.
+4. **API Call:** The system determines the library's default metadata provider (falling back to `'google'`) and triggers the exact same `POST /api/items/batch/quickmatch-covers` endpoint used in the batch process, but targeting only this single `libraryItem.id`.
+5. **Resolution:** The cover is updated in the database and the websocket event pushes the new cover thumbnail to the client if a match is successfully found.

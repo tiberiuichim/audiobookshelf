@@ -17,6 +17,7 @@
                 </button>
               </div>
 
+              <button class="absolute bottom-2.5 right-10 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="'Quick Match Cover'" @click.stop.prevent="quickMatchCover">image_search</button>
               <button class="absolute bottom-2.5 right-2.5 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="$strings.ButtonEdit" @click="showEditCover">edit</button>
             </div>
           </div>
@@ -39,9 +40,9 @@
 
               <p v-if="bookSubtitle" class="text-gray-200 text-xl md:text-2xl">{{ bookSubtitle }}</p>
 
-              <template v-for="(_series, index) in seriesList">
-                <nuxt-link :key="_series.id" :to="`/library/${libraryId}/series/${_series.id}`" class="hover:underline font-sans text-gray-300 text-lg leading-7">{{ _series.text }}</nuxt-link
-                ><span :key="index" v-if="index < seriesList.length - 1">, </span>
+              <template v-for="(_series, index) in seriesList" :key="index">
+                <nuxt-link :to="`/library/${libraryId}/series/${_series.id}`" class="hover:underline font-sans text-gray-300 text-lg leading-7">{{ _series.text }}</nuxt-link
+                ><span v-if="index < seriesList.length - 1">, </span>
               </template>
 
               <p v-if="isPodcast" class="mb-2 mt-0.5 text-gray-200 text-lg md:text-xl">{{ $getString('LabelByAuthor', [podcastAuthor]) }}</p>
@@ -517,6 +518,25 @@ export default {
     showEditCover() {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'cover' })
+    },
+    quickMatchCover() {
+      const provider = this.$store.getters['libraries/getLibraryProvider'](this.libraryId) || 'google'
+      this.$store.commit('setProcessingBatch', true)
+      this.$axios
+        .$post(`/api/items/batch/quickmatch-covers`, {
+          options: { provider, overrideCover: true },
+          libraryItemIds: [this.libraryItem.id]
+        })
+        .then(() => {
+          this.$toast.info('Quick Match Cover started')
+        })
+        .catch((error) => {
+          this.$toast.error('Quick Match Cover failed')
+          console.error('Failed to quick match cover', error)
+        })
+        .finally(() => {
+          this.$store.commit('setProcessingBatch', false)
+        })
     },
     showEditMatch() {
       this.$store.commit('setBookshelfBookIds', [])
