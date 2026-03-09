@@ -8,7 +8,7 @@ The `Match` tab inside the "Edit book" modal allows users to search for and appl
 
 ### Match.vue (client/components/modals/item/tabs/Match.vue)
 
-- A new `Reset` button (red/error colored) is placed next to the `Search` button inside the Match tab form.
+- A new `Reset` button (red/error colored) with a `restore` icon is placed next to the `Search` button inside the Match tab form.
 - The button is wrapped in a `<ui-tooltip>` with text `Reset metadata to file tags` to clarify its functionality.
 
 ## Interactions & Behavior

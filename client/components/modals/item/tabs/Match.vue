@@ -12,7 +12,9 @@
           <ui-text-input-with-label v-model="searchAuthor" :label="$strings.LabelAuthor" />
         </div>
         <ui-tooltip text="Reset metadata to file tags" direction="bottom" class="mt-5 ml-1 inline-block">
-          <ui-btn :loading="resetting" color="bg-error" type="button" @click.stop.prevent="resetMatch">Reset</ui-btn>
+          <ui-btn :loading="resetting" color="bg-error" type="button" :padding-x="4" @click.stop.prevent="resetMatch">
+            <span class="material-symbols text-xl">restore</span>
+          </ui-btn>
         </ui-tooltip>
         <ui-btn class="mt-5 ml-1" type="submit">{{ $strings.ButtonSearch }}</ui-btn>
       </div>
@@ -24,8 +26,8 @@
       <p>{{ $strings.MessageNoResults }}</p>
     </div>
     <div v-show="!processing" class="w-full max-h-full overflow-y-auto overflow-x-hidden matchListWrapper mt-4">
-      <template v-for="(res, index) in searchResults">
-        <cards-book-match-card :key="index" :book="res" :current-book-duration="currentBookDuration" :is-podcast="isPodcast" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="applyMatch" @review="selectMatch" />
+      <template v-for="(res, index) in searchResults" :key="index">
+        <cards-book-match-card :book="res" :current-book-duration="currentBookDuration" :is-podcast="isPodcast" :book-cover-aspect-ratio="bookCoverAspectRatio" @select="applyMatch" @review="selectMatch" />
       </template>
     </div>
     <div v-if="selectedMatchOrig" class="absolute top-0 left-0 w-full bg-bg h-full px-2 py-6 md:p-8 max-h-full overflow-y-auto overflow-x-hidden">
