@@ -392,7 +392,7 @@ export default {
           this.resetting = false
           this.$toast.success('Metadata reset successfully')
           if (data && data.media && data.media.metadata) {
-            this.searchTitle = data.media.metadata.title || ''
+            this.searchTitle = (data.media.metadata.title || '').replace(/\s*\(unabridged\)/gi, '').trim()
             this.searchAuthor = data.media.metadata.authorName || ''
           }
         })
@@ -547,7 +547,7 @@ export default {
         this.searchAuthor = null
         return
       }
-      this.searchTitle = this.libraryItem.media.metadata.title
+      this.searchTitle = (this.libraryItem.media.metadata.title || '').replace(/\s*\(unabridged\)/gi, '').trim()
       this.searchAuthor = this.libraryItem.media.metadata.authorName || ''
 
       // Wait for providers to be loaded before setting provider and searching
