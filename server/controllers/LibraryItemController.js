@@ -718,6 +718,26 @@ class LibraryItemController {
   }
 
   /**
+   * POST: /api/items/:id/reset-cover
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async resetCover(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to reset cover without permission`)
+      return res.sendStatus(403)
+    }
+
+    const { updated, libraryItem } = await Scanner.resetCoverLibraryItem(req.libraryItem)
+    res.json({
+      success: true,
+      updated,
+      libraryItem
+    })
+  }
+
+  /**
    * GET: /api/items/:id/cover
    *
    * @param {LibraryItemControllerRequest} req
@@ -1207,6 +1227,47 @@ class LibraryItemController {
       unmatched: itemsUnmatched
     }
     SocketAuthority.clientEmitter(req.user.id, 'batch_quickmatch_covers_complete', result)
+  }
+
+  /**
+   * POST: /api/items/batch/reset-covers
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchResetCovers(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.warn(`Non-admin user "${req.user.username}" attempted to batch reset covers`)
+      return res.sendStatus(403)
+    }
+
+    let itemsUpdated = 0
+
+    if (!req.body.libraryItemIds?.length) {
+      return res.sendStatus(400)
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: req.body.libraryItemIds
+    })
+    if (!libraryItems?.length) {
+      return res.sendStatus(400)
+    }
+
+    res.sendStatus(200)
+
+    for (const libraryItem of libraryItems) {
+      const resetResult = await Scanner.resetCoverLibraryItem(libraryItem)
+      if (resetResult.updated) {
+        itemsUpdated++
+      }
+    }
+
+    const result = {
+      success: itemsUpdated > 0,
+      updates: itemsUpdated
+    }
+    SocketAuthority.clientEmitter(req.user.id, 'batch_reset_covers_complete', result)
   }
 
   /**

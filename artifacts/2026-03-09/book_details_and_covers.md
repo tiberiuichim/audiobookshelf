@@ -60,3 +60,31 @@ Provides a fast, 1-click method to fix a missing or low-quality cover for a spec
 3. **Processing:** The UI shows a "Quick Match Cover started" toast and `processingBatch` prevents duplicate actions.
 4. **API Call:** The system determines the library's default metadata provider (falling back to `'google'`) and triggers the exact same `POST /api/items/batch/quickmatch-covers` endpoint used in the batch process, but targeting only this single `libraryItem.id`.
 5. **Resolution:** The cover is updated in the database and the websocket event pushes the new cover thumbnail to the client if a match is successfully found.
+
+## 4. Reset Cover to Original (Extracted/Folder)
+
+### Purpose
+
+Allows the user to revert a book's cover to the version extracted from the audio files, the ebook, or the first image file found in the book's folder. This is useful if a "Quick Match" or manual update resulted in a low-quality or incorrect cover.
+
+### User Interface Changes
+
+- **Cover Overlay Action:** A new `Reset Cover` button (using the `restart_alt` material symbol) was added to the book cover overlay on the Item Details page (`client/pages/item/_id/index.vue`).
+- **Batch Action:** A `Reset Covers` option was added to the batch context menu in the multi-select toolbar.
+
+### Backend Implementation
+
+- **Scanner Endpoint:** `Scanner.resetCoverLibraryItem` added to handle the reset logic.
+  1. It first attempts to extract the embedded cover art from audio files using `CoverManager.saveEmbeddedCoverArt`.
+  2. If that fails, it attempts to extract the cover from the ebook file using `CoverManager.saveEbookCoverArt`.
+  3. If still no cover is found, it falls back to the first supported image file in the library item's folder (preferring files named `cover`).
+- **Routes:**
+  - `POST /api/items/:id/reset-cover` for single items.
+  - `POST /api/items/batch/reset-covers` for batch processing.
+
+### Interactions & Behavior
+
+1. **Trigger:** The user clicks the `restart_alt` icon on the cover overlay or selects `Reset Covers` from the batch menu.
+2. **Confirmation:** A browser confirmation dialog ensures the user intended to reset the cover(s).
+3. **Processing:** The UI marks the operation as `processingBatch`.
+4. **Resolution:** If a new cover is found through the extraction/lookup process, it is saved and pushed to the client. If no original cover can be recovered, the current cover is maintained.

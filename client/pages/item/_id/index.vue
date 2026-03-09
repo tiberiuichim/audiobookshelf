@@ -17,6 +17,7 @@
                 </button>
               </div>
 
+              <button class="absolute bottom-2.5 right-17.5 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="'Reset Cover'" @click.stop.prevent="resetCover">restart_alt</button>
               <button class="absolute bottom-2.5 right-10 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="'Quick Match Cover'" @click.stop.prevent="quickMatchCover">image_search</button>
               <button class="absolute bottom-2.5 right-2.5 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="$strings.ButtonEdit" @click="showEditCover">edit</button>
             </div>
@@ -538,6 +539,27 @@ export default {
           this.$store.commit('setProcessingBatch', false)
         })
     },
+    resetCover() {
+      if (!confirm('Are you sure you want to reset the cover to the original extracted cover?')) return
+
+      this.$store.commit('setProcessingBatch', true)
+      this.$axios
+        .$post(`/api/items/${this.libraryItem.id}/reset-cover`)
+        .then((data) => {
+          if (data.updated) {
+            this.$toast.success('Cover reset successfully')
+          } else {
+            this.$toast.info('Cover is already using the original extracted cover')
+          }
+        })
+        .catch((error) => {
+          this.$toast.error('Failed to reset cover')
+          console.error('Failed to reset cover', error)
+        })
+        .finally(() => {
+          this.$store.commit('setProcessingBatch', false)
+        })
+    },
     showEditMatch() {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
@@ -965,6 +987,7 @@ export default {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   max-height: calc(6 * 1lh);
 }
 
@@ -980,6 +1003,7 @@ export default {
 
 #item-description.show-full {
   -webkit-line-clamp: unset;
+  line-clamp: unset;
   max-height: 999rem;
 }
 </style>

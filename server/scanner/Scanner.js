@@ -12,6 +12,8 @@ const LibraryScan = require('./LibraryScan')
 const LibraryScanner = require('./LibraryScanner')
 const CoverManager = require('../managers/CoverManager')
 const TaskManager = require('../managers/TaskManager')
+const parseEbookMetadata = require('../utils/parsers/parseEbookMetadata')
+const globals = require('../utils/globals')
 
 /**
  * @typedef QuickMatchOptions
@@ -127,6 +129,79 @@ class Scanner {
       await libraryItem.saveMetadataFile()
 
       SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
+    }
+
+    return {
+      updated: hasUpdated,
+      libraryItem: libraryItem.toOldJSONExpanded()
+    }
+  }
+
+  /**
+   * Reset library item cover to extracted/folder original
+   *
+   * @param {import('../models/LibraryItem')} libraryItem
+   * @returns {Promise<{updated: boolean, libraryItem: Object}>}
+   */
+  async resetCoverLibraryItem(libraryItem) {
+    let hasUpdated = false
+    const originalCoverPath = libraryItem.media.coverPath
+
+    // Clear cover path to force re-search
+    libraryItem.media.coverPath = null
+
+    const libraryItemDir = libraryItem.isFile ? null : libraryItem.path
+
+    if (libraryItem.isBook) {
+      // 1. Try embedded cover from audio files
+      let extractedCoverPath = await CoverManager.saveEmbeddedCoverArt(libraryItem.media.audioFiles, libraryItem.id, libraryItemDir)
+      if (extractedCoverPath) {
+        libraryItem.media.coverPath = extractedCoverPath
+        hasUpdated = true
+      } else {
+        // 2. Try embedded cover from ebook
+        const ebookFileScanData = await parseEbookMetadata.parse(libraryItem.media.ebookFile)
+        if (ebookFileScanData?.ebookCoverPath) {
+          extractedCoverPath = await CoverManager.saveEbookCoverArt(ebookFileScanData, libraryItem.id, libraryItemDir)
+          if (extractedCoverPath) {
+            libraryItem.media.coverPath = extractedCoverPath
+            hasUpdated = true
+          }
+        }
+      }
+
+      // 3. Fallback to first image in folder if still no cover
+      if (!libraryItem.media.coverPath && !libraryItem.isFile) {
+        const imageFiles = libraryItem.libraryFiles.filter((lf) => globals.SupportedImageTypes.includes(lf.metadata.ext.slice(1).toLowerCase()))
+        if (imageFiles.length) {
+          const coverMatch = imageFiles.find((lf) => /\/cover\.[^.\/]*$/.test(lf.metadata.path))
+          libraryItem.media.coverPath = coverMatch?.metadata.path || imageFiles[0].metadata.path
+          hasUpdated = true
+        }
+      }
+    } else if (libraryItem.isPodcast) {
+      // For podcasts, we just clear and let the next scan or user action fix it if needed,
+      // but usually they don't have "extracted" covers in the same way.
+      // However, if they have an image in the folder, use it.
+      if (!libraryItem.isFile) {
+        const imageFiles = libraryItem.libraryFiles.filter((lf) => globals.SupportedImageTypes.includes(lf.metadata.ext.slice(1).toLowerCase()))
+        if (imageFiles.length) {
+          libraryItem.media.coverPath = imageFiles[0].metadata.path
+          hasUpdated = true
+        }
+      }
+    }
+
+    if (hasUpdated && libraryItem.media.coverPath !== originalCoverPath) {
+      await libraryItem.media.save()
+      libraryItem.changed('updatedAt', true)
+      await libraryItem.save()
+      await libraryItem.saveMetadataFile()
+      SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
+    } else {
+      // Restore original if no new cover found or it's the same
+      libraryItem.media.coverPath = originalCoverPath
+      hasUpdated = false
     }
 
     return {

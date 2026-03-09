@@ -113,6 +113,7 @@ class ApiRouter {
     this.router.post('/items/batch/merge', LibraryItemController.batchMerge.bind(this))
     this.router.post('/items/batch/consolidate', LibraryItemController.batchConsolidate.bind(this))
     this.router.post('/items/batch/reset-metadata', LibraryItemController.batchResetMetadata.bind(this))
+    this.router.post('/items/batch/reset-covers', LibraryItemController.batchResetCovers.bind(this))
 
     this.router.get('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.findOne.bind(this))
     this.router.delete('/items/:id', LibraryItemController.middleware.bind(this), LibraryItemController.delete.bind(this))
@@ -124,6 +125,7 @@ class ApiRouter {
     this.router.delete('/items/:id/cover', LibraryItemController.middleware.bind(this), LibraryItemController.removeCover.bind(this))
     this.router.post('/items/:id/match', LibraryItemController.middleware.bind(this), LibraryItemController.match.bind(this))
     this.router.post('/items/:id/reset-metadata', LibraryItemController.middleware.bind(this), LibraryItemController.resetMetadata.bind(this))
+    this.router.post('/items/:id/reset-cover', LibraryItemController.middleware.bind(this), LibraryItemController.resetCover.bind(this))
     this.router.post('/items/:id/play', LibraryItemController.middleware.bind(this), LibraryItemController.startPlaybackSession.bind(this))
     this.router.post('/items/:id/play/:episodeId', LibraryItemController.middleware.bind(this), LibraryItemController.startEpisodePlaybackSession.bind(this))
     this.router.patch('/items/:id/tracks', LibraryItemController.middleware.bind(this), LibraryItemController.updateTracks.bind(this))

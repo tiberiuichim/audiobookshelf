@@ -195,6 +195,10 @@ export default {
         {
           text: 'Quick Match Covers',
           action: 'quick-match-covers'
+        },
+        {
+          text: 'Reset Covers',
+          action: 'reset-covers'
         }
       ]
 
@@ -285,7 +289,9 @@ export default {
       } else if (action === 'quick-match') {
         this.batchAutoMatchClick()
       } else if (action === 'quick-match-covers') {
-        this.batchAutoMatchCoversClick()
+        this.batchQuickMatchCovers()
+      } else if (action === 'reset-covers') {
+        this.batchResetCovers()
       } else if (action === 'rescan') {
         this.batchRescan()
       } else if (action === 'download') {
@@ -579,8 +585,27 @@ export default {
     batchAutoMatchClick() {
       this.$store.commit('globals/setShowBatchQuickMatchModal', true)
     },
-    batchAutoMatchCoversClick() {
+    batchQuickMatchCovers() {
       this.$store.commit('globals/setShowBatchQuickMatchCoversModal', true)
+    },
+    batchResetCovers() {
+      if (!confirm('Are you sure you want to reset covers for all selected items?')) return
+
+      const libraryItemIds = this.selectedMediaItems.map((mi) => mi.id)
+      this.$store.commit('setProcessingBatch', true)
+      this.$axios
+        .$post('/api/items/batch/reset-covers', { libraryItemIds })
+        .then(() => {
+          this.$toast.info('Batch Reset Covers started')
+        })
+        .catch((error) => {
+          this.$toast.error('Batch Reset Covers failed')
+          console.error('Failed to batch reset covers', error)
+        })
+        .finally(() => {
+          this.$store.commit('setProcessingBatch', false)
+          this.$store.commit('globals/setSelectedMediaItems', [])
+        })
     },
     getHotkeyName(e) {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return null
