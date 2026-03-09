@@ -191,6 +191,10 @@ export default {
           text: this.$strings.ButtonQuickMatch,
           action: 'quick-match',
           shortcut: this.$hotkeys.Batch.MATCH
+        },
+        {
+          text: 'Quick Match Covers',
+          action: 'quick-match-covers'
         }
       ]
 
@@ -280,6 +284,8 @@ export default {
         this.requestBatchQuickEmbed()
       } else if (action === 'quick-match') {
         this.batchAutoMatchClick()
+      } else if (action === 'quick-match-covers') {
+        this.batchAutoMatchCoversClick()
       } else if (action === 'rescan') {
         this.batchRescan()
       } else if (action === 'download') {
@@ -572,6 +578,9 @@ export default {
     },
     batchAutoMatchClick() {
       this.$store.commit('globals/setShowBatchQuickMatchModal', true)
+    },
+    batchAutoMatchCoversClick() {
+      this.$store.commit('globals/setShowBatchQuickMatchCoversModal', true)
     },
     getHotkeyName(e) {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return null

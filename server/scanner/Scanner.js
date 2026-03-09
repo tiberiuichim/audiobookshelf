@@ -136,6 +136,84 @@ class Scanner {
   }
 
   /**
+   * Quick match library item cover ONLY
+   *
+   * @param {import('../routers/ApiRouter')} apiRouterCtx
+   * @param {import('../models/LibraryItem')} libraryItem
+   * @param {QuickMatchOptions} options
+   * @returns {Promise<{updated: boolean, libraryItem: Object}>}
+   */
+  async quickMatchCoverLibraryItem(apiRouterCtx, libraryItem, options = {}) {
+    const provider = options.provider || 'google'
+    const searchTitle = options.title || libraryItem.media.title
+    const searchAuthor = options.author || libraryItem.media.authorName
+
+    let hasUpdated = false
+
+    if (libraryItem.isBook) {
+      const searchISBN = options.isbn || libraryItem.media.isbn
+      const searchASIN = options.asin || libraryItem.media.asin
+
+      const results = await BookFinder.search(libraryItem, provider, searchTitle, searchAuthor, searchISBN, searchASIN, { maxFuzzySearches: 2 })
+      if (!results.length) {
+        return {
+          warning: `No ${provider} match found`
+        }
+      }
+      const matchData = results[0]
+
+      if (matchData.cover && (!libraryItem.media.coverPath || options.overrideCover)) {
+        Logger.debug(`[Scanner] Updating cover "${matchData.cover}"`)
+        const coverResult = await CoverManager.downloadCoverFromUrlNew(matchData.cover, libraryItem.id, libraryItem.isFile ? null : libraryItem.path)
+        if (coverResult.error) {
+          Logger.warn(`[Scanner] Match cover "${matchData.cover}" failed to use: ${coverResult.error}`)
+        } else {
+          libraryItem.media.coverPath = coverResult.cover
+          libraryItem.media.changed('coverPath', true) // Cover path may be the same but this forces the update
+          hasUpdated = true
+        }
+      }
+    } else if (libraryItem.isPodcast) {
+      // Podcast quick match
+      const results = await PodcastFinder.search(searchTitle)
+      if (!results.length) {
+        return {
+          warning: `No ${provider} match found`
+        }
+      }
+      const matchData = results[0]
+
+      if (matchData.cover && (!libraryItem.media.coverPath || options.overrideCover)) {
+        Logger.debug(`[Scanner] Updating cover "${matchData.cover}"`)
+        const coverResult = await CoverManager.downloadCoverFromUrlNew(matchData.cover, libraryItem.id, libraryItem.path)
+        if (coverResult.error) {
+          Logger.warn(`[Scanner] Match cover "${matchData.cover}" failed to use: ${coverResult.error}`)
+        } else {
+          libraryItem.media.coverPath = coverResult.cover
+          libraryItem.media.changed('coverPath', true) // Cover path may be the same but this forces the update
+          hasUpdated = true
+        }
+      }
+    }
+
+    if (hasUpdated) {
+      await libraryItem.media.save()
+
+      libraryItem.changed('updatedAt', true)
+      await libraryItem.save()
+
+      await libraryItem.saveMetadataFile()
+
+      SocketAuthority.libraryItemEmitter('item_updated', libraryItem)
+    }
+
+    return {
+      updated: hasUpdated,
+      libraryItem: libraryItem.toOldJSONExpanded()
+    }
+  }
+
+  /**
    *
    * @param {import('../models/LibraryItem')} libraryItem
    * @param {*} matchData

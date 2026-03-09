@@ -107,6 +107,7 @@ class ApiRouter {
     this.router.post('/items/batch/update', LibraryItemController.batchUpdate.bind(this))
     this.router.post('/items/batch/get', LibraryItemController.batchGet.bind(this))
     this.router.post('/items/batch/quickmatch', LibraryItemController.batchQuickMatch.bind(this))
+    this.router.post('/items/batch/quickmatch-covers', LibraryItemController.batchQuickMatchCovers.bind(this))
     this.router.post('/items/batch/scan', LibraryItemController.batchScan.bind(this))
     this.router.post('/items/batch/move', LibraryItemController.batchMove.bind(this))
     this.router.post('/items/batch/merge', LibraryItemController.batchMerge.bind(this))

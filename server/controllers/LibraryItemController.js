@@ -216,7 +216,19 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
         // Update coverPath
         if (libraryItem.media.coverPath) {
           if (oldIsFile && newItemFolderName) {
-            libraryItem.media.coverPath = Path.join(newPath, Path.basename(libraryItem.media.coverPath))
+            if (global.ServerSettings.storeCoverWithItem) {
+              const targetCoverPath = Path.join(newPath, Path.basename(libraryItem.media.coverPath))
+              if (libraryItem.media.coverPath !== targetCoverPath) {
+                if (await fs.pathExists(libraryItem.media.coverPath)) {
+                  try {
+                    await fs.move(libraryItem.media.coverPath, targetCoverPath)
+                  } catch (err) {
+                    Logger.error(`[LibraryItemController] Failed to move cover file to ${targetCoverPath}`, err)
+                  }
+                }
+                libraryItem.media.coverPath = targetCoverPath
+              }
+            }
           } else {
             libraryItem.media.coverPath = libraryItem.media.coverPath.replace(oldPath, newPath)
           }
@@ -1141,6 +1153,60 @@ class LibraryItemController {
       unmatched: itemsUnmatched
     }
     SocketAuthority.clientEmitter(req.user.id, 'batch_quickmatch_complete', result)
+  }
+
+  /**
+   * POST: /api/items/batch/quickmatch-covers
+   *
+   * @param {RequestWithUser} req
+   * @param {Response} res
+   */
+  async batchQuickMatchCovers(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.warn(`Non-admin user "${req.user.username}" other than admin attempted to batch quick match covers`)
+      return res.sendStatus(403)
+    }
+
+    let itemsUpdated = 0
+    let itemsUnmatched = 0
+
+    if (!req.body.libraryItemIds?.length) {
+      return res.sendStatus(400)
+    }
+
+    const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
+      id: req.body.libraryItemIds
+    })
+    if (!libraryItems?.length) {
+      return res.sendStatus(400)
+    }
+
+    res.sendStatus(200)
+
+    const reqBodyOptions = req.body.options || {}
+    const options = {}
+    if (reqBodyOptions.provider && typeof reqBodyOptions.provider === 'string') {
+      options.provider = reqBodyOptions.provider
+    }
+    if (reqBodyOptions.overrideCover !== undefined) {
+      options.overrideCover = !!reqBodyOptions.overrideCover
+    }
+
+    for (const libraryItem of libraryItems) {
+      const matchResult = await Scanner.quickMatchCoverLibraryItem(this, libraryItem, options)
+      if (matchResult.updated) {
+        itemsUpdated++
+      } else if (matchResult.warning) {
+        itemsUnmatched++
+      }
+    }
+
+    const result = {
+      success: itemsUpdated > 0,
+      updates: itemsUpdated,
+      unmatched: itemsUnmatched
+    }
+    SocketAuthority.clientEmitter(req.user.id, 'batch_quickmatch_covers_complete', result)
   }
 
   /**

@@ -28,6 +28,7 @@ export const state = () => ({
   isCasting: false, // Actively casting
   isChromecastInitialized: false, // Script loadeds
   showBatchQuickMatchModal: false,
+  showBatchQuickMatchCoversModal: false,
   showMoveToLibraryModal: false,
   dateFormats: [
     {
@@ -208,6 +209,9 @@ export const mutations = {
   },
   setShowBatchQuickMatchModal(state, val) {
     state.showBatchQuickMatchModal = val
+  },
+  setShowBatchQuickMatchCoversModal(state, val) {
+    state.showBatchQuickMatchCoversModal = val
   },
   setShowMoveToLibraryModal(state, val) {
     state.showMoveToLibraryModal = val

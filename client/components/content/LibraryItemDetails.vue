@@ -1,13 +1,13 @@
 <template>
-  <div>
-    <div v-if="narrators?.length" class="flex py-0.5 mt-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 mt-4">
+    <div v-if="narrators?.length" class="flex py-0.5">
       <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelNarrators }}</span>
       </div>
       <div class="max-w-[calc(100vw-10rem)] overflow-hidden text-ellipsis">
-        <template v-for="(narrator, index) in narrators">
-          <nuxt-link :key="narrator" :to="`/library/${libraryId}/bookshelf?filter=narrators.${$encode(narrator)}`" class="hover:underline">{{ narrator }}</nuxt-link
-          ><span :key="index" v-if="index < narrators.length - 1">,&nbsp;</span>
+        <template v-for="(narrator, index) in narrators" :key="narrator">
+          <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=narrators.${$encode(narrator)}`" class="hover:underline">{{ narrator }}</nuxt-link
+          ><span v-if="index < narrators.length - 1">,&nbsp;</span>
         </template>
       </div>
     </div>
@@ -40,9 +40,9 @@
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelGenres }}</span>
       </div>
       <div class="max-w-[calc(100vw-10rem)] overflow-hidden text-ellipsis">
-        <template v-for="(genre, index) in genres">
-          <nuxt-link :key="genre" :to="`/library/${libraryId}/bookshelf?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
-          ><span :key="index" v-if="index < genres.length - 1">,&nbsp;</span>
+        <template v-for="(genre, index) in genres" :key="genre">
+          <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=genres.${$encode(genre)}`" class="hover:underline">{{ genre }}</nuxt-link
+          ><span v-if="index < genres.length - 1">,&nbsp;</span>
         </template>
       </div>
     </div>
@@ -51,9 +51,9 @@
         <span class="text-white/60 uppercase text-sm">{{ $strings.LabelTags }}</span>
       </div>
       <div class="max-w-[calc(100vw-10rem)] overflow-hidden text-ellipsis">
-        <template v-for="(tag, index) in tags">
-          <nuxt-link :key="tag" :to="`/library/${libraryId}/bookshelf?filter=tags.${$encode(tag)}`" class="hover:underline">{{ tag }}</nuxt-link
-          ><span :key="index" v-if="index < tags.length - 1">,&nbsp;</span>
+        <template v-for="(tag, index) in tags" :key="tag">
+          <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=tags.${$encode(tag)}`" class="hover:underline">{{ tag }}</nuxt-link
+          ><span v-if="index < tags.length - 1">,&nbsp;</span>
         </template>
       </div>
     </div>
@@ -63,6 +63,22 @@
       </div>
       <div>
         <nuxt-link :to="`/library/${libraryId}/bookshelf?filter=languages.${$encode(language)}`" class="hover:underline">{{ language }}</nuxt-link>
+      </div>
+    </div>
+    <div v-if="isbn" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">ISBN</span>
+      </div>
+      <div>
+        {{ isbn }}
+      </div>
+    </div>
+    <div v-if="asin" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">ASIN</span>
+      </div>
+      <div>
+        <a :href="`https://www.audible.com/pd/${asin}`" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ asin }}</a>
       </div>
     </div>
     <div v-if="tracks.length || (isPodcast && totalPodcastDuration)" role="paragraph" class="flex py-0.5">
@@ -137,6 +153,12 @@ export default {
     },
     language() {
       return this.mediaMetadata.language || null
+    },
+    isbn() {
+      return this.mediaMetadata.isbn || null
+    },
+    asin() {
+      return this.mediaMetadata.asin || null
     },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)
