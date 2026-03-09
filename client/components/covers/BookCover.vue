@@ -23,8 +23,13 @@
     </div>
 
     <!-- Cover Size Badge -->
-    <div v-if="coverBadge" class="absolute bottom-1 right-1 px-1 rounded-sm text-white font-bold pointer-events-none z-20" :class="coverBadge.color" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem' }">
+    <div v-if="coverBadge" class="absolute right-1 px-1 rounded-sm text-white font-bold pointer-events-none z-20" :class="[coverBadge.color, durationPretty ? 'bottom-5' : 'bottom-1']" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem' }">
       {{ coverBadge.text }}
+    </div>
+
+    <!-- Duration Badge -->
+    <div v-if="durationPretty" class="absolute bottom-1 right-1 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem' }">
+      {{ durationPretty }}
     </div>
 
     <div v-if="!hasCover" class="absolute top-0 left-0 right-0 bottom-0 w-full h-full flex items-center justify-center z-10" :style="{ padding: placeholderCoverPadding + 'rem' }">
@@ -140,6 +145,11 @@ export default {
     },
     resolution() {
       return `${this.naturalWidth}x${this.naturalHeight}px`
+    },
+    durationPretty() {
+      if (this.libraryItem?.mediaType !== 'book') return null
+      if (!this.media.duration) return null
+      return this.$elapsedPrettyExtended(this.media.duration, false, false)
     },
     coverBadge() {
       const width = this.media?.coverWidth || this.naturalWidth

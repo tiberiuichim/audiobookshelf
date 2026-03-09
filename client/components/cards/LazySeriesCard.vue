@@ -12,6 +12,11 @@
 
       <div cy-id="seriesProgressBar" v-if="seriesPercentInProgress > 0" class="absolute bottom-0 left-0 h-1e shadow-xs max-w-full z-10 rounded-b w-full box-shadow-progressbar" :class="isSeriesFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: seriesPercentInProgress * 100 + '%' }" />
 
+      <!-- Total Duration Badge -->
+      <div v-if="totalDurationPretty" class="absolute bottom-1 right-1 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: 0.8 + 'em', lineHeight: 1 + 'em' }">
+        {{ totalDurationPretty }}
+      </div>
+
       <div cy-id="hoveringDisplayTitle" v-if="hasValidCovers" aria-hidden="true" class="bg-black/60 absolute top-0 left-0 w-full h-full flex items-center justify-center text-center transition-opacity" :class="isHovering ? '' : 'opacity-0'" :style="{ padding: '1em' }">
         <p :style="{ fontSize: 1.2 + 'em' }">{{ displayTitle }}</p>
       </div>
@@ -117,6 +122,10 @@ export default {
     },
     totalDuration() {
       return this.series?.totalDuration || 0
+    },
+    totalDurationPretty() {
+      if (!this.totalDuration) return null
+      return this.$elapsedPrettyExtended(this.totalDuration, false, false)
     },
     seriesBookProgress() {
       return this.books

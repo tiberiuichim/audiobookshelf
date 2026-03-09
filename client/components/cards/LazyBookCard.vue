@@ -124,8 +124,13 @@
         </ui-tooltip>
 
         <!-- Cover Size Badge -->
-        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20" :class="coverBadge.color" :style="{ bottom: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20 transition-all duration-300" :class="coverBadge.color" :style="{ bottom: (durationPretty ? 1.4 : 0.375) + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
           {{ coverBadge.text }}
+        </div>
+
+        <!-- Duration Badge -->
+        <div v-if="durationPretty" class="absolute rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ bottom: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+          {{ durationPretty }}
         </div>
       </div>
     </div>
@@ -271,6 +276,12 @@ export default {
     },
     seriesSequence() {
       return this.series?.sequence || null
+    },
+    durationPretty() {
+      if (this.isPodcast) return null // Duration not shown for podcast here
+      if (this.collapsedSeries) return null
+      if (!this.media.duration) return null
+      return this.$elapsedPrettyExtended(this.media.duration, false, false)
     },
     libraryId() {
       return this._libraryItem.libraryId
