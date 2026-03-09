@@ -27,7 +27,7 @@ Allows users to select multiple books and trigger an API process that searches c
 
 ### Backend Implementation
 
-- **Scanner Endpoint:** `Scanner.quickMatchCoverLibraryItem` added to uniquely handle downloading and saving just the cover from standard Provider queries.
+- **Scanner Endpoint:** `Scanner.quickMatchCoverLibraryItem` added to uniquely handle downloading and saving just the cover from standard Provider queries. It uses a strict matching criteria: either the ASIN/ISBN must be an exact match, or the Title and Author must be a 100% case-insensitive match. If these criteria aren't met, the cover update is rejected to prevent erroneous metadata matches.
 - **Route:** `POST /api/items/batch/quickmatch-covers` implemented on `LibraryItemController` to process bulk requests and emit the `batch_quickmatch_covers_complete` websocket event.
 
 ### User Interface Changes

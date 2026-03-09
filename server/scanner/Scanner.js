@@ -162,6 +162,25 @@ class Scanner {
       }
       const matchData = results[0]
 
+      let isMatch = false
+      if (searchASIN && matchData.asin === searchASIN) {
+        isMatch = true
+      } else if (searchISBN && matchData.isbn === searchISBN) {
+        isMatch = true
+      } else if (searchTitle && matchData.title && searchTitle.toLowerCase() === matchData.title.toLowerCase()) {
+        if (searchAuthor && matchData.author && searchAuthor.toLowerCase() === matchData.author.toLowerCase()) {
+          isMatch = true
+        } else if (!searchAuthor && !matchData.author) {
+          isMatch = true
+        }
+      }
+
+      if (!isMatch) {
+        return {
+          warning: `Cover match rejected: Title and Author, or ASIN/ISBN must match completely.`
+        }
+      }
+
       if (matchData.cover && (!libraryItem.media.coverPath || options.overrideCover)) {
         Logger.debug(`[Scanner] Updating cover "${matchData.cover}"`)
         const coverResult = await CoverManager.downloadCoverFromUrlNew(matchData.cover, libraryItem.id, libraryItem.isFile ? null : libraryItem.path)
@@ -182,6 +201,21 @@ class Scanner {
         }
       }
       const matchData = results[0]
+
+      let isMatch = false
+      if (searchTitle && matchData.title && searchTitle.toLowerCase() === matchData.title.toLowerCase()) {
+        if (searchAuthor && matchData.author && searchAuthor.toLowerCase() === matchData.author.toLowerCase()) {
+          isMatch = true
+        } else if (!searchAuthor) {
+          isMatch = true
+        }
+      }
+
+      if (!isMatch) {
+        return {
+          warning: `Cover match rejected: Title and Author must match completely.`
+        }
+      }
 
       if (matchData.cover && (!libraryItem.media.coverPath || options.overrideCover)) {
         Logger.debug(`[Scanner] Updating cover "${matchData.cover}"`)
