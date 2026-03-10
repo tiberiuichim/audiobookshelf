@@ -14,18 +14,18 @@ Previously, cover-related badges were aligned to the bottom-right corner. Center
 
 The layout was updated in three primary components to ensure consistency across the bookshelf, item details, and series views.
 
-#### [MODIFY] [BookCover.vue](file:///mnt/docker/work/books/audiobookshelf/client/components/covers/BookCover.vue)
+#### [MODIFY] `BookCover.vue`
 - Used in the **Library Item Details** page.
 - Changed alignment classes from `right-1` to `left-1/2 -translate-x-1/2`.
 - Added `whiteSpace: 'nowrap'` to prevent text wrapping on narrow covers.
 
-#### [MODIFY] [LazyBookCard.vue](file:///mnt/docker/work/books/audiobookshelf/client/components/cards/LazyBookCard.vue)
+#### [MODIFY] `LazyBookCard.vue`
 - Used in the **Library Bookshelf** (Grid View).
 - Updated the `:style` binding for `coverBadge` and `durationPretty` divs.
 - Replaced `right: 0.375em` with `left: 50%` and `transform: translateX(-50%)`.
 - Included `whiteSpace: 'nowrap'` for consistent rendering.
 
-#### [MODIFY] [LazySeriesCard.vue](file:///mnt/docker/work/books/audiobookshelf/client/components/cards/LazySeriesCard.vue)
+#### [MODIFY] `LazySeriesCard.vue`
 - Used for **Series** entries in the bookshelf.
 - Centered the `totalDurationPretty` badge using `left-1/2 -translate-x-1/2` Tailwind utility classes.
 
