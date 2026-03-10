@@ -125,7 +125,7 @@
 
         <!-- Collections -->
         <div cy-id="itemCollections" v-if="itemCollections && itemCollections.length" class="absolute top-0 left-0 right-0 w-full flex flex-col items-center z-20 pointer-events-none" :style="{ paddingTop: 0.375 + 'em' }">
-          <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-black/80 text-white font-medium mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: 0.65 + 'em', lineHeight: 1.1 + 'em' }">
+          <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-success text-white font-bold mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: 0.65 + 'em', lineHeight: 1.1 + 'em' }">
             {{ collection.name }}
           </div>
         </div>
@@ -154,6 +154,11 @@
         <p cy-id="subtitle" class="truncate" ref="displaySubtitle" :style="{ fontSize: 0.6 + 'em' }">{{ displaySubtitle }}</p>
       </ui-tooltip>
       <p cy-id="line2" class="truncate text-gray-400" :style="{ fontSize: 0.8 + 'em' }">{{ displayLineTwo || '&nbsp;' }}</p>
+      <div v-if="itemCollections && itemCollections.length" class="flex flex-wrap mt-1">
+        <template v-for="(collection, index) in itemCollections">
+          <span :key="collection.id" class="text-gray-400" :style="{ fontSize: 0.7 + 'em' }">{{ collection.name }}<span v-if="index < itemCollections.length - 1">,&nbsp;</span></span>
+        </template>
+      </div>
       <p cy-id="line3" v-if="displaySortLine" class="truncate text-gray-400" :style="{ fontSize: 0.8 + 'em' }">{{ displaySortLine }}</p>
     </div>
   </div>
@@ -337,7 +342,7 @@ export default {
     },
     itemCollections() {
       if (!this.libraryItemId || !this.store.state.libraries.collections) return []
-      return this.store.state.libraries.collections.filter((c) => c.books && c.books.includes(this.libraryItemId))
+      return this.store.state.libraries.collections.filter((c) => c.bookIds && c.bookIds.includes(this.libraryItemId))
     },
     hasCover() {
       return !!this.media.coverPath

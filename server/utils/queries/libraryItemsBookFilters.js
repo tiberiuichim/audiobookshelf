@@ -623,6 +623,12 @@ module.exports = {
         },
         seriesInclude,
         authorInclude,
+        {
+          model: Database.collectionModel,
+          through: {
+            attributes: []
+          }
+        },
         ...bookIncludes
       ],
       order: sortOrder,
@@ -781,6 +787,12 @@ module.exports = {
             },
             {
               model: Database.authorModel,
+              through: {
+                attributes: []
+              }
+            },
+            {
+              model: Database.collectionModel,
               through: {
                 attributes: []
               }
@@ -948,6 +960,12 @@ module.exports = {
             model: Database.seriesModel
           },
           separate: true
+        },
+        {
+          model: Database.collectionModel,
+          through: {
+            attributes: []
+          }
         }
       ],
       subQuery: false,

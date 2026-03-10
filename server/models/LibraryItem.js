@@ -864,6 +864,12 @@ class LibraryItem extends Model {
             through: {
               attributes: ['sequence']
             }
+          },
+          {
+            model: this.sequelize.models.collection,
+            through: {
+              attributes: []
+            }
           }
         ],
         order: [

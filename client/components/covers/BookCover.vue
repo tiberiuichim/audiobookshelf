@@ -24,7 +24,7 @@
 
     <!-- Collections -->
     <div v-if="itemCollections && itemCollections.length" class="absolute top-0 left-0 right-0 w-full flex flex-col items-center z-20 pointer-events-none" :style="{ paddingTop: (0.375 * sizeMultiplier) + 'rem' }">
-      <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-black/80 text-white font-medium mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: (0.65 * sizeMultiplier) + 'rem', lineHeight: (1.1 * sizeMultiplier) + 'rem' }">
+      <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-success text-white font-bold mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: (0.65 * sizeMultiplier) + 'rem', lineHeight: (1.1 * sizeMultiplier) + 'rem' }">
         {{ collection.name }}
       </div>
     </div>
@@ -138,7 +138,7 @@ export default {
       if (!this.libraryItem || !this.libraryItem.id) return []
       const store = this.$store || this.$nuxt.$store
       if (!store.state.libraries.collections) return []
-      return store.state.libraries.collections.filter((c) => c.books && c.books.includes(this.libraryItem.id))
+      return store.state.libraries.collections.filter((c) => c.bookIds && c.bookIds.includes(this.libraryItem.id))
     },
     sizeMultiplier() {
       var baseSize = this.squareAspectRatio ? 192 : 120

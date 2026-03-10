@@ -607,7 +607,11 @@ class Book extends Model {
       asin: this.asin,
       language: this.language,
       explicit: this.explicit,
-      abridged: this.abridged
+      abridged: this.abridged,
+      collections: this.collections?.map((c) => ({
+        id: c.id,
+        name: c.name
+      })) || []
     }
   }
 
@@ -619,6 +623,14 @@ class Book extends Model {
     oldMetadataJSON.narratorName = (this.narrators || []).join(', ')
     oldMetadataJSON.seriesName = this.seriesName
     oldMetadataJSON.descriptionPlain = this.description ? htmlSanitizer.stripAllTags(this.description) : null
+
+    if (this.collections) {
+      oldMetadataJSON.collections = this.collections.map((c) => ({
+        id: c.id,
+        name: c.name
+      }))
+    }
+
     return oldMetadataJSON
   }
 

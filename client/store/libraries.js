@@ -131,11 +131,24 @@ export const actions = {
         commit('setLibraryFilterData', filterData)
         commit('setNumUserPlaylists', numUserPlaylists)
         commit('setCurrentLibrary', { id: libraryId })
+
+        dispatch('fetchCollections', libraryId)
+
         return data
       })
       .catch((error) => {
         console.error('Failed', error)
         return false
+      })
+  },
+  fetchCollections({ commit }, libraryId) {
+    return this.$axios
+      .$get(`/api/libraries/${libraryId}/collections`)
+      .then((data) => {
+        commit('setCollections', data.results || [])
+      })
+      .catch((error) => {
+        console.error('Failed to fetch collections', error)
       })
   },
   // Return true if calling load
@@ -322,14 +335,23 @@ export const mutations = {
     }
   },
   setCollections(state, collections) {
-    state.collections = collections
+    state.collections = collections.map((c) => {
+      return {
+        ...c,
+        bookIds: (c.books || []).map((b) => b.id)
+      }
+    })
   },
   addUpdateCollection(state, collection) {
-    var index = state.collections.findIndex((c) => c.id === collection.id)
+    const mappedCollection = {
+      ...collection,
+      bookIds: (collection.books || []).map((b) => b.id)
+    }
+    var index = state.collections.findIndex((c) => c.id === mappedCollection.id)
     if (index >= 0) {
-      state.collections.splice(index, 1, collection)
+      state.collections.splice(index, 1, mappedCollection)
     } else {
-      state.collections.push(collection)
+      state.collections.push(mappedCollection)
     }
   },
   removeCollection(state, collection) {

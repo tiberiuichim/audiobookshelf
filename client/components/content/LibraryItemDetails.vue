@@ -97,6 +97,17 @@
         {{ sizePretty }}
       </div>
     </div>
+    <div v-if="itemCollections && itemCollections.length" role="paragraph" class="flex py-0.5">
+      <div class="w-34 min-w-34 sm:w-34 sm:min-w-34 break-words">
+        <span class="text-white/60 uppercase text-sm">{{ $strings.LabelCollections }}</span>
+      </div>
+      <div class="max-w-[calc(100vw-10rem)] overflow-hidden text-ellipsis">
+        <template v-for="(collection, index) in itemCollections" :key="collection.id">
+          <nuxt-link :to="`/library/${libraryId}/collections/${collection.id}`" class="hover:underline italic">{{ collection.name }}</nuxt-link
+          ><span v-if="index < itemCollections.length - 1">,&nbsp;</span>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -159,6 +170,9 @@ export default {
     },
     asin() {
       return this.mediaMetadata.asin || null
+    },
+    itemCollections() {
+      return this.mediaMetadata.collections || []
     },
     durationPretty() {
       if (this.isPodcast) return this.$elapsedPrettyExtended(this.totalPodcastDuration)

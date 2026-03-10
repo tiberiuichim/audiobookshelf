@@ -30,6 +30,12 @@
               ><span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1">,&nbsp;</span>
             </template>
           </div>
+          <div v-if="otherCollections && otherCollections.length" class="truncate max-w-48 md:max-w-md text-xs text-gray-400">
+            <template v-for="(collection, index) in otherCollections">
+              <nuxt-link :key="collection.id" :to="`/library/${book.libraryId}/collections/${collection.id}`" class="truncate hover:underline italic">{{ collection.name }}</nuxt-link
+              ><span :key="collection.id + '-comma'" v-if="index < otherCollections.length - 1">,&nbsp;</span>
+            </template>
+          </div>
           <p v-if="media.duration" class="text-xs md:text-sm text-gray-400">{{ bookDuration }}</p>
         </div>
       </div>
@@ -113,6 +119,10 @@ export default {
           text
         }
       })
+    },
+    otherCollections() {
+      if (!this.book.id || !this.$store.state.libraries.collections) return []
+      return this.$store.state.libraries.collections.filter((c) => c.id !== this.collectionId && c.bookIds && c.bookIds.includes(this.book.id))
     },
     isMissing() {
       return this.book.isMissing

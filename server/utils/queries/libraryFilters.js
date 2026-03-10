@@ -264,9 +264,17 @@ module.exports = {
           include: {
             model: Database.bookModel,
             where: userPermissionBookWhere.bookWhere,
-            include: {
-              model: Database.libraryItemModel
-            }
+            include: [
+              {
+                model: Database.libraryItemModel
+              },
+              {
+                model: Database.collectionModel,
+                through: {
+                  attributes: []
+                }
+              }
+            ]
           },
           separate: true
         },
