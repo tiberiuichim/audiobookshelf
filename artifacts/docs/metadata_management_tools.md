@@ -17,7 +17,8 @@ When a "Reset" is triggered:
     *   Filename and folder structure patterns.
 
 ### Usage
-- **Single Item**: Found in the **Edit Modal** under the **Details** tab, next to the "ReScan" button.
+- **Edit Modal (Details Tab)**: Found next to the "ReScan" button.
+- **Match Modal (Match Tab)**: A dedicated "Reset" button (red with `restore` icon) is located next to the "Search" button. This is specifically useful for clearing an incorrect "Quick Match" and restoring the search fields to values from the local file tags.
 - **Color**: Represented by a red button (Warning) to indicate a destructive action.
 
 ## Batch Reset Metadata

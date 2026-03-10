@@ -64,3 +64,21 @@ When multiple items are selected:
 - **Counters**: Displays exactly how many items are selected.
 - **Contextual Menu**: The three-dot menu in this bar dynamically updates to show only actions relevant to the selected items (e.g., "Merge" only appears if books are selected).
 - **Escape**: Pressing `Esc` or clicking the "X" in the selection bar clears all selections.
+## 4. Enhanced Cover Management
+To speed up library cleaning and artwork improvement, the system provides direct actions on book covers.
+
+### Cover Overlay Actions (Item Details Page)
+When hovering over a book cover on its details page, two additional tool buttons appear:
+- **Quick Match Cover** (`image_search` icon): Triggers an immediate search and update for the cover only, using the library's default metadata provider.
+- **Reset Cover** (`restart_alt` icon): Reverts the cover to the original version found in the files (embedded tags, ebook cover, or local `cover.jpg`).
+
+### Batch Cover Operations
+- **Quick Match Covers**: Available in the batch selection menu. Allows selecting a specific provider to refresh covers for all selected items without touching other metadata.
+- **Reset Covers**: Reverts all selected items to their original file-based covers.
+
+## 5. Metadata Visibility Enhancements
+### Item Details Layout
+- **Dual-Column Layout**: On desktop viewports, book metadata (Duration, Size, Narrators, Genres, etc.) automatically flows into two columns to reduce vertical scrolling.
+- **Direct External Links**:
+    - **ASIN**: Displayed as a clickable link directly to the item's page on Audible.
+    - **ISBN**: Displayed for easy copying/reference.
