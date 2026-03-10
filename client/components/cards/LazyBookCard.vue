@@ -123,6 +123,13 @@
           </button>
         </ui-tooltip>
 
+        <!-- Collections -->
+        <div cy-id="itemCollections" v-if="itemCollections && itemCollections.length" class="absolute top-0 left-0 right-0 w-full flex flex-col items-center z-20 pointer-events-none" :style="{ paddingTop: 0.375 + 'em' }">
+          <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-black/80 text-white font-medium mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: 0.65 + 'em', lineHeight: 1.1 + 'em' }">
+            {{ collection.name }}
+          </div>
+        </div>
+
         <!-- Cover Size Badge -->
         <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20 transition-all duration-300" :class="coverBadge.color" :style="{ bottom: (durationPretty ? 1.4 : 0.375) + 'em', left: '50%', transform: 'translateX(-50%)', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em', whiteSpace: 'nowrap' }">
           {{ coverBadge.text }}
@@ -327,6 +334,10 @@ export default {
     libraryItemIdsInSeries() {
       // Only added to item object when collapseSeries is enabled
       return this.collapsedSeries?.libraryItemIds || []
+    },
+    itemCollections() {
+      if (!this.libraryItemId || !this.store.state.libraries.collections) return []
+      return this.store.state.libraries.collections.filter((c) => c.books && c.books.includes(this.libraryItemId))
     },
     hasCover() {
       return !!this.media.coverPath
