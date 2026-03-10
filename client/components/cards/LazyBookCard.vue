@@ -124,12 +124,12 @@
         </ui-tooltip>
 
         <!-- Cover Size Badge -->
-        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20 transition-all duration-300" :class="coverBadge.color" :style="{ bottom: (durationPretty ? 1.4 : 0.375) + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+        <div v-if="coverBadge" class="absolute rounded-sm text-white font-bold pointer-events-none z-20 transition-all duration-300" :class="coverBadge.color" :style="{ bottom: (durationPretty ? 1.4 : 0.375) + 'em', left: '50%', transform: 'translateX(-50%)', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em', whiteSpace: 'nowrap' }">
           {{ coverBadge.text }}
         </div>
 
         <!-- Duration Badge -->
-        <div v-if="durationPretty" class="absolute rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ bottom: 0.375 + 'em', right: 0.375 + 'em', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em' }">
+        <div v-if="durationPretty" class="absolute rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ bottom: 0.375 + 'em', left: '50%', transform: 'translateX(-50%)', padding: `0.1em 0.25em`, fontSize: 0.6 + 'em', lineHeight: 0.8 + 'em', whiteSpace: 'nowrap' }">
           {{ durationPretty }}
         </div>
       </div>

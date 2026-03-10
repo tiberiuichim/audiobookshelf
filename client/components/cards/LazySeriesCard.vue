@@ -13,7 +13,7 @@
       <div cy-id="seriesProgressBar" v-if="seriesPercentInProgress > 0" class="absolute bottom-0 left-0 h-1e shadow-xs max-w-full z-10 rounded-b w-full box-shadow-progressbar" :class="isSeriesFinished ? 'bg-success' : 'bg-yellow-400'" :style="{ width: seriesPercentInProgress * 100 + '%' }" />
 
       <!-- Total Duration Badge -->
-      <div v-if="totalDurationPretty" class="absolute bottom-1 right-1 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: 0.8 + 'em', lineHeight: 1 + 'em' }">
+      <div v-if="totalDurationPretty" class="absolute bottom-1 left-1/2 -translate-x-1/2 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: 0.8 + 'em', lineHeight: 1 + 'em', whiteSpace: 'nowrap' }">
         {{ totalDurationPretty }}
       </div>
 

@@ -23,12 +23,12 @@
     </div>
 
     <!-- Cover Size Badge -->
-    <div v-if="coverBadge" class="absolute right-1 px-1 rounded-sm text-white font-bold pointer-events-none z-20" :class="[coverBadge.color, durationPretty ? 'bottom-5' : 'bottom-1']" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem' }">
+    <div v-if="coverBadge" class="absolute left-1/2 -translate-x-1/2 px-1 rounded-sm text-white font-bold pointer-events-none z-20" :class="[coverBadge.color, durationPretty ? 'bottom-5' : 'bottom-1']" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem', whiteSpace: 'nowrap' }">
       {{ coverBadge.text }}
     </div>
 
     <!-- Duration Badge -->
-    <div v-if="durationPretty" class="absolute bottom-1 right-1 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem' }">
+    <div v-if="durationPretty" class="absolute bottom-1 left-1/2 -translate-x-1/2 px-1 rounded-sm bg-black/70 text-white font-medium pointer-events-none z-20" :style="{ fontSize: (0.6 * sizeMultiplier) + 'rem', lineHeight: (0.8 * sizeMultiplier) + 'rem', whiteSpace: 'nowrap' }">
       {{ durationPretty }}
     </div>
 
