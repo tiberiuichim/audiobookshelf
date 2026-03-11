@@ -83,7 +83,7 @@
           <div class="grow ml-4">
             <ui-text-input-with-label v-model="selectedMatch.author" :disabled="!selectedMatchUsage.author" :label="$strings.LabelAuthor" />
             <p v-if="mediaMetadata.authorName || (isPodcast && mediaMetadata.author)" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('author', isPodcast ? mediaMetadata.author : mediaMetadata.authorName)">{{ isPodcast ? mediaMetadata.author : mediaMetadata.authorName }}</a>
+              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('author', isPodcast ? mediaMetadata.author : mediaMetadata.authorName)">{{ isPodcast ? mediaMetadata.author : mediaMetadata.authorName }}</a>
             </p>
           </div>
         </div>
@@ -92,7 +92,7 @@
           <div class="grow ml-4">
             <ui-multi-select v-model="selectedMatch.narrator" :items="narrators" :disabled="!selectedMatchUsage.narrator" :label="$strings.LabelNarrators" />
             <p v-if="mediaMetadata.narratorName" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('narrator', mediaMetadata.narrators)">{{ mediaMetadata.narratorName }}</a>
+              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('narrator', mediaMetadata.narrators)">{{ mediaMetadata.narratorName }}</a>
             </p>
           </div>
         </div>
@@ -101,7 +101,7 @@
           <div class="grow ml-4">
             <ui-rich-text-editor v-model="selectedMatch.description" :disabled="!selectedMatchUsage.description" :label="$strings.LabelDescription" />
             <p v-if="mediaMetadata.description" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('description', mediaMetadata.description)">{{ mediaMetadata.descriptionPlain.substr(0, 100) + (mediaMetadata.descriptionPlain.length > 100 ? '...' : '') }}</a>
+              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('description', mediaMetadata.description)">{{ mediaMetadata.descriptionPlain.substr(0, 100) + (mediaMetadata.descriptionPlain.length > 100 ? '...' : '') }}</a>
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@
           <div class="grow ml-4">
             <ui-text-input-with-label v-model="selectedMatch.publisher" :disabled="!selectedMatchUsage.publisher" :label="$strings.LabelPublisher" />
             <p v-if="mediaMetadata.publisher" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('publisher', mediaMetadata.publisher)">{{ mediaMetadata.publisher }}</a>
+              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('publisher', mediaMetadata.publisher)">{{ mediaMetadata.publisher }}</a>
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@
           <div class="grow ml-4">
             <ui-text-input-with-label v-model="selectedMatch.publishedYear" :disabled="!selectedMatchUsage.publishedYear" :label="$strings.LabelPublishYear" />
             <p v-if="mediaMetadata.publishedYear" class="text-xs ml-1 text-white/60">
-              {{ $strings.LabelCurrently }} <a title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('publishedYear', mediaMetadata.publishedYear)">{{ mediaMetadata.publishedYear }}</a>
+              {{ $strings.LabelCurrently }} <a :title="$strings.LabelClickToUseCurrentValue" class="cursor-pointer hover:underline" @click.stop="setMatchFieldValue('publishedYear', mediaMetadata.publishedYear)">{{ mediaMetadata.publishedYear }}</a>
             </p>
           </div>
         </div>
