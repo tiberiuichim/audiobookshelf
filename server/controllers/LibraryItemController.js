@@ -1694,10 +1694,11 @@ class LibraryItemController {
     // Find the library folder that currently contains this item
     const targetFolder = library.libraryFolders.find((f) => req.libraryItem.path.startsWith(f.path)) || library.libraryFolders[0]
 
-    const targetPath = Path.join(targetFolder.path, sanitizedFolderName)
-
-    if (await fs.pathExists(targetPath)) {
-      return res.status(409).send('Destination folder already exists')
+    let targetPath = Path.join(targetFolder.path, sanitizedFolderName)
+    let folderCounter = 1
+    const originalTargetPath = targetPath
+    while (await fs.pathExists(targetPath)) {
+      targetPath = `${originalTargetPath} - ${folderCounter++}`
     }
 
     try {
