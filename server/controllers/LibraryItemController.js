@@ -1718,7 +1718,7 @@ class LibraryItemController {
         req.libraryItem.media.audioFiles.forEach((af) => {
           if (!isNaN(af.duration)) req.libraryItem.media.duration += af.duration
         })
-        req.libraryItem.media.chapters = this.recalculateChapters(req.libraryItem.media.audioFiles)
+        req.libraryItem.media.chapters = recalculateChapters(req.libraryItem.media.audioFiles)
       } else if (req.libraryItem.media.ebookFile?.ino === req.params.fileid) {
         req.libraryItem.media.ebookFile = null
         req.libraryItem.media.changed('ebookFile', true)
@@ -1825,7 +1825,7 @@ class LibraryItemController {
         req.libraryItem.media.audioFiles.forEach((af) => {
           if (!isNaN(af.duration)) req.libraryItem.media.duration += af.duration
         })
-        req.libraryItem.media.chapters = this.recalculateChapters(req.libraryItem.media.audioFiles)
+        req.libraryItem.media.chapters = recalculateChapters(req.libraryItem.media.audioFiles)
 
         if (!req.libraryItem.media.hasMediaFiles) {
           req.libraryItem.isMissing = true
@@ -2628,29 +2628,31 @@ class LibraryItemController {
 
     next()
   }
-  recalculateChapters(audioFiles) {
-    if (!audioFiles.length) return []
-
-    if (audioFiles.length === 1 && audioFiles[0].chapters?.length) {
-      return audioFiles[0].chapters.map((ch, idx) => ({
-        id: idx,
-        start: ch.start,
-        end: ch.end,
-        title: ch.title || `Chapter ${idx + 1}`
-      }))
-    }
-
-    let startTime = 0
-    return audioFiles.map((af, idx) => {
-      const chapter = {
-        id: idx,
-        start: startTime,
-        end: startTime + (af.duration || 0),
-        title: af.metadata?.filename || `Chapter ${idx + 1}`
-      }
-      startTime += af.duration || 0
-      return chapter
-    })
-  }
 }
+
+function recalculateChapters(audioFiles) {
+  if (!audioFiles.length) return []
+
+  if (audioFiles.length === 1 && audioFiles[0].chapters?.length) {
+    return audioFiles[0].chapters.map((ch, idx) => ({
+      id: idx,
+      start: ch.start,
+      end: ch.end,
+      title: ch.title || `Chapter ${idx + 1}`
+    }))
+  }
+
+  let startTime = 0
+  return audioFiles.map((af, idx) => {
+    const chapter = {
+      id: idx,
+      start: startTime,
+      end: startTime + (af.duration || 0),
+      title: af.metadata?.filename || `Chapter ${idx + 1}`
+    }
+    startTime += af.duration || 0
+    return chapter
+  })
+}
+
 module.exports = new LibraryItemController()
