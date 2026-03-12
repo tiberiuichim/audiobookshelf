@@ -13,6 +13,7 @@ class LibraryScan {
     /** @type {import('../models/Library')} */
     this.library = null
     this.verbose = false
+    this.force = false
 
     this.startedAt = null
     this.finishedAt = null

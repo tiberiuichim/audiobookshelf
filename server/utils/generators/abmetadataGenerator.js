@@ -61,8 +61,8 @@ function cleanChaptersArray(chaptersArray, mediaTitle) {
       return null
     }
     if (!chap.title || typeof chap.title !== 'string') {
-      Logger.error(`[abmetadataGenerator] Invalid chapter title ${chap.title} for "${mediaTitle}" metadata file`)
-      return null
+      Logger.warn(`[abmetadataGenerator] Invalid chapter title "${chap.title}" for "${mediaTitle}" metadata file - falling back to "Chapter ${index + 1}"`)
+      chap.title = `Chapter ${index + 1}`
     }
 
     chapters.push({

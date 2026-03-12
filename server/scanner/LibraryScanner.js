@@ -68,6 +68,7 @@ class LibraryScanner {
 
     const libraryScan = new LibraryScan()
     libraryScan.setData(library)
+    libraryScan.force = forceRescan
     libraryScan.verbose = true
     this.librariesScanning.push(libraryScan.libraryId)
 

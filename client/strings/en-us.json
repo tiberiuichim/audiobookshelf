@@ -40,6 +40,7 @@
   "ButtonFireAndFail": "Fire and Fail",
   "ButtonFireOnTest": "Fire onTest event",
   "ButtonForceReScan": "Force Re-Scan",
+  "ButtonRecomputeStats": "Recompute Stats",
   "ButtonFullPath": "Full Path",
   "ButtonHide": "Hide",
   "ButtonHome": "Home",

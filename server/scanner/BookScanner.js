@@ -82,10 +82,19 @@ class BookScanner {
       ]
     })
 
-    let hasMediaChanges = libraryItemData.hasAudioFileChanges || libraryItemData.audioLibraryFiles.length !== media.audioFiles.length
+    let hasMediaChanges = libraryScan.force || libraryItemData.hasAudioFileChanges || libraryItemData.audioLibraryFiles.length !== media.audioFiles.length
     if (hasMediaChanges) {
       // Filter out audio files that were removed
       media.audioFiles = media.audioFiles.filter((af) => !libraryItemData.checkAudioFileRemoved(af))
+
+      // Reconcile: remove any audio files that no longer have a corresponding file on disk
+      const beforeCount = media.audioFiles.length
+      media.audioFiles = media.audioFiles.filter((af) => {
+        return libraryItemData.audioLibraryFiles.some((lf) => lf.ino === af.ino || lf.metadata.path === af.metadata.path)
+      })
+      if (media.audioFiles.length < beforeCount) {
+        libraryScan.addLog(LogLevel.INFO, `Reconciled book "${media.title}": removed ${beforeCount - media.audioFiles.length} stale audio file(s) no longer on disk`)
+      }
 
       // Update audio files that were modified
       if (libraryItemData.audioLibraryFilesModified.length) {

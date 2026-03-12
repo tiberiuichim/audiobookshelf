@@ -1,6 +1,6 @@
 <template>
   <div class="page relative" :class="streamLibraryItem ? 'streaming' : ''">
-    <app-book-shelf-toolbar page="library-stats" is-home />
+    <app-book-shelf-toolbar page="library-stats" @recompute="recompute" />
     <div id="bookshelf" class="w-full h-full px-1 py-4 md:p-8 relative overflow-y-auto">
       <div class="w-full max-w-4xl mx-auto">
         <stats-preview-icons v-if="totalItems" :library-stats="libraryStats" />
@@ -104,7 +104,8 @@ export default {
   },
   data() {
     return {
-      libraryStats: null
+      libraryStats: null,
+      isRecomputing: false
     }
   },
   watch: {
@@ -165,6 +166,12 @@ export default {
     },
     isBookLibrary() {
       return this.currentLibraryMediaType === 'book'
+    },
+    userIsAdminOrUp() {
+      return this.$store.getters['user/getIsAdminOrUp']
+    },
+    isScanningLibrary() {
+      return this.isRecomputing || !!this.$store.getters['tasks/getRunningLibraryScanTask'](this.currentLibraryId)
     }
   },
   methods: {
@@ -174,10 +181,30 @@ export default {
         var errorMsg = err.response ? err.response.data || 'Unknown Error' : 'Unknown Error'
         this.$toast.error(`Failed to get library stats: ${errorMsg}`)
       })
+    },
+    onTaskFinished(task) {
+      if (task?.action === 'library-scan' && task?.data?.libraryId === this.currentLibraryId && this.isRecomputing) {
+        this.isRecomputing = false
+        this.init()
+      }
+    },
+    recompute() {
+      if (this.isRecomputing) return
+      this.isRecomputing = true
+      this.$axios.$post(`/api/libraries/${this.currentLibraryId}/scan?force=1`)
+        .catch((error) => {
+          console.error('Failed to start force scan', error)
+          this.$toast.error('Failed to start scan')
+          this.isRecomputing = false
+        })
     }
   },
   mounted() {
     this.init()
+    this.$root.socket?.on('task_finished', this.onTaskFinished)
+  },
+  beforeDestroy() {
+    this.$root.socket?.off('task_finished', this.onTaskFinished)
   }
 }
 </script>

@@ -54,7 +54,7 @@
         <ui-context-menu-dropdown v-if="!isBatchSelecting && seriesContextMenuItems.length" :items="seriesContextMenuItems" class="mx-px" @action="seriesContextMenuAction" />
       </template>
       <!-- library & collections page -->
-      <template v-else-if="page !== 'search' && page !== 'podcast-search' && page !== 'recent-episodes' && !isHome && !isAuthorsPage">
+      <template v-else-if="page !== 'search' && page !== 'podcast-search' && page !== 'recent-episodes' && page !== 'library-stats' && !isHome && !isAuthorsPage">
         <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
         <div class="grow hidden sm:inline-block" />
@@ -93,6 +93,13 @@
         <!-- author sort select -->
         <controls-sort-select v-model="settings.authorSortBy" :descending.sync="settings.authorSortDesc" :items="authorSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateAuthorSort" />
       </template>
+      <!-- library stats page -->
+      <template v-else-if="page === 'library-stats'">
+        <div class="grow" />
+        <ui-btn v-if="userIsAdminOrUp" color="bg-success" small :loading="isScanningLibrary" class="mr-4" @click="$emit('recompute')">{{ $strings.ButtonRecomputeStats }}</ui-btn>
+        <div class="grow md:grow-0" />
+      </template>
+
       <!-- home page -->
       <template v-else-if="isHome">
         <div class="grow" />
@@ -293,6 +300,9 @@ export default {
     },
     isBatchSelecting() {
       return this.$store.getters['globals/getIsBatchSelectingMediaItems']
+    },
+    isScanningLibrary() {
+      return !!this.$store.getters['tasks/getRunningLibraryScanTask'](this.currentLibraryId)
     },
     isSeriesFinished() {
       return this.seriesProgress && !!this.seriesProgress.isFinished
