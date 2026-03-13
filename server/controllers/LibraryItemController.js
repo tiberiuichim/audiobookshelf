@@ -1599,7 +1599,7 @@ class LibraryItemController {
   /**
    * Get ffmpeg executable path
    */
-  getFfmpegPath() {
+  static getFfmpegPath() {
     return process.env.FFMPEG_PATH || 'ffmpeg'
   }
 
@@ -1608,8 +1608,8 @@ class LibraryItemController {
    * @param {string} filePath - Path to the audio file
    * @returns {Promise<{valid: boolean, error?: string}>}
    */
-  async validateAudioFileWithPath(filePath) {
-    const ffmpegPath = this.getFfmpegPath()
+  static async validateAudioFileWithPath(filePath) {
+    const ffmpegPath = LibraryItemController.getFfmpegPath()
     const command = `${ffmpegPath} -v error -stats -i "${filePath}" -f null -`
 
     return new Promise((resolve) => {
@@ -1697,7 +1697,7 @@ class LibraryItemController {
         continue
       }
 
-      const result = await this.validateAudioFileWithPath(audioFile.metadata.path)
+    const result = await LibraryItemController.validateAudioFileWithPath(audioFile.metadata.path)
 
       LibraryItemController.validationCache.set(cacheKey, {
         ...result,
