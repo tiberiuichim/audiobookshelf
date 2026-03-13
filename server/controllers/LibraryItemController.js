@@ -1611,12 +1611,21 @@ class LibraryItemController {
   static async validateAudioFileWithPath(filePath) {
     const ffmpegPath = LibraryItemController.getFfmpegPath()
     const command = `${ffmpegPath} -v error -stats -i "${filePath}" -f null -`
+    Logger.info(`[LibraryItemController] Validating audio file: ${filePath}`)
 
     return new Promise((resolve) => {
       exec(command, { timeout: 120000 }, (error, stdout, stderr) => {
         if (error) {
+          Logger.error(`[LibraryItemController] Audio file validation failed for "${filePath}": ${error.message}`)
+          if (stderr) {
+            Logger.error(`[LibraryItemController] FFmpeg stderr: ${stderr}`)
+          }
           resolve({ valid: false, error: error.message || stderr || 'Unknown error' })
         } else {
+          Logger.info(`[LibraryItemController] Audio file is valid: ${filePath}`)
+          if (stdout) {
+            Logger.debug(`[LibraryItemController] FFmpeg stdout: ${stdout}`)
+          }
           resolve({ valid: true })
         }
       })
