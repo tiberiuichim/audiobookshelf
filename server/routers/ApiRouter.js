@@ -133,6 +133,8 @@ class ApiRouter {
     this.router.get('/items/:id/metadata-object', LibraryItemController.middleware.bind(this), LibraryItemController.getMetadataObject.bind(this))
     this.router.post('/items/:id/chapters', LibraryItemController.middleware.bind(this), LibraryItemController.updateMediaChapters.bind(this))
     this.router.get('/items/:id/ffprobe/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getFFprobeData.bind(this))
+    this.router.get('/items/:id/validate/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.validateAudioFile.bind(this))
+    this.router.post('/items/:id/validate', LibraryItemController.middleware.bind(this), LibraryItemController.validateAudioFiles.bind(this))
     this.router.get('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.getLibraryFile.bind(this))
     this.router.delete('/items/:id/file/:fileid', LibraryItemController.middleware.bind(this), LibraryItemController.deleteLibraryFile.bind(this))
     this.router.post('/items/:id/file/:fileid/promote', LibraryItemController.middleware.bind(this), LibraryItemController.promoteLibraryFile.bind(this))

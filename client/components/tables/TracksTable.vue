@@ -6,6 +6,7 @@
         <span class="text-sm font-mono">{{ tracks.length }}</span>
       </div>
       <div class="grow" />
+      <ui-btn v-if="userIsAdmin" small :loading="validatingAll" class="mr-2 hidden md:block" @click.stop="validateAllTracks">{{ $strings.ButtonValidateAll }}</ui-btn>
       <ui-btn v-if="userIsAdmin" small :color="showFullPath ? 'bg-gray-600' : 'bg-primary'" class="mr-2 hidden md:block" @click.stop="toggleFullPath">{{ $strings.ButtonFullPath }}</ui-btn>
       <nuxt-link v-if="userCanUpdate && !isFile" :to="`/audiobook/${libraryItemId}/edit`" class="mr-2 md:mr-4" @mousedown.prevent>
         <ui-btn small color="bg-primary">{{ $strings.ButtonManageTracks }}</ui-btn>
@@ -24,10 +25,11 @@
             <th v-if="!showFullPath" class="text-left w-20 hidden xl:table-cell">{{ $strings.LabelBitrate }}</th>
             <th class="text-left w-20 hidden md:table-cell">{{ $strings.LabelSize }}</th>
             <th class="text-left w-20 hidden sm:table-cell">{{ $strings.LabelDuration }}</th>
+            <th v-if="userIsAdmin" class="text-center w-16" :title="$strings.LabelValidationStatus"><span class="material-symbols text-lg">verified</span></th>
             <th class="text-center w-16"></th>
           </tr>
           <template v-for="track in tracks">
-            <tables-audio-tracks-table-row :key="track.index" :track="track" :library-item-id="libraryItemId" :showFullPath="showFullPath" @showMore="showMore" />
+            <tables-audio-tracks-table-row :key="track.index" :track="track" :library-item-id="libraryItemId" :showFullPath="showFullPath" :validation-status="validationStatus[track.audioFile?.ino]" @showMore="showMore" @validate="validateSingleTrack" />
           </template>
         </table>
       </div>
@@ -56,7 +58,9 @@ export default {
       showTracks: false,
       showFullPath: false,
       selectedAudioFile: null,
-      showAudioFileDataModal: false
+      showAudioFileDataModal: false,
+      validationStatus: {},
+      validatingAll: false
     }
   },
   computed: {
@@ -84,6 +88,49 @@ export default {
     showMore(audioFile) {
       this.selectedAudioFile = audioFile
       this.showAudioFileDataModal = true
+    },
+    validateSingleTrack(audioFile) {
+      if (!audioFile?.ino) return
+      this.$axios
+        .$get(`/api/items/${this.libraryItemId}/validate/${audioFile.ino}`)
+        .then((result) => {
+          this.$set(this.validationStatus, audioFile.ino, result)
+          if (result.valid) {
+            this.$toast.success(this.$strings.ToastAudioFileValid)
+          } else {
+            this.$toast.error(`${this.$strings.ToastAudioFileInvalid}: ${result.error}`)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to validate audio file', error)
+          this.$toast.error(this.$strings.ToastFailedToLoadData)
+        })
+    },
+    validateAllTracks() {
+      const fileIds = this.tracks.filter(t => t.audioFile?.ino).map(t => t.audioFile.ino)
+      if (!fileIds.length) return
+
+      this.validatingAll = true
+      this.$axios
+        .$post(`/api/items/${this.libraryItemId}/validate`, { fileIds })
+        .then((response) => {
+          response.results.forEach((result) => {
+            this.$set(this.validationStatus, result.ino, result)
+          })
+          const invalidCount = response.results.filter(r => !r.valid).length
+          if (invalidCount > 0) {
+            this.$toast.error(`${invalidCount} ${this.tracks.length > 1 ? 'files' : 'file'} invalid`)
+          } else {
+            this.$toast.success(this.$strings.ToastAudioFilesValidated.replace('{count}', response.results.length))
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to validate audio files', error)
+          this.$toast.error(this.$strings.ToastFailedToLoadData)
+        })
+        .finally(() => {
+          this.validatingAll = false
+        })
     }
   },
   mounted() {

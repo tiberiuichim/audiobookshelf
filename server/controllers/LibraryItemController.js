@@ -5,6 +5,7 @@ const uaParserJs = require('../libs/uaParser')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
 const Database = require('../Database')
+const { exec } = require('child_process')
 
 const zipHelpers = require('../utils/zipHelpers')
 const { reqSupportsWebp } = require('../utils/index')
@@ -1582,6 +1583,131 @@ class LibraryItemController {
 
     const ffprobeData = await AudioFileScanner.probeAudioFile(audioFile.metadata.path)
     res.json(ffprobeData)
+  }
+
+  /**
+   * In-memory cache for audio file validation results
+   * Key: `${libraryItemId}:${fileIno}`, Value: { valid: boolean, error?: string, timestamp: number }
+   */
+  static validationCache = new Map()
+
+  /**
+   * Cache TTL in milliseconds (1 hour)
+   */
+  static validationCacheTTL = 60 * 60 * 1000
+
+  /**
+   * Get ffmpeg executable path
+   */
+  getFfmpegPath() {
+    return process.env.FFMPEG_PATH || 'ffmpeg'
+  }
+
+  /**
+   * Validate an audio file using ffmpeg
+   * @param {string} filePath - Path to the audio file
+   * @returns {Promise<{valid: boolean, error?: string}>}
+   */
+  async validateAudioFileWithPath(filePath) {
+    const ffmpegPath = this.getFfmpegPath()
+    const command = `${ffmpegPath} -v error -stats -i "${filePath}" -f null -`
+
+    return new Promise((resolve) => {
+      exec(command, { timeout: 120000 }, (error, stdout, stderr) => {
+        if (error) {
+          resolve({ valid: false, error: error.message || stderr || 'Unknown error' })
+        } else {
+          resolve({ valid: true })
+        }
+      })
+    })
+  }
+
+  /**
+   * GET: /api/items/:id/validate/:fileid
+   * Validate a single audio file
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async validateAudioFile(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to validate audio file`)
+      return res.sendStatus(403)
+    }
+
+    const libraryItem = req.libraryItem
+    const fileIno = req.params.fileid
+
+    const cacheKey = `${libraryItem.id}:${fileIno}`
+    const cached = LibraryItemController.validationCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < LibraryItemController.validationCacheTTL) {
+      return res.json(cached)
+    }
+
+    const audioFile = libraryItem.getAudioFileWithIno(fileIno)
+    if (!audioFile) {
+      Logger.error(`[LibraryItemController] Audio file not found with inode value ${fileIno}`)
+      return res.sendStatus(404)
+    }
+
+    const result = await this.validateAudioFileWithPath(audioFile.metadata.path)
+
+    LibraryItemController.validationCache.set(cacheKey, {
+      ...result,
+      timestamp: Date.now()
+    })
+
+    res.json(result)
+  }
+
+  /**
+   * POST: /api/items/:id/validate
+   * Validate multiple audio files
+   *
+   * @param {LibraryItemControllerRequest} req
+   * @param {Response} res
+   */
+  async validateAudioFiles(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryItemController] Non-admin user "${req.user.username}" attempted to validate audio files`)
+      return res.sendStatus(403)
+    }
+
+    const libraryItem = req.libraryItem
+    const { fileIds } = req.body
+
+    if (!Array.isArray(fileIds) || !fileIds.length) {
+      return res.status(400).json({ error: 'fileIds array is required' })
+    }
+
+    const results = []
+
+    for (const fileIno of fileIds) {
+      const cacheKey = `${libraryItem.id}:${fileIno}`
+      const cached = LibraryItemController.validationCache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < LibraryItemController.validationCacheTTL) {
+        results.push({ ino: fileIno, ...cached })
+        continue
+      }
+
+      const audioFile = libraryItem.getAudioFileWithIno(fileIno)
+      if (!audioFile) {
+        results.push({ ino: fileIno, valid: false, error: 'File not found' })
+        continue
+      }
+
+      const result = await this.validateAudioFileWithPath(audioFile.metadata.path)
+
+      LibraryItemController.validationCache.set(cacheKey, {
+        ...result,
+        timestamp: Date.now()
+      })
+
+      results.push({ ino: fileIno, ...result })
+    }
+
+    res.json({ results })
   }
 
   /**

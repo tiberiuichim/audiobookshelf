@@ -16,6 +16,11 @@
     <td class="hidden sm:table-cell">
       {{ $secondsToTimestamp(track.duration) }}
     </td>
+    <td v-if="userIsAdmin" class="text-center" :title="validationTooltip">
+      <span v-if="validationStatus?.valid" class="material-symbols text-success">check_circle</span>
+      <span v-else-if="validationStatus && !validationStatus.valid" class="material-symbols text-error">error</span>
+      <span v-else class="material-symbols text-gray-500">radio_button_unchecked</span>
+    </td>
     <td v-if="contextMenuItems.length" class="text-center">
       <ui-context-menu-dropdown :items="contextMenuItems" :menu-width="110" @action="contextMenuAction" />
     </td>
@@ -30,6 +35,10 @@ export default {
     track: {
       type: Object,
       default: () => {}
+    },
+    validationStatus: {
+      type: Object,
+      default: null
     }
   },
   data() {
@@ -47,6 +56,11 @@ export default {
     },
     userIsAdmin() {
       return this.$store.getters['user/getIsAdminOrUp']
+    },
+    validationTooltip() {
+      if (!this.validationStatus) return this.$strings.LabelValidationStatus
+      if (this.validationStatus.valid) return this.$strings.ToastAudioFileValid
+      return `${this.$strings.ToastAudioFileInvalid}: ${this.validationStatus.error}`
     },
     contextMenuItems() {
       const items = []
@@ -66,6 +80,10 @@ export default {
 
       if (this.userIsAdmin) {
         items.push({
+          text: this.$strings.ButtonValidateAudioFile,
+          action: 'validate'
+        })
+        items.push({
           text: this.$strings.LabelMoreInfo,
           action: 'more'
         })
@@ -84,6 +102,8 @@ export default {
         this.downloadLibraryFile()
       } else if (action === 'more') {
         this.$emit('showMore', this.track.audioFile)
+      } else if (action === 'validate') {
+        this.$emit('validate', this.track.audioFile)
       }
     },
     deleteLibraryFile() {
