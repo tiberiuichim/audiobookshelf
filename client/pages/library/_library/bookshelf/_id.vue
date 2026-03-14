@@ -17,10 +17,21 @@ export default {
     // Set series sort by
     if (query.filter || query.sort || query.desc) {
       const isSeries = params.id === 'series'
-      const settingsUpdate = {
-        [isSeries ? 'seriesFilterBy' : 'filterBy']: query.filter || undefined,
-        [isSeries ? 'seriesSortBy' : 'orderBy']: query.sort || undefined,
-        [isSeries ? 'seriesSortDesc' : 'orderDesc']: query.desc == '0' ? false : query.desc == '1' ? true : undefined
+      const isAuthors = params.id === 'authors'
+      const settingsUpdate = {}
+      
+      if (isSeries) {
+        settingsUpdate.seriesFilterBy = query.filter || undefined
+        settingsUpdate.seriesSortBy = query.sort || undefined
+        settingsUpdate.seriesSortDesc = query.desc == '0' ? false : query.desc == '1' ? true : undefined
+      } else if (isAuthors) {
+        settingsUpdate.authorFilterBy = query.filter || undefined
+        settingsUpdate.authorSortBy = query.sort || 'name'
+        settingsUpdate.authorSortDesc = query.desc == '1'
+      } else {
+        settingsUpdate.filterBy = query.filter || undefined
+        settingsUpdate.orderBy = query.sort || undefined
+        settingsUpdate.orderDesc = query.desc == '0' ? false : query.desc == '1' ? true : undefined
       }
       store.dispatch('user/updateUserSettings', settingsUpdate)
     }

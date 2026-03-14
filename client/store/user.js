@@ -15,6 +15,7 @@ export const state = () => ({
     seriesSortBy: 'name',
     seriesSortDesc: false,
     seriesFilterBy: 'all',
+    authorFilterBy: 'all',
     authorSortBy: 'name',
     authorSortDesc: false,
     jumpForwardAmount: 10,
@@ -89,6 +90,7 @@ export const actions = {
     if (libraryChanging) {
       settingsUpdate.filterBy = 'all'
       settingsUpdate.seriesFilterBy = 'all'
+      settingsUpdate.authorFilterBy = 'all'
     }
 
     if (mediaType == 'podcast') {

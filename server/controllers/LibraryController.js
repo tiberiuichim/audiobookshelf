@@ -1033,6 +1033,17 @@ class LibraryController {
       include: req.query.include
     }
 
+    let authorNameFilter = null
+    let filterForNonLatin = false
+    if (payload.filterBy && payload.filterBy.startsWith('letter.')) {
+      const letter = payload.filterBy.split('.')[1]
+      if (letter === '#') {
+        filterForNonLatin = true
+      } else if (/^[A-Za-z]$/.test(letter)) {
+        authorNameFilter = { [Sequelize.Op.like]: `${letter}%` }
+      }
+    }
+
     // create order, limit and offset for pagination
     let offset = isPaginated ? payload.page * payload.limit : undefined
     let limit = isPaginated ? payload.limit : undefined
@@ -1051,11 +1062,20 @@ class LibraryController {
       limit = undefined
     }
 
+    if (filterForNonLatin) {
+      offset = undefined
+      limit = undefined
+    }
+
     const { bookWhere, replacements } = libraryItemsBookFilters.getUserPermissionBookWhereQuery(req.user)
+    const authorWhere = {
+      libraryId: req.library.id
+    }
+    if (authorNameFilter) {
+      authorWhere.name = authorNameFilter
+    }
     const { rows: authors, count } = await Database.authorModel.findAndCountAll({
-      where: {
-        libraryId: req.library.id
-      },
+      where: authorWhere,
       replacements,
       include: {
         model: Database.bookModel,
@@ -1078,6 +1098,14 @@ class LibraryController {
       const oldAuthor = author.toOldJSONExpanded(author.books.length)
       oldAuthor.lastFirst = author.lastFirst
       oldAuthors.push(oldAuthor)
+    }
+
+    if (filterForNonLatin) {
+      oldAuthors = oldAuthors.filter((a) => {
+        const firstChar = (a.name || '').charAt(0).toUpperCase()
+        return !firstChar || (firstChar < 'A' || firstChar > 'Z')
+      })
+      count = oldAuthors.length
     }
 
     // numBooks sort is handled post-query

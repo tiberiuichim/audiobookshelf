@@ -142,6 +142,9 @@ export default {
     authorSortDesc() {
       return !!this.$store.getters['user/getUserSetting']('authorSortDesc')
     },
+    authorFilterBy() {
+      return this.$store.getters['user/getUserSetting']('authorFilterBy')
+    },
     orderBy() {
       return this.$store.getters['user/getUserSetting']('orderBy')
     },
@@ -511,6 +514,9 @@ export default {
       } else if (this.page === 'authors') {
         searchParams.set('sort', this.authorSortBy)
         searchParams.set('desc', this.authorSortDesc ? 1 : 0)
+        if (this.authorFilterBy && this.authorFilterBy !== 'all') {
+          searchParams.set('filter', this.authorFilterBy)
+        }
       } else {
         if (this.filterBy && this.filterBy !== 'all') {
           searchParams.set('filter', this.filterBy)

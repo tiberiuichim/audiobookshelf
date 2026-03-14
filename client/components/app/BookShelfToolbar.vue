@@ -88,7 +88,21 @@
         <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
         <div class="grow hidden sm:inline-block" />
-        <ui-btn v-if="userCanUpdate && !isBatchSelecting" :loading="processingAuthors" color="bg-primary" small @click="matchAllAuthors">{{ $strings.ButtonMatchAllAuthors }}</ui-btn>
+
+        <!-- author letter filter -->
+        <div class="author-letter-filter flex items-center h-7.5 ml-2">
+          <button
+            v-for="letter in letterOptions"
+            :key="letter"
+            class="letter-btn w-6 h-6 text-xs rounded-sm transition-colors duration-200"
+            :class="settings.authorFilterBy === letter ? 'bg-primary text-white' : 'bg-bg2 hover:bg-primary/30'"
+            @click="updateAuthorFilter(letter)"
+          >
+            {{ letter }}
+          </button>
+        </div>
+
+        <ui-btn v-if="userCanUpdate && !isBatchSelecting" :loading="processingAuthors" color="bg-primary" small class="ml-2" @click="matchAllAuthors">{{ $strings.ButtonMatchAllAuthors }}</ui-btn>
 
         <!-- author sort select -->
         <controls-sort-select v-model="settings.authorSortBy" :descending.sync="settings.authorSortDesc" :items="authorSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateAuthorSort" />
@@ -215,6 +229,9 @@ export default {
           value: 'updatedAt'
         }
       ]
+    },
+    letterOptions() {
+      return ['ALL', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#']
     },
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
@@ -600,6 +617,10 @@ export default {
     updateAuthorSort() {
       this.saveSettings()
     },
+    updateAuthorFilter(letter) {
+      this.settings.authorFilterBy = letter === 'ALL' ? 'all' : `letter.${letter}`
+      this.saveSettings()
+    },
     saveSettings() {
       this.$store.dispatch('user/updateUserSettings', this.settings)
     },
@@ -647,5 +668,19 @@ export default {
 <style>
 #toolbar {
   box-shadow: 0px 8px 6px #111111aa;
+}
+.author-letter-filter {
+  overflow-x: auto;
+  max-width: 300px;
+}
+.author-letter-filter::-webkit-scrollbar {
+  height: 4px;
+}
+.author-letter-filter::-webkit-scrollbar-thumb {
+  background: #4a4a4a;
+  border-radius: 2px;
+}
+.letter-btn {
+  flex-shrink: 0;
 }
 </style>
