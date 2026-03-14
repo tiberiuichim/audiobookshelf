@@ -1074,7 +1074,7 @@ class LibraryController {
     if (authorNameFilter) {
       authorWhere.name = authorNameFilter
     }
-    const { rows: authors, count } = await Database.authorModel.findAndCountAll({
+    let { rows: authors, count } = await Database.authorModel.findAndCountAll({
       where: authorWhere,
       replacements,
       include: {
