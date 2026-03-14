@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-20 md:h-20 relative">
+  <div class="w-full flex flex-col">
     <div class="flex md:hidden h-10 items-center">
       <nuxt-link :to="`/library/${currentLibraryId}`" class="grow h-full flex justify-center items-center" :class="isHomePage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isHomePage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonHome }}</p>
@@ -36,8 +36,8 @@
       </nuxt-link>
     </div>
 
-    <!-- Author letter filter bar - only on desktop -->
-    <div v-if="isAuthorsPage" class="hidden md:flex absolute top-10 md:top-0 left-0 w-full h-10 bg-bg2 border-t border-b border-fg/10 z-30 items-center px-8">
+    <!-- Author letter filter bar - second row on desktop -->
+    <div v-if="isAuthorsPage" class="hidden md:flex h-10 bg-bg2 border-t border-b border-fg/10 items-center px-8">
       <p class="text-xs mr-3">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
       <div class="author-letter-filter flex items-center h-7.5">
@@ -60,7 +60,7 @@
       <controls-sort-select v-model="settings.authorSortBy" :descending.sync="settings.authorSortDesc" :items="authorSortItems" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateAuthorSort" />
     </div>
 
-    <div id="toolbar" role="toolbar" aria-label="Library Toolbar" class="absolute top-10 md:top-0 left-0 w-full h-10 md:h-full z-40 flex items-center justify-end md:justify-start px-2 md:px-8">
+    <div id="toolbar" role="toolbar" aria-label="Library Toolbar" class="flex h-10 md:h-full items-center justify-end md:justify-start px-2 md:px-8">
       <!-- Series books page -->
       <template v-if="selectedSeries">
         <p class="pl-2 text-base md:text-lg">
