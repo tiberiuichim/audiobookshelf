@@ -38,6 +38,8 @@
 
     <!-- Author letter filter bar - sticky at top of content -->
     <div v-if="isAuthorsPage" class="sticky top-0 md:top-10 left-0 w-full h-10 bg-bg2 border-t border-b border-fg/10 z-30 flex items-center px-2 md:px-8">
+      <p class="hidden md:block text-xs mr-3">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
+
       <div class="author-letter-filter flex items-center h-7.5">
         <button
           v-for="letter in letterOptions"
@@ -108,7 +110,6 @@
       </template>
       <!-- authors page -->
       <template v-else-if="isAuthorsPage">
-        <p class="hidden md:block">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
         <div class="grow" />
       </template>
       <!-- library stats page -->
