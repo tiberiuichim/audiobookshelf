@@ -45,7 +45,7 @@
           v-for="letter in letterOptions"
           :key="letter"
           class="letter-btn w-6 h-6 text-xs rounded-sm transition-colors duration-200"
-          :class="settings.authorFilterBy === letter ? 'bg-primary text-white' : 'bg-bg3 hover:bg-primary/30'"
+          :class="isAuthorFilterActive(letter) ? 'bg-primary text-white' : 'bg-bg3 hover:bg-primary/30'"
           @click="updateAuthorFilter(letter)"
         >
           {{ letter }}
@@ -625,6 +625,11 @@ export default {
     updateAuthorFilter(letter) {
       this.settings.authorFilterBy = letter === 'ALL' ? 'all' : `letter.${letter}`
       this.saveSettings()
+    },
+    isAuthorFilterActive(letter) {
+      const filter = this.settings.authorFilterBy
+      if (letter === 'ALL') return filter === 'all' || !filter
+      return filter === `letter.${letter}`
     },
     saveSettings() {
       this.$store.dispatch('user/updateUserSettings', this.settings)
