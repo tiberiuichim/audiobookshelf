@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-20 md:h-10 relative">
+  <div class="w-full h-20 md:h-20 relative">
     <div class="flex md:hidden h-10 items-center">
       <nuxt-link :to="`/library/${currentLibraryId}`" class="grow h-full flex justify-center items-center" :class="isHomePage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isHomePage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonHome }}</p>
@@ -36,9 +36,9 @@
       </nuxt-link>
     </div>
 
-    <!-- Author letter filter bar - sticky at top of content -->
-    <div v-if="isAuthorsPage" class="sticky top-0 md:top-10 left-0 w-full h-10 bg-bg2 border-t border-b border-fg/10 z-30 flex items-center px-2 md:px-8">
-      <p class="hidden md:block text-xs mr-3">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
+    <!-- Author letter filter bar - only on desktop -->
+    <div v-if="isAuthorsPage" class="hidden md:flex absolute top-10 md:top-0 left-0 w-full h-10 bg-bg2 border-t border-b border-fg/10 z-30 items-center px-8">
+      <p class="text-xs mr-3">{{ $formatNumber(numShowing) }} {{ entityName }}</p>
 
       <div class="author-letter-filter flex items-center h-7.5">
         <button
