@@ -145,6 +145,7 @@ class Scanner {
    */
   async resetCoverLibraryItem(libraryItem) {
     let hasUpdated = false
+    let wasOverwritten = false
     const originalCoverPath = libraryItem.media.coverPath
 
     // Clear cover path to force re-search
@@ -154,18 +155,20 @@ class Scanner {
 
     if (libraryItem.isBook) {
       // 1. Try embedded cover from audio files
-      let extractedCoverPath = await CoverManager.saveEmbeddedCoverArt(libraryItem.media.audioFiles, libraryItem.id, libraryItemDir)
+      let extractedCoverPath = await CoverManager.saveEmbeddedCoverArt(libraryItem.media.audioFiles, libraryItem.id, libraryItemDir, true)
       if (extractedCoverPath) {
         libraryItem.media.coverPath = extractedCoverPath
         hasUpdated = true
+        wasOverwritten = true
       } else {
         // 2. Try embedded cover from ebook
         const ebookFileScanData = await parseEbookMetadata.parse(libraryItem.media.ebookFile)
         if (ebookFileScanData?.ebookCoverPath) {
-          extractedCoverPath = await CoverManager.saveEbookCoverArt(ebookFileScanData, libraryItem.id, libraryItemDir)
+          extractedCoverPath = await CoverManager.saveEbookCoverArt(ebookFileScanData, libraryItem.id, libraryItemDir, true)
           if (extractedCoverPath) {
             libraryItem.media.coverPath = extractedCoverPath
             hasUpdated = true
+            wasOverwritten = true
           }
         }
       }
@@ -198,7 +201,7 @@ class Scanner {
       }
     }
 
-    if (hasUpdated && libraryItem.media.coverPath !== originalCoverPath) {
+    if (hasUpdated && (wasOverwritten || libraryItem.media.coverPath !== originalCoverPath)) {
       await libraryItem.media.save()
       libraryItem.changed('updatedAt', true)
       await libraryItem.save()

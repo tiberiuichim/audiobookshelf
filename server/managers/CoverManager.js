@@ -216,9 +216,10 @@ class CoverManager {
    * @param {import('../models/Book').AudioFileObject[]} audioFiles
    * @param {string} libraryItemId
    * @param {string} [libraryItemPath] null for isFile library items
+   * @param {boolean} [overwrite=false]
    * @returns {Promise<string>} returns cover path
    */
-  async saveEmbeddedCoverArt(audioFiles, libraryItemId, libraryItemPath) {
+  async saveEmbeddedCoverArt(audioFiles, libraryItemId, libraryItemPath, overwrite = false) {
     let audioFileWithCover = audioFiles.find((af) => af.embeddedCoverArt)
     if (!audioFileWithCover) return null
 
@@ -234,7 +235,7 @@ class CoverManager {
     const coverFilePath = Path.join(coverDirPath, coverFilename)
 
     const coverAlreadyExists = await fs.pathExists(coverFilePath)
-    if (coverAlreadyExists) {
+    if (coverAlreadyExists && !overwrite) {
       Logger.warn(`[CoverManager] Extract embedded cover art but cover already exists for "${coverFilePath}" - bail`)
       return null
     }
@@ -253,9 +254,10 @@ class CoverManager {
    * @param {import('../utils/parsers/parseEbookMetadata').EBookFileScanData} ebookFileScanData
    * @param {string} libraryItemId
    * @param {string} [libraryItemPath] null for isFile library items
+   * @param {boolean} [overwrite=false]
    * @returns {Promise<string>} returns cover path
    */
-  async saveEbookCoverArt(ebookFileScanData, libraryItemId, libraryItemPath) {
+  async saveEbookCoverArt(ebookFileScanData, libraryItemId, libraryItemPath, overwrite = false) {
     if (!ebookFileScanData?.ebookCoverPath) return null
 
     let coverDirPath = null
@@ -271,10 +273,10 @@ class CoverManager {
     const coverFilename = `cover${extname}`
     const coverFilePath = Path.join(coverDirPath, coverFilename)
 
-    // TODO: Overwrite if exists?
     const coverAlreadyExists = await fs.pathExists(coverFilePath)
-    if (coverAlreadyExists) {
-      Logger.warn(`[CoverManager] Extract embedded cover art but cover already exists for "${coverFilePath}" - overwriting`)
+    if (coverAlreadyExists && !overwrite) {
+      Logger.warn(`[CoverManager] Extract embedded cover art but cover already exists for "${coverFilePath}" - bail`)
+      return null
     }
 
     const success = await parseEbookMetadata.extractCoverImage(ebookFileScanData, coverFilePath)
