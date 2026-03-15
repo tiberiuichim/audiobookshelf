@@ -8,8 +8,8 @@ This is a **local development deployment** of [Audiobookshelf](https://audiobook
 
 ## Repository Configuration
 
-- **Original Remote**: `origin` (git@github.com:advplyr/audiobookshelf.git)
-- **Personal Remote**: `tibi` (git@github.com:tiberiuichim/audiobookshelf.git)
+- **Original Remote**: `upstream` (git@github.com:advplyr/audiobookshelf.git)
+- **Personal Remote**: `origin` (git@github.com:tiberiuichim/audiobookshelf.git)
 - **Default Branch**: Typically `master` or `main`
 - **Development Scope**: Personal enhancements only - no contributions back to original repo
 
@@ -125,7 +125,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t advplyr/audiobookshelf
 ## Important Notes
 
 - This is a **local deployment** - no reverse proxy or deployment configuration is needed
-- All changes are committed to the **tibi** remote: `git push tibi <branch>`
+- All changes are committed to the **origin** remote: `git push origin <branch>`
 - The `data/` directory contains test audiobooks and is git-ignored
 - Database is SQLite-based, stored in config location (not in repo)
 - Client must be regenerated after frontend changes: `(cd client; npm run generate)`
