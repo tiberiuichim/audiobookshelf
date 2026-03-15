@@ -922,10 +922,10 @@ class LibraryItemController {
       }
     }
 
-    // Clear cover path to force re-scan of cover
-    if (req.libraryItem.media.coverPath) {
-      req.libraryItem.media.coverPath = null
-      await req.libraryItem.media.save()
+    // Clear all metadata fields in database
+    if (req.libraryItem.media.resetMetadata) {
+      Logger.info(`[LibraryItemController] Resetting media metadata for library item "${req.libraryItem.id}"`)
+      await req.libraryItem.media.resetMetadata()
     }
 
     // Trigger a scan ensuring we don't rely on cache/timestamps if possible
@@ -2709,10 +2709,10 @@ class LibraryItemController {
           }
         }
 
-        // Clear cover path to force re-scan of cover
-        if (libraryItem.media.coverPath) {
-          libraryItem.media.coverPath = null
-          await libraryItem.media.save()
+        // Clear all metadata fields in database
+        if (libraryItem.media.resetMetadata) {
+          Logger.info(`[LibraryItemController] Batch Resetting media metadata for library item "${libraryItem.id}"`)
+          await libraryItem.media.resetMetadata()
         }
 
         // Trigger a scan ensuring we don't rely on cache/timestamps if possible

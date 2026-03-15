@@ -508,6 +508,30 @@ class Podcast extends Model {
       size: this.size
     }
   }
+
+  /**
+   * Reset metadata to default values
+   *
+   * @returns {Promise<void>}
+   */
+  async resetMetadata() {
+    this.title = null
+    this.titleIgnorePrefix = null
+    this.titleNormalized = null
+    this.author = null
+    this.releaseDate = null
+    this.description = null
+    this.itunesPageURL = null
+    this.itunesId = null
+    this.itunesArtistId = null
+    this.language = null
+    this.explicit = false
+    this.coverPath = null
+    this.tags = []
+    this.genres = []
+
+    await this.save()
+  }
 }
 
 module.exports = Podcast

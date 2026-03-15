@@ -717,6 +717,43 @@ class Book extends Model {
       tracks: this.getTracklist(libraryItemId)
     }
   }
+
+  /**
+   * Reset metadata to default values
+   *
+   * @returns {Promise<void>}
+   */
+  async resetMetadata() {
+    this.title = null
+    this.titleIgnorePrefix = null
+    this.titleNormalized = null
+    this.subtitle = null
+    this.publishedYear = null
+    this.publishedDate = null
+    this.publisher = null
+    this.description = null
+    this.isbn = null
+    this.asin = null
+    this.language = null
+    this.explicit = false
+    this.abridged = false
+    this.genres = []
+    this.tags = []
+    this.narrators = []
+    this.chapters = []
+    this.coverPath = null
+
+    // Note: We don't clear audioFiles or ebookFile as those are "content"
+
+    // Clear associations
+    const bookAuthorModel = this.sequelize.models.bookAuthor
+    await bookAuthorModel.destroy({ where: { bookId: this.id } })
+
+    const bookSeriesModel = this.sequelize.models.bookSeries
+    await bookSeriesModel.destroy({ where: { bookId: this.id } })
+
+    await this.save()
+  }
 }
 
 module.exports = Book
