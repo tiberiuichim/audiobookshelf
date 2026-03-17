@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full flex flex-col">
+  <div class="w-full flex flex-col relative z-40">
     <div class="flex md:hidden h-10 items-center">
       <nuxt-link :to="`/library/${currentLibraryId}`" class="grow h-full flex justify-center items-center" :class="isHomePage ? 'bg-primary/80' : 'bg-primary/40'">
         <p v-if="isHomePage || isPodcastLibrary" class="text-sm">{{ $strings.ButtonHome }}</p>

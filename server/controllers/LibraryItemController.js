@@ -935,7 +935,11 @@ class LibraryItemController {
     const result = await LibraryItemScanner.scanLibraryItem(req.libraryItem.id)
 
     // Respond with updated item
-    await req.libraryItem.reload()
+    req.libraryItem = await Database.libraryItemModel.getExpandedById(req.libraryItem.id)
+    if (!req.libraryItem) {
+      Logger.error(`[LibraryItemController] Library item "${req.params.id}" disappeared after reset`)
+      return res.sendStatus(404)
+    }
     res.json(req.libraryItem.toOldJSONExpanded())
   }
 

@@ -748,9 +748,11 @@ class Book extends Model {
     // Clear associations
     const bookAuthorModel = this.sequelize.models.bookAuthor
     await bookAuthorModel.destroy({ where: { bookId: this.id } })
+    if (this.authors) this.authors = []
 
     const bookSeriesModel = this.sequelize.models.bookSeries
     await bookSeriesModel.destroy({ where: { bookId: this.id } })
+    if (this.series) this.series = []
 
     await this.save()
   }
