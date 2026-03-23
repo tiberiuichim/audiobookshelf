@@ -510,11 +510,19 @@ export default {
 
       try {
         const authors = await this.fetchAllAuthors()
+        
+        const unmatchedAuthors = authors.filter(author => 
+          !author.asin && !author.description && !author.imagePath
+        )
+        
+        if (unmatchedAuthors.length === 0) {
+          this.$toast.info(this.$strings.ToastAllAuthorsMatched)
+          this.processingAuthors = false
+          return
+        }
 
-        for (const author of authors) {
-          const payload = {}
-          if (author.asin) payload.asin = author.asin
-          else payload.q = author.name
+        for (const author of unmatchedAuthors) {
+          const payload = { q: author.name }
 
           payload.region = 'us'
           if (this.libraryProvider.startsWith('audible.')) {
