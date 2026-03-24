@@ -6,6 +6,13 @@
           <!-- Image or placeholder -->
           <covers-author-image :author="author" />
 
+          <!-- Unmatched badge -->
+          <ui-tooltip v-if="isUnmatched && !searching" :text="userCanUpdate ? 'Quick Match' : 'Unmatched - No metadata'" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.25 + 'em', bottom: nameBelow ? '0px' : '2.5em' }">
+            <button class="rounded-full bg-warning flex items-center justify-center border border-black/20 shadow-sm transition-transform duration-200" :class="userCanUpdate ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }" @click.prevent.stop="userCanUpdate ? searchAuthor() : null">
+              <span class="material-symbols text-black" :style="{ fontSize: 0.875 + 'em' }">sync_problem</span>
+            </button>
+          </ui-tooltip>
+
           <!-- Author name & num books overlay -->
           <div cy-id="textInline" v-show="!searching && !nameBelow" class="absolute bottom-0 left-0 w-full py-1e bg-black/60 px-2e">
             <p class="text-center font-semibold truncate" :style="{ fontSize: 0.75 + 'em' }">{{ name }}</p>
@@ -83,6 +90,15 @@ export default {
     asin() {
       return this._author?.asin || ''
     },
+    description() {
+      return this._author?.description || ''
+    },
+    imagePath() {
+      return this._author?.imagePath || ''
+    },
+    isUnmatched() {
+      return !this.asin && !this.description && !this.imagePath
+    },
     numBooks() {
       return this._author?.numBooks || 0
     },
@@ -127,6 +143,7 @@ export default {
       if (!response) {
         this.$toast.error(this.$getString('ToastAuthorNotFound', [this.name]))
       } else if (response.updated) {
+        this.author = { ...this.author, ...response.author }
         if (response.author.imagePath) {
           this.$toast.success(this.$strings.ToastAuthorUpdateSuccess)
         } else {
