@@ -596,7 +596,93 @@ export default {
       for (const key in this.selectedMatchUsage) {
         this.selectedMatchUsage[key] = true
       }
+
+      const shouldProceed = await this.checkCoverSizeBeforeApply(match.cover)
+      if (!shouldProceed) {
+        this.isProcessing = false
+        return
+      }
+
       await this.submitMatchUpdate(true)
+    },
+    async checkCoverSizeBeforeApply(matchCoverUrl) {
+      if (!matchCoverUrl || !this.selectedMatchUsage.cover) {
+        return true
+      }
+
+      if (!this.media.coverPath) {
+        return true
+      }
+
+      const existingWidth = this.media.coverWidth
+      const existingHeight = this.media.coverHeight
+      if (!existingWidth || !existingHeight) {
+        return true
+      }
+
+      const remoteDimensions = await this.loadRemoteImageDimensions(matchCoverUrl)
+      if (!remoteDimensions) {
+        return true
+      }
+
+      const existingTier = this.getCoverTier(existingWidth, existingHeight)
+      const remoteTier = this.getCoverTier(remoteDimensions.width, remoteDimensions.height)
+
+      if (this.compareCoverTiers(remoteTier, existingTier) >= 0) {
+        return true
+      }
+
+      return new Promise((resolve) => {
+        const currentCoverUrl = this.$store.getters['globals/getLibraryItemCoverSrc'](this.libraryItem, null, true)
+        this.$store.commit('globals/setConfirmCoverSizeModal', {
+          currentCoverUrl,
+          matchedCoverUrl: matchCoverUrl,
+          currentDimensions: { width: existingWidth, height: existingHeight },
+          matchedDimensions: remoteDimensions,
+          callback: (action) => {
+            if (action === 'keep-existing') {
+              this.selectedMatchUsage.cover = false
+              resolve(true)
+            } else if (action === 'replace') {
+              resolve(true)
+            } else {
+              resolve(false)
+            }
+          }
+        })
+      })
+    },
+    loadRemoteImageDimensions(url) {
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+
+        const timeout = setTimeout(() => {
+          resolve(null)
+        }, 5000)
+
+        img.onload = () => {
+          clearTimeout(timeout)
+          resolve({ width: img.naturalWidth, height: img.naturalHeight })
+        }
+
+        img.onerror = () => {
+          clearTimeout(timeout)
+          resolve(null)
+        }
+
+        img.src = url
+      })
+    },
+    getCoverTier(width, height) {
+      const maxDim = Math.max(width, height)
+      if (maxDim >= 1200) return 'BIG'
+      if (maxDim >= 450) return 'MED'
+      return 'SML'
+    },
+    compareCoverTiers(tier1, tier2) {
+      const tierOrder = { BIG: 3, MED: 2, SML: 1 }
+      return (tierOrder[tier1] || 0) - (tierOrder[tier2] || 0)
     },
     buildMatchUpdatePayload() {
       var updatePayload = {}
@@ -651,6 +737,14 @@ export default {
       return updatePayload
     },
     async submitMatchUpdate(closeOnSuccess = false) {
+      if (this.selectedMatchUsage.cover && this.selectedMatch?.cover) {
+        const shouldProceed = await this.checkCoverSizeBeforeApply(this.selectedMatch.cover)
+        if (!shouldProceed) {
+          this.isProcessing = false
+          return
+        }
+      }
+
       var updatePayload = this.buildMatchUpdatePayload()
       if (!Object.keys(updatePayload).length) {
         return

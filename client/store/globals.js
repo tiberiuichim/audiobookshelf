@@ -29,6 +29,8 @@ export const state = () => ({
   isChromecastInitialized: false, // Script loadeds
   showBatchQuickMatchModal: false,
   showBatchQuickMatchCoversModal: false,
+  showConfirmCoverSizeModal: false,
+  confirmCoverSizeOptions: null,
   showMoveToLibraryModal: false,
   dateFormats: [
     {
@@ -215,6 +217,13 @@ export const mutations = {
   },
   setShowMoveToLibraryModal(state, val) {
     state.showMoveToLibraryModal = val
+  },
+  setShowConfirmCoverSizeModal(state, val) {
+    state.showConfirmCoverSizeModal = val
+  },
+  setConfirmCoverSizeModal(state, options) {
+    state.confirmCoverSizeOptions = options
+    state.showConfirmCoverSizeModal = true
   },
   resetSelectedMediaItems(state) {
     state.selectedMediaItems = []
