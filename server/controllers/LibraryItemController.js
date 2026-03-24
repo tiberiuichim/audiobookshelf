@@ -293,56 +293,59 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
           }
         }
 
-        // Handle Authors
+        // Handle Authors - collect source author IDs for cleanup after migration
         const bookAuthors = await Database.bookAuthorModel.findAll({
           where: { bookId: libraryItem.media.id },
           transaction
         })
+        const sourceAuthorIdsToCheck = []
+
         for (const ba of bookAuthors) {
           const sourceAuthor = await Database.authorModel.findByPk(ba.authorId, { transaction })
-          if (sourceAuthor) {
-            const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
+          if (!sourceAuthor) continue
 
-            // Copy description and ASIN if target doesn't have them
-            let targetAuthorUpdated = false
-            if (!targetAuthor.description && sourceAuthor.description) {
-              targetAuthor.description = sourceAuthor.description
+          sourceAuthorIdsToCheck.push(sourceAuthor.id)
+          const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
+
+          let targetAuthorUpdated = false
+          if (!targetAuthor.description && sourceAuthor.description) {
+            targetAuthor.description = sourceAuthor.description
+            targetAuthorUpdated = true
+          }
+          if (!targetAuthor.asin && sourceAuthor.asin) {
+            targetAuthor.asin = sourceAuthor.asin
+            targetAuthorUpdated = true
+          }
+
+          if (!targetAuthor.imagePath && sourceAuthor.imagePath && (await fs.pathExists(sourceAuthor.imagePath))) {
+            const ext = Path.extname(sourceAuthor.imagePath)
+            const newImagePath = Path.posix.join(Path.join(global.MetadataPath, 'authors'), targetAuthor.id + ext)
+            try {
+              await fs.copy(sourceAuthor.imagePath, newImagePath)
+              targetAuthor.imagePath = newImagePath
               targetAuthorUpdated = true
+            } catch (err) {
+              Logger.error(`[LibraryItemController] Failed to copy author image`, err)
             }
-            if (!targetAuthor.asin && sourceAuthor.asin) {
-              targetAuthor.asin = sourceAuthor.asin
-              targetAuthorUpdated = true
-            }
+          }
 
-            // Copy image if target doesn't have one
-            if (!targetAuthor.imagePath && sourceAuthor.imagePath && (await fs.pathExists(sourceAuthor.imagePath))) {
-              const ext = Path.extname(sourceAuthor.imagePath)
-              const newImagePath = Path.posix.join(Path.join(global.MetadataPath, 'authors'), targetAuthor.id + ext)
-              try {
-                await fs.copy(sourceAuthor.imagePath, newImagePath)
-                targetAuthor.imagePath = newImagePath
-                targetAuthorUpdated = true
-              } catch (err) {
-                Logger.error(`[LibraryItemController] Failed to copy author image`, err)
-              }
-            }
+          if (targetAuthorUpdated) await targetAuthor.save({ transaction })
 
-            if (targetAuthorUpdated) await targetAuthor.save({ transaction })
+          ba.authorId = targetAuthor.id
+          await ba.save({ transaction })
+        }
 
-            // Update link
-            ba.authorId = targetAuthor.id
-            await ba.save({ transaction })
-
-            // Check if source author is now empty
-            const sourceAuthorBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthor.id, transaction)
-            if (sourceAuthorBooksCount === 0) {
+        for (const sourceAuthorId of sourceAuthorIdsToCheck) {
+          const remainingBooksCount = await Database.bookAuthorModel.getCountForAuthor(sourceAuthorId, transaction)
+          if (remainingBooksCount === 0) {
+            const sourceAuthor = await Database.authorModel.findByPk(sourceAuthorId, { transaction })
+            if (sourceAuthor) {
               Logger.info(`[LibraryItemController] Source author "${sourceAuthor.name}" in library ${oldLibraryId} is now empty. Deleting.`)
               if (sourceAuthor.imagePath) {
                 await fs.remove(sourceAuthor.imagePath).catch((err) => Logger.error(`[LibraryItemController] Failed to remove source author image`, err))
               }
               await sourceAuthor.destroy({ transaction })
               Database.removeAuthorFromFilterData(oldLibraryId, sourceAuthor.id)
-
               SocketAuthority.emitter('author_removed', { id: sourceAuthor.id, libraryId: oldLibraryId })
             }
           }
