@@ -510,7 +510,8 @@ class Podcast extends Model {
   }
 
   /**
-   * Reset metadata to default values
+   * Reset metadata to default values - clears only title and author fields
+   * to allow re-scanning from file tags while preserving cover and other enriched metadata.
    *
    * @returns {Promise<void>}
    */
@@ -519,16 +520,9 @@ class Podcast extends Model {
     this.titleIgnorePrefix = null
     this.titleNormalized = null
     this.author = null
-    this.releaseDate = null
-    this.description = null
-    this.itunesPageURL = null
-    this.itunesId = null
-    this.itunesArtistId = null
-    this.language = null
-    this.explicit = false
-    this.coverPath = null
-    this.tags = []
-    this.genres = []
+
+    // Note: coverPath, genres, tags, description, language, explicit, etc.
+    // are preserved to maintain user-curated metadata
 
     await this.save()
   }

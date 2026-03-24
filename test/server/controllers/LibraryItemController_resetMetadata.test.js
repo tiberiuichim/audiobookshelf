@@ -40,15 +40,15 @@ describe('LibraryItemController_resetMetadata', () => {
     await Database.sequelize.sync({ force: true })
   })
 
-  it('should clear all metadata fields and associations on resetMetadata', async () => {
+  it('should clear only title/author fields and preserve other metadata on resetMetadata', async () => {
     const newLibrary = await Database.libraryModel.create({ name: 'Test Library', mediaType: 'book' })
     const newLibraryFolder = await Database.libraryFolderModel.create({ path: '/test', libraryId: newLibrary.id })
 
     const newBook = await Database.bookModel.create({
       title: 'Wrong Title',
-      subtitle: 'Wrong Subtitle',
-      description: 'Wrong Description',
-      publisher: 'Wrong Publisher',
+      subtitle: 'My Subtitle',
+      description: 'My Description',
+      publisher: 'My Publisher',
       publishedYear: '2020',
       isbn: '123456',
       asin: 'B00000',
@@ -102,29 +102,41 @@ describe('LibraryItemController_resetMetadata', () => {
 
     // Reload book from DB
     const updatedBook = await Database.bookModel.findByPk(newBook.id)
+    
+    // Title should be cleared
     expect(updatedBook.title).to.be.null
-    expect(updatedBook.genres).to.be.empty
-    expect(updatedBook.tags).to.be.empty
-    expect(updatedBook.narrators).to.be.empty
-    expect(updatedBook.coverPath).to.be.null
-    expect(updatedBook.description).to.be.null
+    
+    // Other metadata should be PRESERVED
+    expect(updatedBook.genres).to.deep.equal(['Genre1'])
+    expect(updatedBook.tags).to.deep.equal(['Tag1'])
+    expect(updatedBook.narrators).to.deep.equal(['Narrator1'])
+    expect(updatedBook.coverPath).to.equal('/some/path/cover.jpg')
+    expect(updatedBook.description).to.equal('My Description')
+    expect(updatedBook.publisher).to.equal('My Publisher')
+    expect(updatedBook.publishedYear).to.equal('2020')
+    expect(updatedBook.isbn).to.equal('123456')
+    expect(updatedBook.asin).to.equal('B00000')
+    expect(updatedBook.language).to.equal('en')
+    expect(updatedBook.explicit).to.be.true
+    expect(updatedBook.subtitle).to.equal('My Subtitle')
 
-    // Verify associations are gone
+    // Author associations should be cleared
     const authorsCount = await Database.bookAuthorModel.count({ where: { bookId: newBook.id } })
     expect(authorsCount).to.equal(0)
 
+    // Series associations should be PRESERVED
     const seriesCount = await Database.bookSeriesModel.count({ where: { bookId: newBook.id } })
-    expect(seriesCount).to.equal(0)
+    expect(seriesCount).to.equal(1)
   })
 
-  it('should clear all metadata fields on resetMetadata for podcast', async () => {
+  it('should clear only title/author fields and preserve other metadata on resetMetadata for podcast', async () => {
     const newLibrary = await Database.libraryModel.create({ name: 'Test Podcast Library', mediaType: 'podcast' })
     const newLibraryFolder = await Database.libraryFolderModel.create({ path: '/test-podcast', libraryId: newLibrary.id })
 
     const newPodcast = await Database.podcastModel.create({
       title: 'Wrong Podcast Title',
       author: 'Wrong Podcast Author',
-      description: 'Wrong Podcast Description',
+      description: 'My Podcast Description',
       releaseDate: '2020-01-01',
       genres: ['Genre1'],
       tags: ['Tag1'],
@@ -162,11 +174,17 @@ describe('LibraryItemController_resetMetadata', () => {
 
     // Reload podcast from DB
     const updatedPodcast = await Database.podcastModel.findByPk(newPodcast.id)
+    
+    // Title and author should be cleared
     expect(updatedPodcast.title).to.be.null
     expect(updatedPodcast.author).to.be.null
-    expect(updatedPodcast.genres).to.be.empty
-    expect(updatedPodcast.tags).to.be.empty
-    expect(updatedPodcast.coverPath).to.be.null
-    expect(updatedPodcast.description).to.be.null
+    
+    // Other metadata should be PRESERVED
+    expect(updatedPodcast.genres).to.deep.equal(['Genre1'])
+    expect(updatedPodcast.tags).to.deep.equal(['Tag1'])
+    expect(updatedPodcast.coverPath).to.equal('/some/path/cover.jpg')
+    expect(updatedPodcast.description).to.equal('My Podcast Description')
+    expect(updatedPodcast.releaseDate).to.equal('2020-01-01')
+    expect(updatedPodcast.explicit).to.be.true
   })
 })

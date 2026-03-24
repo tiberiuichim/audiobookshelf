@@ -719,7 +719,8 @@ class Book extends Model {
   }
 
   /**
-   * Reset metadata to default values
+   * Reset metadata to default values - clears only title and author fields
+   * to allow re-scanning from file tags while preserving cover and other enriched metadata.
    *
    * @returns {Promise<void>}
    */
@@ -727,32 +728,14 @@ class Book extends Model {
     this.title = null
     this.titleIgnorePrefix = null
     this.titleNormalized = null
-    this.subtitle = null
-    this.publishedYear = null
-    this.publishedDate = null
-    this.publisher = null
-    this.description = null
-    this.isbn = null
-    this.asin = null
-    this.language = null
-    this.explicit = false
-    this.abridged = false
-    this.genres = []
-    this.tags = []
-    this.narrators = []
-    this.chapters = []
-    this.coverPath = null
 
-    // Note: We don't clear audioFiles or ebookFile as those are "content"
+    // Note: coverPath, genres, tags, narrators, description, series, chapters, etc.
+    // are preserved to maintain user-curated metadata
 
-    // Clear associations
+    // Clear author associations
     const bookAuthorModel = this.sequelize.models.bookAuthor
     await bookAuthorModel.destroy({ where: { bookId: this.id } })
     if (this.authors) this.authors = []
-
-    const bookSeriesModel = this.sequelize.models.bookSeries
-    await bookSeriesModel.destroy({ where: { bookId: this.id } })
-    if (this.series) this.series = []
 
     await this.save()
   }
