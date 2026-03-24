@@ -40,7 +40,8 @@ class AuthorController {
   async findOne(req, res) {
     const include = (req.query.include || '').split(',')
 
-    const authorJson = req.author.toOldJSON()
+    const numBooks = await Database.bookAuthorModel.getCountForAuthor(req.author.id)
+    const authorJson = req.author.toOldJSONExpanded(numBooks)
 
     // Used on author landing page to include library items and items grouped in series
     if (include.includes('items')) {
@@ -168,7 +169,7 @@ class AuthorController {
       SocketAuthority.emitter('author_updated', existingAuthor.toOldJSONExpanded(numBooks))
 
       res.json({
-        author: existingAuthor.toOldJSON(),
+        author: existingAuthor.toOldJSONExpanded(numBooks),
         merged: true
       })
       return
@@ -217,8 +218,9 @@ class AuthorController {
       SocketAuthority.emitter('author_updated', req.author.toOldJSONExpanded(numBooksForAuthor))
     }
 
+    const numBooks = await Database.bookAuthorModel.getCountForAuthor(req.author.id)
     res.json({
-      author: req.author.toOldJSON(),
+      author: req.author.toOldJSONExpanded(numBooks),
       updated: hasUpdated
     })
   }
@@ -376,9 +378,10 @@ class AuthorController {
       SocketAuthority.emitter('author_updated', req.author.toOldJSONExpanded(numBooks))
     }
 
+    const numBooks = await Database.bookAuthorModel.getCountForAuthor(req.author.id)
     res.json({
       updated: hasUpdates,
-      author: req.author.toOldJSON()
+      author: req.author.toOldJSONExpanded(numBooks)
     })
   }
 

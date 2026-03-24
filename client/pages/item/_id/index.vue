@@ -22,6 +22,16 @@
               <button class="absolute bottom-2.5 right-2.5 z-10 material-symbols text-lg cursor-pointer text-white/75 hover:text-white/100 hover:scale-110 transform duration-200 pointer-events-auto" :aria-label="$strings.ButtonEdit" @click="showEditCover">edit</button>
             </div>
           </div>
+        <!-- Author Thumbnails Below Cover -->
+          <div v-if="!isPodcast && authorsWithDetails.length > 0" class="flex flex-wrap gap-2 mt-3 lg:justify-start justify-center">
+            <cards-author-thumbnail
+              v-for="author in authorsWithDetails"
+              :key="author.id"
+              :author="author"
+              :width="105"
+              @author-updated="authorUpdated"
+            />
+          </div>
         </div>
         <div class="grow px-2 py-6 lg:py-0 md:px-10">
           <div class="flex justify-center">
@@ -193,7 +203,8 @@ export default {
       episodeDownloadsQueued: [],
       showBookmarksModal: false,
       isDescriptionClamped: false,
-      showFullDescription: false
+      showFullDescription: false,
+      authorsWithDetails: []
     }
   },
   computed: {
@@ -564,6 +575,27 @@ export default {
       this.$store.commit('setBookshelfBookIds', [])
       this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
     },
+    async fetchAuthorDetails() {
+      if (this.isPodcast || !this.authors.length) {
+        this.authorsWithDetails = []
+        return
+      }
+      const authorPromises = this.authors.map((author) =>
+        this.$axios.$get(`/api/authors/${author.id}`).catch((error) => {
+          console.error(`Failed to fetch author ${author.id}`, error)
+          return null
+        })
+      )
+      const results = await Promise.all(authorPromises)
+      this.authorsWithDetails = results.filter((a) => a !== null)
+    },
+    authorUpdated(updatedAuthor) {
+      if (!updatedAuthor || !updatedAuthor.id) return
+      const index = this.authorsWithDetails.findIndex((a) => a.id === updatedAuthor.id)
+      if (index !== -1) {
+        this.authorsWithDetails.splice(index, 1, updatedAuthor)
+      }
+    },
     openEbook() {
       this.$store.commit('showEReader', { libraryItem: this.libraryItem, keepProgress: true })
     },
@@ -664,6 +696,7 @@ export default {
         console.log('Item was updated', libraryItem)
         this.libraryItem = libraryItem
         this.$nextTick(this.checkDescriptionClamped)
+        this.fetchAuthorDetails()
       }
     },
     clearProgressClick() {
@@ -937,11 +970,13 @@ export default {
       }
     }
   },
-  mounted() {
+mounted() {
     this.checkDescriptionClamped()
 
     this.episodeDownloadsQueued = this.libraryItem.episodeDownloadsQueued || []
     this.episodesDownloading = this.libraryItem.episodesDownloading || []
+
+    this.fetchAuthorDetails()
 
     this.$eventBus.$on(`${this.libraryItem.id}_updated`, this.libraryItemUpdated)
     this.$root.socket.on('item_updated', this.libraryItemUpdated)
