@@ -262,6 +262,7 @@ export default {
     requestBatchQuickEmbed() {
       const payload = {
         message: this.$strings.MessageConfirmQuickEmbed,
+        allowHtml: true,
         callback: (confirmed) => {
           if (confirmed) {
             this.$axios
