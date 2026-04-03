@@ -122,6 +122,8 @@
   "ButtonUserDelete": "Delete user {0}",
   "ButtonUserEdit": "Edit user {0}",
   "ButtonViewAll": "View All",
+  "ButtonViewBooks": "View Books",
+  "ButtonViewItems": "View Items",
   "ButtonYes": "Yes",
   "ButtonKeepExisting": "Keep Existing",
   "ButtonReplaceAnyway": "Replace Anyway",

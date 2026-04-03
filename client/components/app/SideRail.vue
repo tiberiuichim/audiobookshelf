@@ -65,6 +65,24 @@
         <div v-show="isAuthorsPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
       </nuxt-link>
 
+      <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/genres`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isGenresPage ? 'bg-primary/80' : 'bg-bg/60'">
+        <ui-tooltip :text="$strings.LabelGenres" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">view_module</span>
+          <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.LabelGenres }}</p>
+        </ui-tooltip>
+
+        <div v-show="isGenresPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
+      </nuxt-link>
+
+      <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/bookshelf/tags`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isTagsPage ? 'bg-primary/80' : 'bg-bg/60'">
+        <ui-tooltip :text="$strings.LabelTags" direction="right" class="w-full h-full flex flex-col items-center justify-center">
+          <span class="material-symbols text-2xl">label</span>
+          <p class="pt-1 text-center leading-4" style="font-size: 0.9rem">{{ $strings.LabelTags }}</p>
+        </ui-tooltip>
+
+        <div v-show="isTagsPage" class="h-full w-0.5 bg-yellow-400 absolute top-0 left-0" />
+      </nuxt-link>
+
       <nuxt-link v-if="isBookLibrary" :to="`/library/${currentLibraryId}/narrators`" class="w-full h-20 flex flex-col items-center justify-center text-white/80 border-b border-primary/70 hover:bg-primary cursor-pointer relative" :class="isNarratorsPage ? 'bg-primary/80' : 'bg-bg/60'">
         <span class="material-symbols text-2xl">&#xe91f;</span>
 
@@ -175,6 +193,12 @@ export default {
     },
     isAuthorsPage() {
       return this.libraryBookshelfPage && this.paramId === 'authors'
+    },
+    isGenresPage() {
+      return this.libraryBookshelfPage && this.paramId === 'genres'
+    },
+    isTagsPage() {
+      return this.libraryBookshelfPage && this.paramId === 'tags'
     },
     isNarratorsPage() {
       return this.$route.name === 'library-library-narrators'

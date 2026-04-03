@@ -18,6 +18,8 @@ export default {
     if (query.filter || query.sort || query.desc) {
       const isSeries = params.id === 'series'
       const isAuthors = params.id === 'authors'
+      const isGenres = params.id === 'genres'
+      const isTags = params.id === 'tags'
       const settingsUpdate = {}
       
       if (isSeries) {
@@ -28,6 +30,14 @@ export default {
         settingsUpdate.authorFilterBy = query.filter || undefined
         settingsUpdate.authorSortBy = query.sort || 'name'
         settingsUpdate.authorSortDesc = query.desc == '1'
+      } else if (isGenres) {
+        settingsUpdate.genreFilterBy = query.filter || undefined
+        settingsUpdate.genreSortBy = query.sort || 'name'
+        settingsUpdate.genreSortDesc = query.desc == '1'
+      } else if (isTags) {
+        settingsUpdate.tagFilterBy = query.filter || undefined
+        settingsUpdate.tagSortBy = query.sort || 'name'
+        settingsUpdate.tagSortDesc = query.desc == '1'
       } else {
         settingsUpdate.filterBy = query.filter || undefined
         settingsUpdate.orderBy = query.sort || undefined
@@ -38,7 +48,7 @@ export default {
 
     // Redirect podcast libraries
     const library = libraryData.library
-    if (library.mediaType === 'podcast' && (params.id === 'collections' || params.id === 'series' || params.id === 'authors')) {
+    if (library.mediaType === 'podcast' && (params.id === 'collections' || params.id === 'series' || params.id === 'authors' || params.id === 'genres' || params.id === 'tags')) {
       return redirect(`/library/${libraryId}`)
     }
 

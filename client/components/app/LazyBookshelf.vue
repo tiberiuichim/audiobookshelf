@@ -106,11 +106,13 @@ export default {
     isPodcast() {
       return this.libraryMediaType === 'podcast'
     },
-    emptyMessage() {
+emptyMessage() {
       if (this.page === 'series') return this.$strings.MessageBookshelfNoSeries
       if (this.page === 'collections') return this.$strings.MessageBookshelfNoCollections
       if (this.page === 'playlists') return this.$strings.MessageNoUserPlaylists
       if (this.page === 'authors') return this.$strings.MessageNoAuthors
+      if (this.page === 'genres') return this.$strings.MessageNoGenres
+      if (this.page === 'tags') return this.$strings.MessageNoTags
       if (this.hasFilter) {
         if (this.filterName === 'Issues') return this.$strings.MessageNoIssues
         else if (this.filterName === 'Feed-open') return this.$strings.MessageBookshelfNoRSSFeeds
@@ -144,6 +146,24 @@ export default {
     },
     authorFilterBy() {
       return this.$store.getters['user/getUserSetting']('authorFilterBy')
+    },
+    genreSortBy() {
+      return this.$store.getters['user/getUserSetting']('genreSortBy')
+    },
+    genreSortDesc() {
+      return !!this.$store.getters['user/getUserSetting']('genreSortDesc')
+    },
+    genreFilterBy() {
+      return this.$store.getters['user/getUserSetting']('genreFilterBy')
+    },
+    tagSortBy() {
+      return this.$store.getters['user/getUserSetting']('tagSortBy')
+    },
+    tagSortDesc() {
+      return !!this.$store.getters['user/getUserSetting']('tagSortDesc')
+    },
+    tagFilterBy() {
+      return this.$store.getters['user/getUserSetting']('tagFilterBy')
     },
     orderBy() {
       return this.$store.getters['user/getUserSetting']('orderBy')
@@ -516,6 +536,18 @@ export default {
         searchParams.set('desc', this.authorSortDesc ? 1 : 0)
         if (this.authorFilterBy && this.authorFilterBy !== 'all') {
           searchParams.set('filter', this.authorFilterBy)
+        }
+      } else if (this.page === 'genres') {
+        searchParams.set('sort', this.genreSortBy)
+        searchParams.set('desc', this.genreSortDesc ? 1 : 0)
+        if (this.genreFilterBy && this.genreFilterBy !== 'all') {
+          searchParams.set('filter', this.genreFilterBy)
+        }
+      } else if (this.page === 'tags') {
+        searchParams.set('sort', this.tagSortBy)
+        searchParams.set('desc', this.tagSortDesc ? 1 : 0)
+        if (this.tagFilterBy && this.tagFilterBy !== 'all') {
+          searchParams.set('filter', this.tagFilterBy)
         }
       } else {
         if (this.filterBy && this.filterBy !== 'all') {

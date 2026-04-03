@@ -4,6 +4,8 @@ import LazySeriesCard from '@/components/cards/LazySeriesCard'
 import LazyCollectionCard from '@/components/cards/LazyCollectionCard'
 import LazyPlaylistCard from '@/components/cards/LazyPlaylistCard'
 import AuthorCard from '@/components/cards/AuthorCard'
+import GenreCard from '@/components/cards/GenreCard'
+import TagCard from '@/components/cards/TagCard'
 
 export default {
   data() {
@@ -20,6 +22,8 @@ export default {
       if (this.entityName === 'collections') return Vue.extend(LazyCollectionCard)
       if (this.entityName === 'playlists') return Vue.extend(LazyPlaylistCard)
       if (this.entityName === 'authors') return Vue.extend(AuthorCard)
+      if (this.entityName === 'genres') return Vue.extend(GenreCard)
+      if (this.entityName === 'tags') return Vue.extend(TagCard)
       return Vue.extend(LazyBookCard)
     },
     getComponentName() {
@@ -27,6 +31,8 @@ export default {
       if (this.entityName === 'collections') return 'cards-lazy-collection-card'
       if (this.entityName === 'playlists') return 'cards-lazy-playlist-card'
       if (this.entityName === 'authors') return 'cards-author-card'
+      if (this.entityName === 'genres') return 'cards-genre-card'
+      if (this.entityName === 'tags') return 'cards-tag-card'
       return 'cards-lazy-book-card'
     },
     async setCardSize() {

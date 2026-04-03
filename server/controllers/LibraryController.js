@@ -1264,6 +1264,236 @@ class LibraryController {
   }
 
   /**
+   * GET: /api/libraries/:id/genres
+   * Get all genres in library with book counts
+   * Optional query: limit, page, sort, desc, filter
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async getGenres(req, res) {
+    const isPaginated = req.query.limit && !isNaN(req.query.limit) && !isNaN(req.query.page)
+
+    const payload = {
+      results: [],
+      total: 0,
+      limit: isPaginated ? Number(req.query.limit) : 0,
+      page: isPaginated ? Number(req.query.page) : 0,
+      sortBy: req.query.sort,
+      sortDesc: req.query.desc === '1',
+      filterBy: req.query.filter,
+      minified: req.query.minified === '1'
+    }
+
+    let genreNameFilter = null
+    let filterForNonLatin = false
+    if (payload.filterBy && payload.filterBy.startsWith('letter.')) {
+      const letter = payload.filterBy.split('.')[1]
+      if (letter === '#') {
+        filterForNonLatin = true
+      } else if (/^[A-Za-z]$/.test(letter)) {
+        genreNameFilter = { [Sequelize.Op.like]: `${letter}%` }
+      }
+    }
+
+    const { bookWhere, replacements } = libraryItemsBookFilters.getUserPermissionBookWhereQuery(req.user)
+
+    const booksWithGenres = await Database.bookModel.findAll({
+      where: {
+        [Sequelize.Op.and]: [
+          Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('genres')), { [Sequelize.Op.gt]: 0 }),
+          bookWhere
+        ]
+      },
+      include: {
+        model: Database.libraryItemModel,
+        attributes: ['id', 'libraryId'],
+        where: {
+          libraryId: req.library.id
+        }
+      },
+      attributes: ['id', 'genres'],
+      replacements
+    })
+
+    const genres = {}
+    for (const book of booksWithGenres) {
+      if (book.genres && Array.isArray(book.genres)) {
+        book.genres.forEach((genre) => {
+          if (typeof genre !== 'string') {
+            Logger.error(`[LibraryController] getGenres: Invalid genre "${genre}" on book "${book.id}"`)
+          } else if (!genres[genre]) {
+            genres[genre] = {
+              id: encodeURIComponent(Buffer.from(genre).toString('base64')),
+              name: genre,
+              numBooks: 1
+            }
+          } else {
+            genres[genre].numBooks++
+          }
+        })
+      }
+    }
+
+    let genreList = Object.values(genres)
+
+    if (filterForNonLatin) {
+      genreList = genreList.filter((g) => {
+        const firstChar = (g.name || '').charAt(0).toUpperCase()
+        return !firstChar || (firstChar < 'A' || firstChar > 'Z')
+      })
+    } else if (genreNameFilter) {
+      const letter = payload.filterBy.split('.')[1]
+      genreList = genreList.filter((g) => {
+        const firstChar = (g.name || '').charAt(0).toUpperCase()
+        return firstChar === letter || firstChar === letter.toLowerCase()
+      })
+    }
+
+    if (payload.sortBy === 'numBooks') {
+      genreList.sort((a, b) => (payload.sortDesc ? b.numBooks - a.numBooks : a.numBooks - b.numBooks))
+    } else {
+      genreList.sort((a, b) => {
+        const direction = payload.sortDesc ? -1 : 1
+        return direction * (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+      })
+    }
+
+    payload.total = genreList.length
+
+    if (isPaginated) {
+      const startIndex = payload.page * payload.limit
+      const endIndex = startIndex + payload.limit
+      genreList = genreList.slice(startIndex, endIndex)
+    }
+
+    payload.results = genreList
+
+    if (isPaginated) {
+      res.json(payload)
+    } else {
+      res.json({
+        genres: payload.results
+      })
+    }
+  }
+
+  /**
+   * GET: /api/libraries/:id/tags
+   * Get all tags in library with book counts
+   * Optional query: limit, page, sort, desc, filter
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async getTags(req, res) {
+    const isPaginated = req.query.limit && !isNaN(req.query.limit) && !isNaN(req.query.page)
+
+    const payload = {
+      results: [],
+      total: 0,
+      limit: isPaginated ? Number(req.query.limit) : 0,
+      page: isPaginated ? Number(req.query.page) : 0,
+      sortBy: req.query.sort,
+      sortDesc: req.query.desc === '1',
+      filterBy: req.query.filter,
+      minified: req.query.minified === '1'
+    }
+
+    let tagNameFilter = null
+    let filterForNonLatin = false
+    if (payload.filterBy && payload.filterBy.startsWith('letter.')) {
+      const letter = payload.filterBy.split('.')[1]
+      if (letter === '#') {
+        filterForNonLatin = true
+      } else if (/^[A-Za-z]$/.test(letter)) {
+        tagNameFilter = { [Sequelize.Op.like]: `${letter}%` }
+      }
+    }
+
+    const { bookWhere, replacements } = libraryItemsBookFilters.getUserPermissionBookWhereQuery(req.user)
+
+    const booksWithTags = await Database.bookModel.findAll({
+      where: {
+        [Sequelize.Op.and]: [
+          Sequelize.where(Sequelize.fn('json_array_length', Sequelize.col('tags')), { [Sequelize.Op.gt]: 0 }),
+          bookWhere
+        ]
+      },
+      include: {
+        model: Database.libraryItemModel,
+        attributes: ['id', 'libraryId'],
+        where: {
+          libraryId: req.library.id
+        }
+      },
+      attributes: ['id', 'tags'],
+      replacements
+    })
+
+    const tags = {}
+    for (const book of booksWithTags) {
+      if (book.tags && Array.isArray(book.tags)) {
+        book.tags.forEach((tag) => {
+          if (typeof tag !== 'string') {
+            Logger.error(`[LibraryController] getTags: Invalid tag "${tag}" on book "${book.id}"`)
+          } else if (!tags[tag]) {
+            tags[tag] = {
+              id: encodeURIComponent(Buffer.from(tag).toString('base64')),
+              name: tag,
+              numItems: 1
+            }
+          } else {
+            tags[tag].numItems++
+          }
+        })
+      }
+    }
+
+    let tagList = Object.values(tags)
+
+    if (filterForNonLatin) {
+      tagList = tagList.filter((t) => {
+        const firstChar = (t.name || '').charAt(0).toUpperCase()
+        return !firstChar || (firstChar < 'A' || firstChar > 'Z')
+      })
+    } else if (tagNameFilter) {
+      const letter = payload.filterBy.split('.')[1]
+      tagList = tagList.filter((t) => {
+        const firstChar = (t.name || '').charAt(0).toUpperCase()
+        return firstChar === letter || firstChar === letter.toLowerCase()
+      })
+    }
+
+    if (payload.sortBy === 'numItems') {
+      tagList.sort((a, b) => (payload.sortDesc ? b.numItems - a.numItems : a.numItems - b.numItems))
+    } else {
+      tagList.sort((a, b) => {
+        const direction = payload.sortDesc ? -1 : 1
+        return direction * (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+      })
+    }
+
+    payload.total = tagList.length
+
+    if (isPaginated) {
+      const startIndex = payload.page * payload.limit
+      const endIndex = startIndex + payload.limit
+      tagList = tagList.slice(startIndex, endIndex)
+    }
+
+    payload.results = tagList
+
+    if (isPaginated) {
+      res.json(payload)
+    } else {
+      res.json({
+        tags: payload.results
+      })
+    }
+  }
+
+  /**
    * GET: /api/libraries/:id/matchall
    * Quick match all library items. Book libraries only.
    *
