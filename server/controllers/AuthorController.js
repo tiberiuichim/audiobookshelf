@@ -396,7 +396,7 @@ class AuthorController {
 
     const otherAuthors = await Database.authorModel.findAll({
       where: [
-        where(fn('lower', col('name')), req.author.name.toLowerCase()),
+        where(fn('lower', col('author.name')), req.author.name.toLowerCase()),
         { libraryId: { [Op.ne]: req.author.libraryId } }
       ],
       include: [
