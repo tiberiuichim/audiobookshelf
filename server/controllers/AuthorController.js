@@ -386,6 +386,48 @@ class AuthorController {
   }
 
   /**
+   * GET: /api/authors/:id/other-libraries
+   *
+   * @param {AuthorControllerRequest} req
+   * @param {Response} res
+   */
+  async getOtherLibraries(req, res) {
+    const { Op, fn, col, where } = sequelize
+
+    const otherAuthors = await Database.authorModel.findAll({
+      where: [
+        where(fn('lower', col('name')), req.author.name.toLowerCase()),
+        { libraryId: { [Op.ne]: req.author.libraryId } }
+      ],
+      include: [
+        {
+          model: Database.libraryModel,
+          attributes: ['id', 'name', 'mediaType']
+        }
+      ]
+    })
+
+    const otherLibraries = []
+    for (const otherAuthor of otherAuthors) {
+      const library = otherAuthor.library
+      if (!library || library.mediaType !== 'book') continue
+      if (!req.user.checkCanAccessLibrary(library.id)) continue
+
+      const numBooks = await Database.bookAuthorModel.getCountForAuthor(otherAuthor.id)
+
+      otherLibraries.push({
+        libraryId: library.id,
+        libraryName: library.name,
+        authorId: otherAuthor.id,
+        numBooks
+      })
+    }
+
+    otherLibraries.sort((a, b) => b.numBooks - a.numBooks)
+    res.json({ otherLibraries })
+  }
+
+  /**
    * GET: /api/authors/:id/image
    *
    * @param {AuthorControllerRequest} req

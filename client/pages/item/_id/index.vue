@@ -29,6 +29,7 @@
               :key="author.id"
               :author="author"
               :width="105"
+              :other-libraries="author.otherLibraries"
               @author-updated="authorUpdated"
             />
           </div>
@@ -580,12 +581,19 @@ export default {
         this.authorsWithDetails = []
         return
       }
-      const authorPromises = this.authors.map((author) =>
-        this.$axios.$get(`/api/authors/${author.id}`).catch((error) => {
+      const authorPromises = this.authors.map(async (author) => {
+        try {
+          const [authorData, otherLibsData] = await Promise.all([
+            this.$axios.$get(`/api/authors/${author.id}`),
+            this.$axios.$get(`/api/authors/${author.id}/other-libraries`).catch(() => ({ otherLibraries: [] }))
+          ])
+          authorData.otherLibraries = otherLibsData.otherLibraries || []
+          return authorData
+        } catch (error) {
           console.error(`Failed to fetch author ${author.id}`, error)
           return null
-        })
-      )
+        }
+      })
       const results = await Promise.all(authorPromises)
       this.authorsWithDetails = results.filter((a) => a !== null)
     },
@@ -593,6 +601,8 @@ export default {
       if (!updatedAuthor || !updatedAuthor.id) return
       const index = this.authorsWithDetails.findIndex((a) => a.id === updatedAuthor.id)
       if (index !== -1) {
+        const otherLibraries = this.authorsWithDetails[index].otherLibraries || []
+        updatedAuthor.otherLibraries = otherLibraries
         this.authorsWithDetails.splice(index, 1, updatedAuthor)
       }
     },

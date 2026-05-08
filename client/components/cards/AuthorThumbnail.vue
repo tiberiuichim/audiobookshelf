@@ -31,6 +31,17 @@
         </div>
       </div>
     </nuxt-link>
+
+    <div v-if="otherLibraries && otherLibraries.length > 0" class="mt-1">
+      <nuxt-link
+        v-for="lib in otherLibraries"
+        :key="lib.libraryId"
+        :to="`/library/${lib.libraryId}/bookshelf?filter=authors.${$encode(lib.authorId)}`"
+        class="block text-xs text-gray-400 hover:underline hover:text-gray-200 text-center truncate"
+      >
+        {{ lib.libraryName }}: {{ $getString('LabelXBooks', [lib.numBooks]) }}
+      </nuxt-link>
+    </div>
   </div>
 </template>
 
@@ -44,6 +55,10 @@ export default {
     width: {
       type: Number,
       default: 70
+    },
+    otherLibraries: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
