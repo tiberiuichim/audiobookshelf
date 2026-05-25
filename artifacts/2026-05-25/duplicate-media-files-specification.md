@@ -135,7 +135,7 @@ We have fully implemented a comprehensive Duplicate Media Files management syste
 ## Verification Plan
 
 ### Automated Verification
-- Ran full Nuxt client production compile via `npm run build` inside `client/` - compiled perfectly with 0 warnings or errors.
+- Ran full Nuxt client production compile via `npm run generate` inside `client/` - compiled perfectly with 0 warnings or errors.
 
 ### Manual Verification
 1. Add duplicate audio tracks (e.g. copying a disc or splitting files) inside a book folder.
@@ -143,4 +143,26 @@ We have fully implemented a comprehensive Duplicate Media Files management syste
 3. Observe the dynamic, crimson warning badge stacked perfectly on the bottom-left of the card.
 4. Click the badge and verify that the sleek "Clean Duplicates" sweep modal opens instantly.
 5. Choose stay/delete options, click clean, and verify the duplicate media files are cleanly deleted from the filesystem and database.
+
+---
+
+## Changelog & Known Edge Cases Fixed
+
+### 2026-05-25 (Session 2): Format-consolidated scenario handling
+
+**Problem:** The duplicate detection and the modal display were wrong for books that have many per-chapter M4B files AND a single whole-book MP3 file. The old logic would show: keep 1 M4B, delete all MP3s — ignoring 66 chapter M4Bs entirely.
+
+**Root cause:** `keep: [filteredM4bFiles[0]]` was hardcoded to keep only the first M4B, regardless of how many M4Bs are present.
+
+**Fix (client `CleanDuplicatesModal.vue`):**
+- The `format-consolidated` group logic now detects **which side is the chapter split vs. the whole-book**:
+  - If `m4bFiles.length > splitFiles.length` → m4bs are per-chapter, put ALL m4b files in `keep`, and the fewer split files in `delete`
+  - Otherwise → 1 m4b is the consolidated whole book; keep it, delete the many split files
+- Group label now clearly describes the relationship (e.g., "M4B chapter files vs whole-book MP3 file(s)")
+- **Collapsible keep lists**: When a "keep" group has > 3 files (e.g. 67 chapters), it shows a collapsed summary row with total size and format. A "Show all N files" toggle expands the full list. This prevents UI flooding for books with many chapter files.
+- `expandedKeepGroups` reactive map tracks which groups are expanded per-session.
+
+| File | Change |
+| :--- | :--- |
+| `client/components/modals/item/CleanDuplicatesModal.vue` | Fixed format-consolidated keep/delete logic; added collapsible keep list; added `expandedKeepGroups` data + `toggleExpandKeep()` method |
 

@@ -97,33 +97,59 @@
 
             <!-- Group Files -->
             <div class="divide-y divide-white/5">
-              <!-- Files to Keep (Stay) -->
-              <div v-for="file in group.keep" :key="'keep-' + file.ino" class="px-4 py-3 flex items-center justify-between hover:bg-rose-500/10 duration-200" :class="selectedInos.includes(file.ino) ? 'bg-rose-500/5' : 'bg-emerald-500/5 hover:bg-emerald-500/10'">
-                <div class="flex items-center space-x-3 min-w-0 pr-4">
-                  <div class="flex items-center justify-center flex-shrink-0">
-                    <input type="checkbox" :id="'check-' + file.ino" v-model="selectedInos" :value="file.ino" class="h-4 w-4 rounded border-white/20 bg-black-600 text-rose-500 focus:ring-rose-500" />
+              <!-- Files to Keep: collapsed summary if many files -->
+              <template v-if="group.keep.length > 3 && !expandedKeepGroups[groupIdx]">
+                <div class="px-4 py-3 bg-emerald-500/5 flex items-center justify-between">
+                  <div class="flex items-center space-x-3">
+                    <span class="material-symbols text-emerald-400 text-xl">folder_open</span>
+                    <div>
+                      <p class="text-sm font-medium text-gray-100">
+                        {{ group.keep.length }} files — {{ group.keep[0]?.metadata?.ext?.toUpperCase().replace('.', '') }} format
+                      </p>
+                      <p class="text-xs text-gray-400 mt-0.5">
+                        Total: {{ $bytesPretty(group.keep.reduce((sum, f) => sum + (f.metadata.size || 0), 0)) }}
+                        <span class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider ml-2">Recommended</span>
+                      </p>
+                    </div>
                   </div>
-                  <label :for="'check-' + file.ino" class="min-w-0 cursor-pointer">
-                    <p class="text-sm font-medium text-gray-100 truncate" :class="selectedInos.includes(file.ino) ? 'line-through text-gray-400' : ''" :title="file.metadata.filename">{{ file.metadata.filename }}</p>
-                    <p class="text-xs text-gray-400 mt-0.5 flex items-center space-x-2">
-                      <span>{{ $bytesPretty(file.metadata.size) }}</span>
-                      <span class="text-white/20">•</span>
-                      <span>{{ file.metadata.ext.toUpperCase().replace('.', '') }}</span>
-                      <span v-if="file.audioFile && file.audioFile.duration" class="text-white/20">•</span>
-                      <span v-if="file.audioFile && file.audioFile.duration">{{ $elapsedPretty(file.audioFile.duration) }}</span>
-                      <span class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider">Recommended</span>
-                    </p>
-                  </label>
+                  <div class="flex items-center space-x-2 flex-shrink-0">
+                    <button @click.stop="toggleExpandKeep(groupIdx)" class="text-xs text-gray-400 hover:text-gray-200 underline transition-colors">
+                      Show all {{ group.keep.length }} files
+                    </button>
+                    <span class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30">STAY</span>
+                  </div>
                 </div>
-                <div class="flex items-center space-x-2 flex-shrink-0">
-                  <span class="px-2.5 py-1 text-xxs font-bold text-rose-400 bg-rose-500/20 rounded-full border border-rose-500/30" v-if="selectedInos.includes(file.ino)">
-                    DELETE
-                  </span>
-                  <span class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30" v-else>
-                    STAY
-                  </span>
+              </template>
+              <template v-else>
+                <!-- Files to Keep (Stay) -->
+                <div v-for="file in group.keep" :key="'keep-' + file.ino" class="px-4 py-3 flex items-center justify-between hover:bg-rose-500/10 duration-200" :class="selectedInos.includes(file.ino) ? 'bg-rose-500/5' : 'bg-emerald-500/5 hover:bg-emerald-500/10'">
+                  <div class="flex items-center space-x-3 min-w-0 pr-4">
+                    <div class="flex items-center justify-center flex-shrink-0">
+                      <input type="checkbox" :id="'check-' + file.ino" v-model="selectedInos" :value="file.ino" class="h-4 w-4 rounded border-white/20 bg-black-600 text-rose-500 focus:ring-rose-500" />
+                    </div>
+                    <label :for="'check-' + file.ino" class="min-w-0 cursor-pointer">
+                      <p class="text-sm font-medium text-gray-100 truncate" :class="selectedInos.includes(file.ino) ? 'line-through text-gray-400' : ''" :title="file.metadata.filename">{{ file.metadata.filename }}</p>
+                      <p class="text-xs text-gray-400 mt-0.5 flex items-center space-x-2">
+                        <span>{{ $bytesPretty(file.metadata.size) }}</span>
+                        <span class="text-white/20">•</span>
+                        <span>{{ file.metadata.ext.toUpperCase().replace('.', '') }}</span>
+                        <span v-if="file.audioFile && file.audioFile.duration" class="text-white/20">•</span>
+                        <span v-if="file.audioFile && file.audioFile.duration">{{ $elapsedPretty(file.audioFile.duration) }}</span>
+                        <span class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider">Recommended</span>
+                      </p>
+                    </label>
+                  </div>
+                  <div class="flex items-center space-x-2 flex-shrink-0">
+                    <button v-if="group.keep.length > 3 && expandedKeepGroups[groupIdx]" @click.stop="toggleExpandKeep(groupIdx)" class="text-xs text-gray-500 hover:text-gray-300 transition-colors mr-1">Collapse</button>
+                    <span class="px-2.5 py-1 text-xxs font-bold text-rose-400 bg-rose-500/20 rounded-full border border-rose-500/30" v-if="selectedInos.includes(file.ino)">
+                      DELETE
+                    </span>
+                    <span class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30" v-else>
+                      STAY
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </template>
 
               <!-- Files to Delete -->
               <div v-for="file in group.delete" :key="'delete-' + file.ino" class="px-4 py-3 flex items-center justify-between hover:bg-rose-500/10 duration-200" :class="selectedInos.includes(file.ino) ? 'bg-rose-500/5' : 'bg-transparent'">
@@ -188,7 +214,8 @@ export default {
       selectedInos: [],
       loading: false,
       loadingItem: false,
-      expandedLibraryItem: null
+      expandedLibraryItem: null,
+      expandedKeepGroups: {}
     }
   },
   computed: {
@@ -292,10 +319,19 @@ export default {
         const filteredM4bFiles = m4bFiles.filter((f) => !alreadyGroupedInos.has(f.ino))
 
         if (filteredM4bFiles.length > 0 && filteredSplitFiles.length > 0) {
+          // Determine which side is the "consolidated" format:
+          // - If 1 m4b + many split files: m4b is the whole book, split are chapters → keep m4b
+          // - If many m4bs + few split files: m4bs are per-chapter splits, split file(s) are whole-book → keep m4b chapters
+          // In both cases we keep the m4b side and suggest deleting the split (non-m4b) side.
+          const m4bIsChapterSplit = filteredM4bFiles.length > filteredSplitFiles.length
+          const groupLabel = m4bIsChapterSplit
+            ? `M4B chapter files vs ${filteredSplitFiles.length === 1 ? 'whole-book' : ''} ${filteredSplitFiles[0]?.metadata?.ext?.toUpperCase().replace('.', '') || 'audio'} file(s) — keeping chapter M4Bs, removing other format`
+            : `Consolidated M4B vs ${filteredSplitFiles.length} split file(s) — keeping consolidated format`
+
           groups.push({
             type: 'format-consolidated',
-            name: 'Consolidated format vs Split files (Recommended to keep consolidated)',
-            keep: [filteredM4bFiles[0]],
+            name: groupLabel,
+            keep: filteredM4bFiles,
             delete: filteredSplitFiles
           })
         }
@@ -412,6 +448,7 @@ export default {
       } else {
         this.expandedLibraryItem = null
         this.selectedInos = []
+        this.expandedKeepGroups = {}
         window.removeEventListener('keydown', this.handleGlobalKeyDown)
       }
     },
@@ -431,6 +468,9 @@ export default {
     }
   },
   methods: {
+    toggleExpandKeep(groupIdx) {
+      this.$set(this.expandedKeepGroups, groupIdx, !this.expandedKeepGroups[groupIdx])
+    },
     selectAll() {
       this.selectedInos = this.allGroupFiles.map((f) => f.ino)
     },
