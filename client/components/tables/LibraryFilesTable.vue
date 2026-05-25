@@ -106,34 +106,64 @@ export default {
       const splitFiles = audioFiles.filter((f) => f.metadata.ext !== '.m4b' && f.metadata.ext !== '.m4a')
       if (m4bFiles.length > 0 && splitFiles.length > 0) return true
 
-      // 3. Same Duration, Different Bitrate/Quality
-      const durationGroups = {}
-      audioFiles.forEach((file) => {
-        const duration = file.audioFile?.duration
-        if (!duration) return
-        const roundedDuration = Math.round(duration)
-        if (!durationGroups[roundedDuration]) durationGroups[roundedDuration] = []
-        durationGroups[roundedDuration].push(file)
-      })
+      // 3. Same Duration & Name duplicates
+      const groupedInos = new Set()
+      for (let i = 0; i < audioFiles.length; i++) {
+        const fileA = audioFiles[i]
+        if (groupedInos.has(fileA.ino)) continue
 
-      // Exclude exact-size duplicates to avoid double flags
-      const sizeMatchedInos = new Set()
-      Object.values(sizeGroups).forEach((g) => {
-        if (g.length >= 2) {
-          g.forEach((f) => sizeMatchedInos.add(f.ino))
+        const durationA = fileA.audioFile?.duration
+        if (!durationA) continue
+
+        const cleanNameA = this.cleanFilename(fileA.metadata.filename)
+        const group = [fileA]
+
+        for (let j = i + 1; j < audioFiles.length; j++) {
+          const fileB = audioFiles[j]
+          if (groupedInos.has(fileB.ino)) continue
+
+          const durationB = fileB.audioFile?.duration
+          if (!durationB) continue
+
+          const cleanNameB = this.cleanFilename(fileB.metadata.filename)
+          const nameMatch = cleanNameA === cleanNameB
+          const durationMatch = Math.abs(durationA - durationB) < 1.5
+
+          if (nameMatch && durationMatch) {
+            group.push(fileB)
+          }
         }
-      })
 
-      const hasDurationDupes = Object.values(durationGroups).some((g) => {
-        const filtered = g.filter((f) => !sizeMatchedInos.has(f.ino))
-        return filtered.length >= 2
-      })
-      if (hasDurationDupes) return true
+        if (group.length >= 2) {
+          group.forEach((f) => groupedInos.add(f.ino))
+
+          // Exclude exact-size duplicates to avoid double flags
+          const sizeMatchedInos = new Set()
+          Object.values(sizeGroups).forEach((g) => {
+            if (g.length >= 2) {
+              g.forEach((f) => sizeMatchedInos.add(f.ino))
+            }
+          })
+
+          const filteredGroup = group.filter((f) => !sizeMatchedInos.has(f.ino))
+          if (filteredGroup.length >= 2) {
+            return true
+          }
+        }
+      }
 
       return false
     }
   },
   methods: {
+    cleanFilename(filename) {
+      if (!filename) return ''
+      const lastDot = filename.lastIndexOf('.')
+      if (lastDot === -1) return filename.toLowerCase()
+      let base = filename.substring(0, lastDot)
+      base = base.replace(/copy|\(\d+\)|-\s*copy/gi, '').trim()
+      return base.toLowerCase()
+    },
     toggleFullPath() {
       this.showFullPath = !this.showFullPath
       localStorage.setItem('showFullPath', this.showFullPath ? 1 : 0)

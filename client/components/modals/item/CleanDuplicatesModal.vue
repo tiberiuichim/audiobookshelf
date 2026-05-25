@@ -215,41 +215,58 @@ export default {
         }
       }
 
-      // 3. Same Duration, Different Bitrate/Quality
-      const durationGroups = {}
-      audioFiles.forEach((file) => {
-        const duration = file.audioFile?.duration
-        if (!duration) return
-        const roundedDuration = Math.round(duration)
-        if (!durationGroups[roundedDuration]) durationGroups[roundedDuration] = []
-        durationGroups[roundedDuration].push(file)
-      })
+      // 3. Same Duration & Name duplicates
+      const groupedInos = new Set()
+      for (let i = 0; i < audioFiles.length; i++) {
+        const fileA = audioFiles[i]
+        if (groupedInos.has(fileA.ino)) continue
 
-      const durationKeys = Object.keys(durationGroups)
-      durationKeys.forEach((dur) => {
-        const group = durationGroups[dur]
-        if (group.length < 2) return
+        const durationA = fileA.audioFile?.duration
+        if (!durationA) continue
 
-        // Exclude if already grouped
-        const alreadyGroupedInos = new Set()
-        groups.forEach((g) => {
-          g.keep.forEach((f) => alreadyGroupedInos.add(f.ino))
-          g.delete.forEach((f) => alreadyGroupedInos.add(f.ino))
-        })
+        const cleanNameA = this.cleanFilename(fileA.metadata.filename)
+        const group = [fileA]
 
-        const filteredGroup = group.filter((f) => !alreadyGroupedInos.has(f.ino))
-        if (filteredGroup.length < 2) return
+        for (let j = i + 1; j < audioFiles.length; j++) {
+          const fileB = audioFiles[j]
+          if (groupedInos.has(fileB.ino)) continue
 
-        // Prefer keeping higher size (higher quality)
-        const sorted = [...filteredGroup].sort((a, b) => b.metadata.size - a.metadata.size)
+          const durationB = fileB.audioFile?.duration
+          if (!durationB) continue
 
-        groups.push({
-          type: 'same-duration',
-          name: `Same duration, different quality (${this.$elapsedPretty(group[0].audioFile.duration)})`,
-          keep: [sorted[0]],
-          delete: sorted.slice(1)
-        })
-      })
+          const cleanNameB = this.cleanFilename(fileB.metadata.filename)
+          const nameMatch = cleanNameA === cleanNameB
+          const durationMatch = Math.abs(durationA - durationB) < 1.5
+
+          if (nameMatch && durationMatch) {
+            group.push(fileB)
+          }
+        }
+
+        if (group.length >= 2) {
+          group.forEach((f) => groupedInos.add(f.ino))
+
+          // Exclude if already grouped
+          const alreadyGroupedInos = new Set()
+          groups.forEach((g) => {
+            g.keep.forEach((f) => alreadyGroupedInos.add(f.ino))
+            g.delete.forEach((f) => alreadyGroupedInos.add(f.ino))
+          })
+
+          const filteredGroup = group.filter((f) => !alreadyGroupedInos.has(f.ino))
+          if (filteredGroup.length >= 2) {
+            // Prefer keeping higher size (higher quality)
+            const sorted = [...filteredGroup].sort((a, b) => b.metadata.size - a.metadata.size)
+
+            groups.push({
+              type: 'same-duration',
+              name: `Same track, different quality (${this.$elapsedPretty(group[0].audioFile.duration)})`,
+              keep: [sorted[0]],
+              delete: sorted.slice(1)
+            })
+          }
+        }
+      }
 
       return groups
     },
@@ -273,6 +290,14 @@ export default {
     }
   },
   methods: {
+    cleanFilename(filename) {
+      if (!filename) return ''
+      const lastDot = filename.lastIndexOf('.')
+      if (lastDot === -1) return filename.toLowerCase()
+      let base = filename.substring(0, lastDot)
+      base = base.replace(/copy|\(\d+\)|-\s*copy/gi, '').trim()
+      return base.toLowerCase()
+    },
     init() {
       // Auto-select detected duplicates for deletion by default
       const inos = []

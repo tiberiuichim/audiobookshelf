@@ -1016,6 +1016,16 @@ class LibraryItem extends Model {
   checkHasDuplicateMedia() {
     if (!this.libraryFiles || !this.libraryFiles.length) return false
 
+    // Helper to clean filename
+    const cleanFilename = (filename) => {
+      if (!filename) return ''
+      const lastDot = filename.lastIndexOf('.')
+      if (lastDot === -1) return filename.toLowerCase()
+      let base = filename.substring(0, lastDot)
+      base = base.replace(/copy|\(\d+\)|-\s*copy/gi, '').trim()
+      return base.toLowerCase()
+    }
+
     // 1. Check exact size duplicates (audio or ebook)
     const sizeGroups = {}
     this.libraryFiles.forEach((file) => {
@@ -1033,7 +1043,7 @@ class LibraryItem extends Model {
     const splitFiles = audioFiles.filter((f) => f.metadata?.ext && f.metadata.ext !== '.m4b' && f.metadata.ext !== '.m4a')
     if (m4bFiles.length > 0 && splitFiles.length > 0) return true
 
-    // 3. Same Duration (requires audioFiles from media, if available)
+    // 3. Same Duration & Name duplicates (requires audioFiles from media, if available)
     const mediaAudioFiles = this.mediaType === 'podcast' ? (this.media?.episodes?.map(ep => ep.audioFile).filter(af => af) || []) : (this.media?.audioFiles || [])
     if (mediaAudioFiles.length > 0) {
       const filesWithAudioFile = this.libraryFiles.map((file) => {
@@ -1044,27 +1054,38 @@ class LibraryItem extends Model {
         return fileCopy
       })
       const audios = filesWithAudioFile.filter((f) => f.fileType === 'audio')
-      const durationGroups = {}
-      audios.forEach((file) => {
-        const duration = file.audioFile?.duration
-        if (!duration) return
-        const roundedDuration = Math.round(duration)
-        if (!durationGroups[roundedDuration]) durationGroups[roundedDuration] = []
-        durationGroups[roundedDuration].push(file)
-      })
 
-      const sizeMatchedInos = new Set()
-      Object.values(sizeGroups).forEach((g) => {
-        if (g.length >= 2) {
-          g.forEach((f) => sizeMatchedInos.add(f.ino))
+      const groupedInos = new Set()
+      for (let i = 0; i < audios.length; i++) {
+        const fileA = audios[i]
+        if (groupedInos.has(fileA.ino)) continue
+
+        const durationA = fileA.audioFile?.duration
+        if (!durationA) continue
+
+        const cleanNameA = cleanFilename(fileA.metadata.filename)
+        const group = [fileA]
+
+        for (let j = i + 1; j < audios.length; j++) {
+          const fileB = audios[j]
+          if (groupedInos.has(fileB.ino)) continue
+
+          const durationB = fileB.audioFile?.duration
+          if (!durationB) continue
+
+          const cleanNameB = cleanFilename(fileB.metadata.filename)
+          const nameMatch = cleanNameA === cleanNameB
+          const durationMatch = Math.abs(durationA - durationB) < 1.5
+
+          if (nameMatch && durationMatch) {
+            group.push(fileB)
+          }
         }
-      })
 
-      const hasDurationDupes = Object.values(durationGroups).some((g) => {
-        const filtered = g.filter((f) => !sizeMatchedInos.has(f.ino))
-        return filtered.length >= 2
-      })
-      if (hasDurationDupes) return true
+        if (group.length >= 2) {
+          return true
+        }
+      }
     }
 
     return false
