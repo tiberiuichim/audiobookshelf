@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-1 md:px-2 py-1 mb-4">
+  <div class="w-full h-full px-1 md:px-2 py-1 mb-4 overflow-y-auto" style="max-height: calc(80vh - 100px)">
     <div class="w-full border border-black-200 p-4 my-8">
       <div class="flex flex-wrap items-center">
         <div>
