@@ -12,9 +12,11 @@
           The following groups of duplicate files were detected in this book. Review the files that will be deleted and those that will stay, then click <strong>Delete selected duplicates</strong> to clean them up.
         </p>
 
-        <div v-if="loading" class="w-full py-12 flex flex-col items-center justify-center space-y-4">
+        <div v-if="loading || loadingItem" class="w-full py-12 flex flex-col items-center justify-center space-y-4">
           <ui-loading />
-          <p class="text-gray-400 text-sm animate-pulse">Deleting selected files and updating book...</p>
+          <p class="text-gray-400 text-sm animate-pulse">
+            {{ loading ? 'Deleting selected files and updating book...' : 'Loading book details...' }}
+          </p>
         </div>
 
         <div v-else-if="!duplicateGroups.length" class="w-full py-8 text-center text-gray-400">
@@ -117,7 +119,9 @@ export default {
   data() {
     return {
       selectedInos: [],
-      loading: false
+      loading: false,
+      loadingItem: false,
+      expandedLibraryItem: null
     }
   },
   computed: {
@@ -135,14 +139,17 @@ export default {
     libraryItem() {
       return this.options.libraryItem || null
     },
+    resolvedLibraryItem() {
+      return this.expandedLibraryItem || this.libraryItem
+    },
     files() {
-      return this.libraryItem?.libraryFiles || []
+      return this.resolvedLibraryItem?.libraryFiles || []
     },
     audioFiles() {
-      if (this.libraryItem?.mediaType === 'podcast') {
-        return this.libraryItem?.media?.episodes?.map((ep) => ep.audioFile)?.filter((af) => af) || []
+      if (this.resolvedLibraryItem?.mediaType === 'podcast') {
+        return this.resolvedLibraryItem?.media?.episodes?.map((ep) => ep.audioFile)?.filter((af) => af) || []
       }
-      return this.libraryItem?.media?.audioFiles || []
+      return this.resolvedLibraryItem?.media?.audioFiles || []
     },
     filesWithAudioFile() {
       return this.files.map((file) => {
@@ -154,7 +161,7 @@ export default {
       })
     },
     duplicateGroups() {
-      if (!this.libraryItem) return []
+      if (!this.resolvedLibraryItem) return []
       const groups = []
 
       // 1. Group by Exact Size
@@ -285,7 +292,24 @@ export default {
   watch: {
     show(newVal) {
       if (newVal) {
-        this.init()
+        this.fetchExpandedItem()
+      } else {
+        this.expandedLibraryItem = null
+        this.selectedInos = []
+      }
+    },
+    duplicateGroups: {
+      immediate: true,
+      handler(newGroups) {
+        if (newGroups && newGroups.length) {
+          const inos = []
+          newGroups.forEach((g) => {
+            g.delete.forEach((f) => {
+              inos.push(f.ino)
+            })
+          })
+          this.selectedInos = inos
+        }
       }
     }
   },
@@ -298,16 +322,27 @@ export default {
       base = base.replace(/copy|\(\d+\)|-\s*copy/gi, '').trim()
       return base.toLowerCase()
     },
-    init() {
-      // Auto-select detected duplicates for deletion by default
-      const inos = []
-      this.duplicateGroups.forEach((g) => {
-        g.delete.forEach((f) => {
-          inos.push(f.ino)
-        })
-      })
-      this.selectedInos = inos
-      this.loading = false
+    async fetchExpandedItem() {
+      if (!this.libraryItem || !this.libraryItem.id) return
+
+      if (this.libraryItem.libraryFiles && this.libraryItem.libraryFiles.length) {
+        this.expandedLibraryItem = null
+        return
+      }
+
+      this.loadingItem = true
+      try {
+        const axios = this.$axios || this.$nuxt.$axios
+        const data = await axios.$get(`/api/items/${this.libraryItem.id}?expanded=1`)
+        if (data) {
+          this.expandedLibraryItem = data
+        }
+      } catch (error) {
+        console.error('Failed to fetch expanded library item', error)
+        this.$toast.error('Failed to load library item details')
+      } finally {
+        this.loadingItem = false
+      }
     },
     close() {
       this.show = false
@@ -318,7 +353,7 @@ export default {
       try {
         // Delete selected inodes one by one
         for (const ino of this.selectedInos) {
-          await this.$axios.$delete(`/api/items/${this.libraryItem.id}/file/${ino}`)
+          await this.$axios.$delete(`/api/items/${this.resolvedLibraryItem.id}/file/${ino}`)
         }
         this.$toast.success('Successfully deleted duplicate files')
         this.close()
