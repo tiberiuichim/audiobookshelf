@@ -346,12 +346,10 @@ export default {
     },
     spaceSavings() {
       let savings = 0
-      this.duplicateGroups.forEach((g) => {
-        g.delete.forEach((f) => {
-          if (this.selectedInos.includes(f.ino)) {
-            savings += f.metadata.size || 0
-          }
-        })
+      this.allGroupFiles.forEach((f) => {
+        if (this.selectedInos.includes(f.ino)) {
+          savings += f.metadata.size || 0
+        }
       })
       return savings
     },
