@@ -28,17 +28,31 @@
         <div v-else class="space-y-6">
           <!-- Overview Dashboard Grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <!-- Left Column: Keeping -->
-            <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 flex flex-col">
-              <div class="flex items-center space-x-2 mb-2 text-emerald-400">
-                <span class="material-symbols text-xl">check_circle</span>
-                <span class="text-xs uppercase tracking-wider font-bold">Files to Keep</span>
-              </div>
-              <div class="flex-grow space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-                <div v-for="file in allKeepFiles" :key="file.ino" class="text-xs text-gray-200 flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded border border-white/5">
-                  <span class="truncate pr-2 font-medium" :title="file.metadata.filename">{{ file.metadata.filename }}</span>
-                  <span class="flex-shrink-0 text-emerald-400 font-semibold text-[10px] bg-emerald-400/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{{ file.metadata.ext.toUpperCase().replace('.', '') }}</span>
+            <!-- Left Column: Selection Controls -->
+            <div class="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center space-x-2 mb-3 text-info">
+                  <span class="material-symbols text-xl">checklist</span>
+                  <span class="text-xs uppercase tracking-wider font-bold">Selection Controls</span>
                 </div>
+                <p class="text-xs text-gray-400 mb-4 leading-relaxed">
+                  Quickly toggle which duplicate files are selected for deletion.
+                </p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-auto">
+                <button @click.stop.prevent="selectAll" class="bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 text-xs py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-gray-200 cursor-pointer font-medium active:scale-95">
+                  <span class="material-symbols text-sm">select_all</span>
+                  <span>Select All</span>
+                </button>
+                <button @click.stop.prevent="deselectAll" class="bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200 text-xs py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-gray-200 cursor-pointer font-medium active:scale-95">
+                  <span class="material-symbols text-sm">deselect</span>
+                  <span>Clear All</span>
+                </button>
+                <button @click.stop.prevent="invertSelection" class="col-span-2 bg-info/20 border border-info/30 hover:bg-info/30 hover:border-info/40 transition-all duration-200 text-xs py-2 px-3 rounded-lg flex items-center justify-center space-x-2 text-info cursor-pointer font-semibold active:scale-95">
+                  <span class="material-symbols text-sm">swap_horiz</span>
+                  <span>Invert Choice</span>
+                </button>
               </div>
             </div>
 
@@ -381,6 +395,22 @@ export default {
     }
   },
   methods: {
+    selectAll() {
+      this.selectedInos = this.allDeleteFiles.map((f) => f.ino)
+    },
+    deselectAll() {
+      this.selectedInos = []
+    },
+    invertSelection() {
+      const currentSelected = new Set(this.selectedInos)
+      const newSelected = []
+      this.allDeleteFiles.forEach((f) => {
+        if (!currentSelected.has(f.ino)) {
+          newSelected.push(f.ino)
+        }
+      })
+      this.selectedInos = newSelected
+    },
     cleanFilename(filename) {
       if (!filename) return ''
       const lastDot = filename.lastIndexOf('.')
