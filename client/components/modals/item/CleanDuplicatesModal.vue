@@ -66,7 +66,7 @@
                 <div class="text-xs text-gray-300 space-y-2">
                   <p class="flex justify-between items-center">
                     <span>Selected for Deletion:</span>
-                    <strong class="text-rose-400 font-bold text-sm bg-rose-500/15 px-2 py-0.5 rounded">{{ selectedInos.length }} / {{ allDeleteFiles.length }} files</strong>
+                    <strong class="text-rose-400 font-bold text-sm bg-rose-500/15 px-2 py-0.5 rounded">{{ selectedInos.length }} / {{ allGroupFiles.length }} files</strong>
                   </p>
                   <p class="flex justify-between items-center">
                     <span>Potential Space Saved:</span>
@@ -98,23 +98,31 @@
             <!-- Group Files -->
             <div class="divide-y divide-white/5">
               <!-- Files to Keep (Stay) -->
-              <div v-for="file in group.keep" :key="'keep-' + file.ino" class="px-4 py-3 flex items-center justify-between bg-emerald-500/5 hover:bg-emerald-500/10 duration-200">
+              <div v-for="file in group.keep" :key="'keep-' + file.ino" class="px-4 py-3 flex items-center justify-between hover:bg-rose-500/10 duration-200" :class="selectedInos.includes(file.ino) ? 'bg-rose-500/5' : 'bg-emerald-500/5 hover:bg-emerald-500/10'">
                 <div class="flex items-center space-x-3 min-w-0 pr-4">
-                  <span class="material-symbols text-success text-lg flex-shrink-0">check_circle</span>
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-100 truncate" :title="file.metadata.filename">{{ file.metadata.filename }}</p>
+                  <div class="flex items-center justify-center flex-shrink-0">
+                    <input type="checkbox" :id="'check-' + file.ino" v-model="selectedInos" :value="file.ino" class="h-4 w-4 rounded border-white/20 bg-black-600 text-rose-500 focus:ring-rose-500" />
+                  </div>
+                  <label :for="'check-' + file.ino" class="min-w-0 cursor-pointer">
+                    <p class="text-sm font-medium text-gray-100 truncate" :class="selectedInos.includes(file.ino) ? 'line-through text-gray-400' : ''" :title="file.metadata.filename">{{ file.metadata.filename }}</p>
                     <p class="text-xs text-gray-400 mt-0.5 flex items-center space-x-2">
                       <span>{{ $bytesPretty(file.metadata.size) }}</span>
                       <span class="text-white/20">•</span>
                       <span>{{ file.metadata.ext.toUpperCase().replace('.', '') }}</span>
                       <span v-if="file.audioFile && file.audioFile.duration" class="text-white/20">•</span>
                       <span v-if="file.audioFile && file.audioFile.duration">{{ $elapsedPretty(file.audioFile.duration) }}</span>
+                      <span class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider">Recommended</span>
                     </p>
-                  </div>
+                  </label>
                 </div>
-                <span class="flex-shrink-0 px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30">
-                  STAY
-                </span>
+                <div class="flex items-center space-x-2 flex-shrink-0">
+                  <span class="px-2.5 py-1 text-xxs font-bold text-rose-400 bg-rose-500/20 rounded-full border border-rose-500/30" v-if="selectedInos.includes(file.ino)">
+                    DELETE
+                  </span>
+                  <span class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30" v-else>
+                    STAY
+                  </span>
+                </div>
               </div>
 
               <!-- Files to Delete -->
@@ -368,6 +376,22 @@ export default {
         })
       })
       return files
+    },
+    allGroupFiles() {
+      const files = []
+      this.duplicateGroups.forEach((g) => {
+        g.keep.forEach((f) => {
+          if (!files.some((existing) => existing.ino === f.ino)) {
+            files.push(f)
+          }
+        })
+        g.delete.forEach((f) => {
+          if (!files.some((existing) => existing.ino === f.ino)) {
+            files.push(f)
+          }
+        })
+      })
+      return files
     }
   },
   watch: {
@@ -396,7 +420,7 @@ export default {
   },
   methods: {
     selectAll() {
-      this.selectedInos = this.allDeleteFiles.map((f) => f.ino)
+      this.selectedInos = this.allGroupFiles.map((f) => f.ino)
     },
     deselectAll() {
       this.selectedInos = []
@@ -404,7 +428,7 @@ export default {
     invertSelection() {
       const currentSelected = new Set(this.selectedInos)
       const newSelected = []
-      this.allDeleteFiles.forEach((f) => {
+      this.allGroupFiles.forEach((f) => {
         if (!currentSelected.has(f.ino)) {
           newSelected.push(f.ino)
         }
