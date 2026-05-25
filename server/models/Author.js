@@ -114,12 +114,12 @@ class Author extends Model {
    * @param {string} name
    * @param {string} libraryId
    * @param {import('sequelize').Transaction} [transaction]
-   * @returns {Promise<Author>}
+   * @returns {Promise<{ author: Author, created: boolean }>}
    */
   static async findOrCreateByNameAndLibrary(name, libraryId, transaction = null) {
     const author = await this.getByNameAndLibrary(name, libraryId, transaction)
-    if (author) return author
-    return this.create(
+    if (author) return { author, created: false }
+    const newAuthor = await this.create(
       {
         name,
         lastFirst: this.getLastFirst(name),
@@ -127,6 +127,7 @@ class Author extends Model {
       },
       { transaction }
     )
+    return { author: newAuthor, created: true }
   }
 
   /**

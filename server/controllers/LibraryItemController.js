@@ -1,6 +1,7 @@
 const { Request, Response, NextFunction } = require('express')
 const Path = require('path')
 const fs = require('../libs/fsExtra')
+const cron = require('../libs/nodeCron')
 const uaParserJs = require('../libs/uaParser')
 const Logger = require('../Logger')
 const SocketAuthority = require('../SocketAuthority')
@@ -8,7 +9,7 @@ const Database = require('../Database')
 const { exec } = require('child_process')
 
 const zipHelpers = require('../utils/zipHelpers')
-const { reqSupportsWebp } = require('../utils/index')
+const { reqSupportsWebp, clampPositiveInt } = require('../utils/index')
 const { ScanResult, AudioMimeType } = require('../utils/constants')
 const { getAudioMimeTypeFromExtname, encodeUriPath, sanitizeFilename } = require('../utils/fileUtils')
 const LibraryItemScanner = require('../scanner/LibraryItemScanner')
@@ -305,7 +306,7 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
           if (!sourceAuthor) continue
 
           sourceAuthorIdsToCheck.push(sourceAuthor.id)
-          const targetAuthor = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
+          const { author: targetAuthor } = await Database.authorModel.findOrCreateByNameAndLibrary(sourceAuthor.name, targetLibrary.id, transaction)
 
           let targetAuthorUpdated = false
           if (!targetAuthor.description && sourceAuthor.description) {
@@ -389,6 +390,24 @@ async function handleMoveLibraryItem(libraryItem, targetLibrary, targetFolder, n
   }
 }
 
+/**
+ * Enforce per-item access for batch item routes
+ *
+ * @param {RequestWithUser} req
+ * @param {Response} res
+ * @param {import('../models/LibraryItem')[]} libraryItems
+ * @returns {boolean} true if the user may access every item; false if 403 was sent
+ */
+function ensureUserCanAccessLibraryItemsForBatch(req, res, libraryItems) {
+  for (const libraryItem of libraryItems) {
+    if (!req.user.checkCanAccessLibraryItem(libraryItem)) {
+      res.sendStatus(403)
+      return false
+    }
+  }
+  return true
+}
+
 class LibraryItemController {
   constructor() {}
 
@@ -464,7 +483,7 @@ class LibraryItemController {
       }
     }
 
-    await this.handleDeleteLibraryItem(req.libraryItem.id, mediaItemIds)
+    await this.handleDeleteLibraryItem(req.libraryItem.id, mediaItemIds, req.libraryItem.libraryId)
     if (hardDelete) {
       Logger.info(`[LibraryItemController] Deleting library item from file system at "${libraryItemPath}"`)
       await fs.remove(libraryItemPath).catch((error) => {
@@ -554,6 +573,11 @@ class LibraryItemController {
         isPodcastAutoDownloadUpdated = true
       } else if (mediaPayload.autoDownloadSchedule !== undefined && req.libraryItem.media.autoDownloadSchedule !== mediaPayload.autoDownloadSchedule) {
         isPodcastAutoDownloadUpdated = true
+      }
+
+      if (mediaPayload.autoDownloadSchedule && !cron.validate(mediaPayload.autoDownloadSchedule)) {
+        Logger.error(`[LibraryItemController] Invalid auto download schedule cron expression "${mediaPayload.autoDownloadSchedule}" for library item "${req.libraryItem.media.title}"`)
+        return res.status(400).send('Invalid auto download schedule cron expression')
       }
     }
 
@@ -779,8 +803,8 @@ class LibraryItemController {
 
     const options = {
       format: format || (reqSupportsWebp(req) ? 'webp' : 'jpeg'),
-      height: height ? parseInt(height) : null,
-      width: width ? parseInt(width) : null
+      height: clampPositiveInt(height ? parseInt(height) : null, 4096),
+      width: clampPositiveInt(width ? parseInt(width) : null, 4096)
     }
     return CacheManager.handleCoverCache(res, libraryItemId, options)
   }
@@ -977,7 +1001,13 @@ class LibraryItemController {
       return res.sendStatus(404)
     }
 
+    // Ensure user has permission to delete these library items
+    if (!ensureUserCanAccessLibraryItemsForBatch(req, res, itemsToDelete)) {
+      return
+    }
+
     const libraryId = itemsToDelete[0].libraryId
+
     for (const libraryItem of itemsToDelete) {
       const libraryItemPath = libraryItem.path
       Logger.info(`[LibraryItemController] (${hardDelete ? 'Hard' : 'Soft'}) deleting Library Item "${libraryItem.media.title}" with id "${libraryItem.id}"`)
@@ -995,7 +1025,7 @@ class LibraryItemController {
           authorIds.push(...libraryItem.media.authors.map((au) => au.id))
         }
       }
-      await this.handleDeleteLibraryItem(libraryItem.id, mediaItemIds)
+      await this.handleDeleteLibraryItem(libraryItem.id, mediaItemIds, libraryItem.libraryId)
       if (hardDelete) {
         Logger.info(`[LibraryItemController] Deleting library item from file system at "${libraryItemPath}"`)
         await fs.remove(libraryItemPath).catch((error) => {
@@ -1011,6 +1041,7 @@ class LibraryItemController {
     }
 
     await Database.resetLibraryIssuesFilterData(libraryId)
+
     res.sendStatus(200)
   }
 
@@ -1023,6 +1054,11 @@ class LibraryItemController {
    * @param {Response} res
    */
   async batchUpdate(req, res) {
+    if (!req.user.canUpdate) {
+      Logger.warn(`[LibraryItemController] User "${req.user.username}" attempted to batch update without permission`)
+      return res.sendStatus(403)
+    }
+
     const updatePayloads = req.body
     if (!Array.isArray(updatePayloads) || !updatePayloads.length) {
       Logger.error(`[LibraryItemController] Batch update failed. Invalid payload`)
@@ -1045,6 +1081,11 @@ class LibraryItemController {
       return res.sendStatus(404)
     }
 
+    // Ensure user has permission to update these library items
+    if (!ensureUserCanAccessLibraryItemsForBatch(req, res, libraryItems)) {
+      return
+    }
+
     let itemsUpdated = 0
 
     const seriesIdsRemoved = []
@@ -1053,6 +1094,11 @@ class LibraryItemController {
     for (const updatePayload of updatePayloads) {
       const mediaPayload = updatePayload.mediaPayload
       const libraryItem = libraryItems.find((li) => li.id === updatePayload.id)
+
+      if (libraryItem.isPodcast && mediaPayload.autoDownloadSchedule && !cron.validate(mediaPayload.autoDownloadSchedule)) {
+        Logger.warn(`[LibraryItemController] Invalid auto download schedule cron expression "${mediaPayload.autoDownloadSchedule}" for library item "${libraryItem.media.title}" - skipping update`)
+        continue
+      }
 
       let hasUpdates = await libraryItem.media.updateFromRequest(mediaPayload)
 
@@ -1125,6 +1171,10 @@ class LibraryItemController {
     const libraryItems = await Database.libraryItemModel.findAllExpandedWhere({
       id: libraryItemIds
     })
+    // Ensure user has permission to access these library items
+    if (!ensureUserCanAccessLibraryItemsForBatch(req, res, libraryItems)) {
+      return
+    }
     res.json({
       libraryItems: libraryItems.map((li) => li.toOldJSONExpanded())
     })
