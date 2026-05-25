@@ -1035,7 +1035,20 @@ class LibraryItem extends Model {
       if (!sizeGroups[size]) sizeGroups[size] = []
       sizeGroups[size].push(file)
     })
-    if (Object.values(sizeGroups).some((g) => g.length >= 2)) return true
+    for (const size in sizeGroups) {
+      const group = sizeGroups[size]
+      if (group.length < 2) continue
+
+      // Sub-group by cleaned filename to distinguish different parts of identical size
+      const nameGroups = {}
+      group.forEach((file) => {
+        const name = cleanFilename(file.metadata?.filename)
+        if (!nameGroups[name]) nameGroups[name] = []
+        nameGroups[name].push(file)
+      })
+
+      if (Object.values(nameGroups).some((g) => g.length >= 2)) return true
+    }
 
     // 2. Consolidated format vs split files
     const audioFiles = this.libraryFiles.filter((f) => f.fileType === 'audio')

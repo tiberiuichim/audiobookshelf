@@ -246,20 +246,32 @@ export default {
         const group = sizeGroups[size]
         if (group.length < 2) return
 
-        // Sort to determine which one to keep
-        const sorted = [...group].sort((a, b) => {
-          const aCopy = /copy|\(\d+\)/i.test(a.metadata.filename)
-          const bCopy = /copy|\(\d+\)/i.test(b.metadata.filename)
-          if (aCopy && !bCopy) return 1
-          if (!aCopy && bCopy) return -1
-          return a.metadata.filename.length - b.metadata.filename.length
+        // Sub-group by cleaned filename to distinguish different parts of identical size
+        const nameGroups = {}
+        group.forEach((file) => {
+          const name = this.cleanFilename(file.metadata.filename)
+          if (!nameGroups[name]) nameGroups[name] = []
+          nameGroups[name].push(file)
         })
 
-        groups.push({
-          type: 'exact-size',
-          name: `Exact duplicates (Same size: ${this.$bytesPretty(group[0].metadata.size)})`,
-          keep: [sorted[0]],
-          delete: sorted.slice(1)
+        Object.values(nameGroups).forEach((subGroup) => {
+          if (subGroup.length < 2) return
+
+          // Sort to determine which one to keep
+          const sorted = [...subGroup].sort((a, b) => {
+            const aCopy = /copy|\(\d+\)/i.test(a.metadata.filename)
+            const bCopy = /copy|\(\d+\)/i.test(b.metadata.filename)
+            if (aCopy && !bCopy) return 1
+            if (!aCopy && bCopy) return -1
+            return a.metadata.filename.length - b.metadata.filename.length
+          })
+
+          groups.push({
+            type: 'exact-size',
+            name: `Exact duplicates (Same size & name: ${this.$bytesPretty(subGroup[0].metadata.size)})`,
+            keep: [sorted[0]],
+            delete: sorted.slice(1)
+          })
         })
       })
 
