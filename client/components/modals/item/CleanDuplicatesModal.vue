@@ -99,16 +99,23 @@
             <div class="divide-y divide-white/5">
               <!-- Files to Keep: collapsed summary if many files -->
               <template v-if="group.keep.length > 3 && !expandedKeepGroups[groupIdx]">
-                <div class="px-4 py-3 bg-emerald-500/5 flex items-center justify-between">
+                <div
+                  class="px-4 py-3 flex items-center justify-between duration-200"
+                  :class="group.keep.every(f => selectedInos.includes(f.ino)) ? 'bg-rose-500/5' : group.keep.some(f => selectedInos.includes(f.ino)) ? 'bg-orange-500/5' : 'bg-emerald-500/5'"
+                >
                   <div class="flex items-center space-x-3">
-                    <span class="material-symbols text-emerald-400 text-xl">folder_open</span>
+                    <span
+                      class="material-symbols text-xl"
+                      :class="group.keep.every(f => selectedInos.includes(f.ino)) ? 'text-rose-400' : group.keep.some(f => selectedInos.includes(f.ino)) ? 'text-orange-400' : 'text-emerald-400'"
+                    >folder_open</span>
                     <div>
-                      <p class="text-sm font-medium text-gray-100">
+                      <p class="text-sm font-medium" :class="group.keep.every(f => selectedInos.includes(f.ino)) ? 'text-gray-400 line-through' : 'text-gray-100'">
                         {{ group.keep.length }} files — {{ group.keep[0]?.metadata?.ext?.toUpperCase().replace('.', '') }} format
                       </p>
                       <p class="text-xs text-gray-400 mt-0.5">
                         Total: {{ $bytesPretty(group.keep.reduce((sum, f) => sum + (f.metadata.size || 0), 0)) }}
-                        <span class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider ml-2">Recommended</span>
+                        <span v-if="!group.keep.some(f => selectedInos.includes(f.ino))" class="text-emerald-400 bg-emerald-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider ml-2">Recommended</span>
+                        <span v-else-if="group.keep.some(f => selectedInos.includes(f.ino)) && !group.keep.every(f => selectedInos.includes(f.ino))" class="text-orange-400 bg-orange-400/10 px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider ml-2">{{ group.keep.filter(f => selectedInos.includes(f.ino)).length }} selected</span>
                       </p>
                     </div>
                   </div>
@@ -116,7 +123,9 @@
                     <button @click.stop="toggleExpandKeep(groupIdx)" class="text-xs text-gray-400 hover:text-gray-200 underline transition-colors">
                       Show all {{ group.keep.length }} files
                     </button>
-                    <span class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30">STAY</span>
+                    <span v-if="group.keep.every(f => selectedInos.includes(f.ino))" class="px-2.5 py-1 text-xxs font-bold text-rose-400 bg-rose-500/20 rounded-full border border-rose-500/30">DELETE</span>
+                    <span v-else-if="group.keep.some(f => selectedInos.includes(f.ino))" class="px-2.5 py-1 text-xxs font-bold text-orange-400 bg-orange-500/20 rounded-full border border-orange-500/30">PARTIAL</span>
+                    <span v-else class="px-2.5 py-1 text-xxs font-bold text-success bg-success/20 rounded-full border border-success/30">STAY</span>
                   </div>
                 </div>
               </template>
