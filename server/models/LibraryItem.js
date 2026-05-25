@@ -753,6 +753,10 @@ class LibraryItem extends Model {
         isNotConsolidated: {
           type: DataTypes.BOOLEAN,
           defaultValue: false
+        },
+        hasDuplicateMedia: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: false
         }
       },
       {
@@ -871,6 +875,7 @@ class LibraryItem extends Model {
         }
       }
       instance.isNotConsolidated = instance.checkIsNotConsolidated()
+      instance.hasDuplicateMedia = instance.checkHasDuplicateMedia()
     })
   }
 
@@ -1008,6 +1013,63 @@ class LibraryItem extends Model {
     return this.libraryFiles.map((lf) => new LibraryFile(lf).toJSON())
   }
 
+  checkHasDuplicateMedia() {
+    if (!this.libraryFiles || !this.libraryFiles.length) return false
+
+    // 1. Check exact size duplicates (audio or ebook)
+    const sizeGroups = {}
+    this.libraryFiles.forEach((file) => {
+      if (file.fileType !== 'audio' && file.fileType !== 'ebook') return
+      const size = file.metadata?.size
+      if (!size) return
+      if (!sizeGroups[size]) sizeGroups[size] = []
+      sizeGroups[size].push(file)
+    })
+    if (Object.values(sizeGroups).some((g) => g.length >= 2)) return true
+
+    // 2. Consolidated format vs split files
+    const audioFiles = this.libraryFiles.filter((f) => f.fileType === 'audio')
+    const m4bFiles = audioFiles.filter((f) => f.metadata?.ext === '.m4b' || f.metadata?.ext === '.m4a')
+    const splitFiles = audioFiles.filter((f) => f.metadata?.ext && f.metadata.ext !== '.m4b' && f.metadata.ext !== '.m4a')
+    if (m4bFiles.length > 0 && splitFiles.length > 0) return true
+
+    // 3. Same Duration (requires audioFiles from media, if available)
+    const mediaAudioFiles = this.mediaType === 'podcast' ? (this.media?.episodes?.map(ep => ep.audioFile).filter(af => af) || []) : (this.media?.audioFiles || [])
+    if (mediaAudioFiles.length > 0) {
+      const filesWithAudioFile = this.libraryFiles.map((file) => {
+        const fileCopy = { ...file }
+        if (fileCopy.fileType === 'audio') {
+          fileCopy.audioFile = mediaAudioFiles.find((af) => af.ino === fileCopy.ino)
+        }
+        return fileCopy
+      })
+      const audios = filesWithAudioFile.filter((f) => f.fileType === 'audio')
+      const durationGroups = {}
+      audios.forEach((file) => {
+        const duration = file.audioFile?.duration
+        if (!duration) return
+        const roundedDuration = Math.round(duration)
+        if (!durationGroups[roundedDuration]) durationGroups[roundedDuration] = []
+        durationGroups[roundedDuration].push(file)
+      })
+
+      const sizeMatchedInos = new Set()
+      Object.values(sizeGroups).forEach((g) => {
+        if (g.length >= 2) {
+          g.forEach((f) => sizeMatchedInos.add(f.ino))
+        }
+      })
+
+      const hasDurationDupes = Object.values(durationGroups).some((g) => {
+        const filtered = g.filter((f) => !sizeMatchedInos.has(f.ino))
+        return filtered.length >= 2
+      })
+      if (hasDurationDupes) return true
+    }
+
+    return false
+  }
+
   checkIsNotConsolidated() {
     if (!this.isBook) return false
     if (this.isFile) return true
@@ -1064,6 +1126,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSON(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
@@ -1093,6 +1156,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSONMinified(),
       numFiles: this.libraryFiles.length,
@@ -1120,6 +1184,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database

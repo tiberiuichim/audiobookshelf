@@ -239,6 +239,11 @@ class PodcastScanner {
       existingLibraryItem.isNotConsolidated = isNotConsolidated
       libraryItemUpdated = true
     }
+    const hasDuplicateMedia = existingLibraryItem.checkHasDuplicateMedia()
+    if (existingLibraryItem.hasDuplicateMedia !== hasDuplicateMedia) {
+      existingLibraryItem.hasDuplicateMedia = hasDuplicateMedia
+      libraryItemUpdated = true
+    }
 
     if (existingLibraryItem.isMissing || existingLibraryItem.isInvalid) {
       if (existingLibraryItem.isMissing) {
@@ -354,7 +359,9 @@ class PodcastScanner {
     }
 
     libraryItemObj.podcast = podcastObject
+    libraryItemObj.media = podcastObject
     libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
+    libraryItemObj.hasDuplicateMedia = Database.libraryItemModel.prototype.checkHasDuplicateMedia.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.podcastModel,

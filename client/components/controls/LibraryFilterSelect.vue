@@ -242,6 +242,11 @@ export default {
           sublist: false
         },
         {
+          text: this.$strings.LabelDuplicateMedia || 'Has Duplicate Media',
+          value: 'duplicate-media',
+          sublist: false
+        },
+        {
           text: this.$strings.LabelRSSFeedOpen,
           value: 'feed-open',
           sublist: false
@@ -302,6 +307,11 @@ export default {
         {
           text: this.$strings.LabelDuplicateTitle || 'Duplicate Title',
           value: 'duplicates',
+          sublist: false
+        },
+        {
+          text: this.$strings.LabelDuplicateMedia || 'Has Duplicate Media',
+          value: 'duplicate-media',
           sublist: false
         },
         {
