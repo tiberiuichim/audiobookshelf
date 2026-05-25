@@ -32,6 +32,8 @@ export const state = () => ({
   showConfirmCoverSizeModal: false,
   confirmCoverSizeOptions: null,
   showMoveToLibraryModal: false,
+  showCleanDuplicatesModal: false,
+  cleanDuplicatesOptions: null,
   dateFormats: [
     {
       text: 'MM/DD/YYYY',
@@ -224,6 +226,13 @@ export const mutations = {
   setConfirmCoverSizeModal(state, options) {
     state.confirmCoverSizeOptions = options
     state.showConfirmCoverSizeModal = true
+  },
+  setShowCleanDuplicatesModal(state, val) {
+    state.showCleanDuplicatesModal = val
+  },
+  setCleanDuplicatesModal(state, options) {
+    state.cleanDuplicatesOptions = options
+    state.showCleanDuplicatesModal = true
   },
   resetSelectedMediaItems(state) {
     state.selectedMediaItems = []

@@ -399,6 +399,11 @@ class BookScanner {
       existingLibraryItem.isNotConsolidated = isNotConsolidated
       libraryItemUpdated = true
     }
+    const hasDuplicateMedia = existingLibraryItem.checkHasDuplicateMedia()
+    if (existingLibraryItem.hasDuplicateMedia !== hasDuplicateMedia) {
+      existingLibraryItem.hasDuplicateMedia = hasDuplicateMedia
+      libraryItemUpdated = true
+    }
 
     // Save Book changes to db
     if (hasMediaChanges) {
@@ -581,7 +586,9 @@ class BookScanner {
     }
 
     libraryItemObj.book = bookObject
+    libraryItemObj.media = bookObject
     libraryItemObj.isNotConsolidated = Database.libraryItemModel.prototype.checkIsNotConsolidated.call(libraryItemObj)
+    libraryItemObj.hasDuplicateMedia = Database.libraryItemModel.prototype.checkHasDuplicateMedia.call(libraryItemObj)
     const libraryItem = await Database.libraryItemModel.create(libraryItemObj, {
       include: {
         model: Database.bookModel,

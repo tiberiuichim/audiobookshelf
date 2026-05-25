@@ -753,6 +753,10 @@ class LibraryItem extends Model {
         isNotConsolidated: {
           type: DataTypes.BOOLEAN,
           defaultValue: false
+        },
+        hasDuplicateMedia: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: false
         }
       },
       {
@@ -871,6 +875,7 @@ class LibraryItem extends Model {
         }
       }
       instance.isNotConsolidated = instance.checkIsNotConsolidated()
+      instance.hasDuplicateMedia = instance.checkHasDuplicateMedia()
     })
   }
 
@@ -1008,6 +1013,97 @@ class LibraryItem extends Model {
     return this.libraryFiles.map((lf) => new LibraryFile(lf).toJSON())
   }
 
+  checkHasDuplicateMedia() {
+    if (!this.libraryFiles || !this.libraryFiles.length) return false
+
+    // Helper to clean filename
+    const cleanFilename = (filename) => {
+      if (!filename) return ''
+      const lastDot = filename.lastIndexOf('.')
+      if (lastDot === -1) return filename.toLowerCase()
+      let base = filename.substring(0, lastDot)
+      base = base.replace(/copy|\(\d+\)|-\s*copy/gi, '').trim()
+      return base.toLowerCase()
+    }
+
+    // 1. Check exact size duplicates (audio or ebook)
+    const sizeGroups = {}
+    this.libraryFiles.forEach((file) => {
+      if (file.fileType !== 'audio' && file.fileType !== 'ebook') return
+      const size = file.metadata?.size
+      if (!size) return
+      if (!sizeGroups[size]) sizeGroups[size] = []
+      sizeGroups[size].push(file)
+    })
+    for (const size in sizeGroups) {
+      const group = sizeGroups[size]
+      if (group.length < 2) continue
+
+      // Sub-group by cleaned filename to distinguish different parts of identical size
+      const nameGroups = {}
+      group.forEach((file) => {
+        const name = cleanFilename(file.metadata?.filename)
+        if (!nameGroups[name]) nameGroups[name] = []
+        nameGroups[name].push(file)
+      })
+
+      if (Object.values(nameGroups).some((g) => g.length >= 2)) return true
+    }
+
+    // 2. Consolidated format vs split files
+    const audioFiles = this.libraryFiles.filter((f) => f.fileType === 'audio')
+    const m4bFiles = audioFiles.filter((f) => f.metadata?.ext === '.m4b' || f.metadata?.ext === '.m4a')
+    const splitFiles = audioFiles.filter((f) => f.metadata?.ext && f.metadata.ext !== '.m4b' && f.metadata.ext !== '.m4a')
+    if (m4bFiles.length > 0 && splitFiles.length > 0) return true
+
+    // 3. Same Duration & Name duplicates (requires audioFiles from media, if available)
+    const mediaAudioFiles = this.mediaType === 'podcast' ? (this.media?.episodes?.map(ep => ep.audioFile).filter(af => af) || []) : (this.media?.audioFiles || [])
+    if (mediaAudioFiles.length > 0) {
+      const filesWithAudioFile = this.libraryFiles.map((file) => {
+        const fileCopy = { ...file }
+        if (fileCopy.fileType === 'audio') {
+          fileCopy.audioFile = mediaAudioFiles.find((af) => af.ino === fileCopy.ino)
+        }
+        return fileCopy
+      })
+      const audios = filesWithAudioFile.filter((f) => f.fileType === 'audio')
+
+      const groupedInos = new Set()
+      for (let i = 0; i < audios.length; i++) {
+        const fileA = audios[i]
+        if (groupedInos.has(fileA.ino)) continue
+
+        const durationA = fileA.audioFile?.duration
+        if (!durationA) continue
+
+        const cleanNameA = cleanFilename(fileA.metadata.filename)
+        const group = [fileA]
+
+        for (let j = i + 1; j < audios.length; j++) {
+          const fileB = audios[j]
+          if (groupedInos.has(fileB.ino)) continue
+
+          const durationB = fileB.audioFile?.duration
+          if (!durationB) continue
+
+          const cleanNameB = cleanFilename(fileB.metadata.filename)
+          const nameMatch = cleanNameA === cleanNameB
+          const durationMatch = Math.abs(durationA - durationB) < 1.5
+
+          if (nameMatch && durationMatch) {
+            group.push(fileB)
+          }
+        }
+
+        if (group.length >= 2) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
   checkIsNotConsolidated() {
     if (!this.isBook) return false
     if (this.isFile) return true
@@ -1064,6 +1160,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSON(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database
@@ -1093,6 +1190,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSONMinified(),
       numFiles: this.libraryFiles.length,
@@ -1120,6 +1218,7 @@ class LibraryItem extends Model {
       isMissing: !!this.isMissing,
       isInvalid: !!this.isInvalid,
       isNotConsolidated: !!this.isNotConsolidated,
+      hasDuplicateMedia: !!this.hasDuplicateMedia,
       mediaType: this.mediaType,
       media: this.media.toOldJSONExpanded(this.id),
       // LibraryFile JSON includes a fileType property that may not be saved in libraryFiles column in the database

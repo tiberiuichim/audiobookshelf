@@ -1717,7 +1717,7 @@ class LibraryItemController {
       return res.sendStatus(404)
     }
 
-    const result = await this.validateAudioFileWithPath(audioFile.metadata.path)
+    const result = await LibraryItemController.validateAudioFileWithPath(audioFile.metadata.path)
 
     LibraryItemController.validationCache.set(cacheKey, {
       ...result,

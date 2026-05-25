@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-1 md:px-2 py-1 mb-4">
+  <div class="w-full h-full px-1 md:px-2 py-1 mb-4 overflow-y-auto" style="max-height: calc(80vh - 100px)">
     <div class="w-full border border-black-200 p-4 my-8">
       <div class="flex flex-wrap items-center">
         <div>
@@ -58,6 +58,18 @@
         <div class="grow" />
         <div>
           <ui-btn @click.stop="updateConsolidationStatusClick">{{ $strings.ButtonUpdate }}</ui-btn>
+        </div>
+      </div>
+    </div>
+    <div class="w-full border border-black-200 p-4 my-8">
+      <div class="flex flex-wrap items-center">
+        <div>
+          <p class="text-lg">{{ $strings.LabelUpdateDuplicateMediaStatus || 'Update Duplicate Media Status' }}</p>
+          <p class="max-w-sm text-sm pt-2 text-gray-300">{{ $strings.LabelUpdateDuplicateMediaStatusHelp || 'Re-evaluate and update duplicate media status for all items in this library.' }}</p>
+        </div>
+        <div class="grow" />
+        <div>
+          <ui-btn @click.stop="updateDuplicateMediaStatusClick">{{ $strings.ButtonUpdate }}</ui-btn>
         </div>
       </div>
     </div>
@@ -246,6 +258,34 @@ export default {
         .catch((error) => {
           console.error('Failed to update consolidation status', error)
           this.$toast.error(this.$strings.ToastUpdateConsolidationStatusFailed)
+        })
+        .finally(() => {
+          this.$emit('update:processing', false)
+        })
+    },
+    updateDuplicateMediaStatusClick() {
+      const payload = {
+        message: this.$strings.MessageConfirmUpdateDuplicateMediaStatus || 'Are you sure you want to update duplicate media status for all items in this library?',
+        persistent: true,
+        callback: (confirmed) => {
+          if (confirmed) {
+            this.updateDuplicateMediaStatus()
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    updateDuplicateMediaStatus() {
+      this.$emit('update:processing', true)
+      this.$axios
+        .$post(`/api/libraries/${this.libraryId}/update-duplicate-media`)
+        .then((data) => {
+          this.$toast.success(this.$getString('ToastUpdateDuplicateMediaStatusSuccess', [data.updated]) || `Successfully updated duplicate media status for ${data.updated} items.`)
+        })
+        .catch((error) => {
+          console.error('Failed to update duplicate media status', error)
+          this.$toast.error(this.$strings.ToastUpdateDuplicateMediaStatusFailed || 'Failed to update duplicate media status.')
         })
         .finally(() => {
           this.$emit('update:processing', false)

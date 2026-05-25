@@ -486,6 +486,7 @@
   "LabelMinutes": "Minutes",
   "LabelMissing": "Missing",
   "LabelDuplicateTitle": "Duplicate Title",
+  "LabelDuplicateMedia": "Has Duplicate Media",
   "LabelMissingEbook": "Has no ebook",
   "LabelMissingSupplementaryEbook": "Has no supplementary ebook",
   "LabelMoveToLibrary": "Move to Library",

@@ -123,6 +123,13 @@
           </button>
         </ui-tooltip>
 
+        <!-- Has Duplicate Media Button -->
+        <ui-tooltip v-if="hasDuplicateMedia && !isSelectionMode" :text="userCanDelete ? 'Clean Duplicates' : ($strings.LabelDuplicateMedia || 'Has Duplicate Media')" direction="top" class="absolute left-0 z-10" :style="{ padding: 0.375 + 'em', bottom: duplicateMediaBadgeBottom }">
+          <button class="rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center border border-white/10 shadow-lg transition-all duration-300 hover:scale-110 active:scale-95 hover:shadow-rose-500/30" :class="userCanDelete ? 'cursor-pointer' : 'cursor-default'" :style="{ width: 1.25 + 'em', height: 1.25 + 'em' }" @click.stop.prevent="userCanDelete ? cleanDuplicates() : null">
+            <span class="material-symbols text-white" :style="{ fontSize: 0.875 + 'em' }">delete_sweep</span>
+          </button>
+        </ui-tooltip>
+
         <!-- Collections -->
         <div cy-id="itemCollections" v-if="itemCollections && itemCollections.length" class="absolute top-0 left-0 right-0 w-full flex flex-col items-center z-20 pointer-events-none" :style="{ paddingTop: 0.375 + 'em' }">
           <div v-for="collection in itemCollections" :key="collection.id" class="rounded-sm bg-success text-white font-bold mb-0.5 px-1 truncate max-w-[90%]" :style="{ fontSize: 0.65 + 'em', lineHeight: 1.1 + 'em' }">
@@ -503,6 +510,15 @@ export default {
     isNotConsolidated() {
       return !!this._libraryItem.isNotConsolidated
     },
+    hasDuplicateMedia() {
+      return !!this._libraryItem.hasDuplicateMedia
+    },
+    duplicateMediaBadgeBottom() {
+      let offset = 0.38
+      if (this.ebookFormat) offset += 1.13
+      if (this.isNotConsolidated) offset += 1.13
+      return `${offset}em`
+    },
     errorText() {
       if (this.isMissing) return 'Item directory is missing!'
       else if (this.isInvalid) {
@@ -860,6 +876,11 @@ export default {
     showEditModalMatch() {
       // More menu func
       this.$emit('edit', this.libraryItem, 'match')
+    },
+    cleanDuplicates() {
+      this.store.commit('globals/setCleanDuplicatesModal', {
+        libraryItem: this._libraryItem
+      })
     },
     consolidate() {
       const payload = {

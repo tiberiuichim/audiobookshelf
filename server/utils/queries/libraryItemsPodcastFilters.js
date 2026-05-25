@@ -178,6 +178,8 @@ module.exports = {
       }
     } else if (filterGroup === 'consolidated') {
       libraryItemWhere['isNotConsolidated'] = filterValue === 'not-consolidated'
+    } else if (filterGroup === 'duplicate-media') {
+      libraryItemWhere['hasDuplicateMedia'] = true
     }
 
     const podcastIncludes = []
