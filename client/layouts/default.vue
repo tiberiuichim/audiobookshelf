@@ -25,6 +25,7 @@
     <modals-item-move-to-library-modal />
     <modals-shortcuts-modal />
     <modals-confirm-cover-size-modal />
+    <modals-item-clean-duplicates-modal />
     <modals-consolidation-conflict-modal
       v-model="showConsolidationConflictModal"
       :item="consolidationConflictItem"

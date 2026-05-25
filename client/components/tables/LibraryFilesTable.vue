@@ -8,6 +8,10 @@
       <div class="grow" />
       <ui-btn v-if="userIsAdmin" small :color="showFullPath ? 'bg-gray-600' : 'bg-primary'" class="mr-2 hidden md:block" @click.stop="toggleFullPath">{{ $strings.ButtonFullPath }}</ui-btn>
       <ui-btn v-if="userCanDelete" small color="bg-primary" class="mr-2" @click.stop="showSplitBookModal = true">{{ $strings.ButtonSplitBook || 'Split Book' }}</ui-btn>
+      <ui-btn v-if="userCanDelete && hasDuplicates" small color="bg-warning hover:bg-warning/80 duration-200" class="mr-2 flex items-center" @click.stop="clickCleanDuplicates">
+        <span class="material-symbols text-sm mr-1">delete_sweep</span>
+        Clean Duplicates
+      </ui-btn>
       <div class="cursor-pointer h-10 w-10 rounded-full hover:bg-black-400 flex justify-center items-center duration-500" :class="showFiles ? 'transform rotate-180' : ''">
         <span class="material-symbols text-4xl">&#xe313;</span>
       </div>
@@ -81,6 +85,52 @@ export default {
         }
         return file
       })
+    },
+    hasDuplicates() {
+      if (!this.libraryItem) return false
+      
+      // 1. Check Exact Size
+      const sizeGroups = {}
+      this.filesWithAudioFile.forEach((file) => {
+        if (file.fileType !== 'audio' && file.fileType !== 'ebook') return
+        const size = file.metadata.size
+        if (!size) return
+        if (!sizeGroups[size]) sizeGroups[size] = []
+        sizeGroups[size].push(file)
+      })
+      if (Object.values(sizeGroups).some((g) => g.length >= 2)) return true
+
+      // 2. Consolidated format vs Split files
+      const audioFiles = this.filesWithAudioFile.filter((f) => f.fileType === 'audio')
+      const m4bFiles = audioFiles.filter((f) => f.metadata.ext === '.m4b' || f.metadata.ext === '.m4a')
+      const splitFiles = audioFiles.filter((f) => f.metadata.ext !== '.m4b' && f.metadata.ext !== '.m4a')
+      if (m4bFiles.length > 0 && splitFiles.length > 0) return true
+
+      // 3. Same Duration, Different Bitrate/Quality
+      const durationGroups = {}
+      audioFiles.forEach((file) => {
+        const duration = file.audioFile?.duration
+        if (!duration) return
+        const roundedDuration = Math.round(duration)
+        if (!durationGroups[roundedDuration]) durationGroups[roundedDuration] = []
+        durationGroups[roundedDuration].push(file)
+      })
+
+      // Exclude exact-size duplicates to avoid double flags
+      const sizeMatchedInos = new Set()
+      Object.values(sizeGroups).forEach((g) => {
+        if (g.length >= 2) {
+          g.forEach((f) => sizeMatchedInos.add(f.ino))
+        }
+      })
+
+      const hasDurationDupes = Object.values(durationGroups).some((g) => {
+        const filtered = g.filter((f) => !sizeMatchedInos.has(f.ino))
+        return filtered.length >= 2
+      })
+      if (hasDurationDupes) return true
+
+      return false
     }
   },
   methods: {
@@ -94,6 +144,11 @@ export default {
     showMore(audioFile) {
       this.selectedAudioFile = audioFile
       this.showAudioFileDataModal = true
+    },
+    clickCleanDuplicates() {
+      this.$store.commit('globals/setCleanDuplicatesModal', {
+        libraryItem: this.libraryItem
+      })
     }
   },
   mounted() {
