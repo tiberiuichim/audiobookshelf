@@ -1666,6 +1666,39 @@ class LibraryController {
   }
 
   /**
+   * POST: /api/libraries/:id/update-duplicate-media
+   * Update hasDuplicateMedia flag for all items in library
+   *
+   * @param {LibraryControllerRequest} req
+   * @param {Response} res
+   */
+  async updateDuplicateMediaStatus(req, res) {
+    if (!req.user.isAdminOrUp) {
+      Logger.error(`[LibraryController] Non-admin user "${req.user.username}" attempted to update duplicate media status`)
+      return res.sendStatus(403)
+    }
+
+    const items = await Database.libraryItemModel.findAllExpandedWhere({
+      libraryId: req.library.id
+    })
+
+    let updatedCount = 0
+    for (const item of items) {
+      const hasDuplicateMedia = item.checkHasDuplicateMedia()
+      if (item.hasDuplicateMedia !== hasDuplicateMedia) {
+        item.hasDuplicateMedia = hasDuplicateMedia
+        await item.save()
+        updatedCount++
+      }
+    }
+
+    Logger.info(`[LibraryController] Updated duplicate media status for ${updatedCount} items in library "${req.library.name}"`)
+    res.json({
+      updated: updatedCount
+    })
+  }
+
+  /**
    * POST: /api/libraries/:id/update-cover-dimensions
    * Recompute cover dimensions for all items in library
    *

@@ -540,7 +540,7 @@ module.exports = {
     } else if (filterGroup === 'consolidated') {
       libraryItemWhere['isNotConsolidated'] = filterValue === 'not-consolidated'
     } else if (filterGroup === 'duplicate-media') {
-      libraryItemWhere['hasDuplicateMedia'] = filterValue === 'has-duplicate-media'
+      libraryItemWhere['hasDuplicateMedia'] = true
     }
 
     // When sorting by progress but not filtering by progress, include media progresses
