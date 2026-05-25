@@ -396,9 +396,11 @@ export default {
     show(newVal) {
       if (newVal) {
         this.fetchExpandedItem()
+        window.addEventListener('keydown', this.handleGlobalKeyDown)
       } else {
         this.expandedLibraryItem = null
         this.selectedInos = []
+        window.removeEventListener('keydown', this.handleGlobalKeyDown)
       }
     },
     duplicateGroups: {
@@ -466,6 +468,13 @@ export default {
     close() {
       this.show = false
     },
+    handleGlobalKeyDown(e) {
+      if (e.key === 'Escape') {
+        this.close()
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    },
     async confirmDelete() {
       if (!this.selectedInos.length) return
       this.loading = true
@@ -483,6 +492,9 @@ export default {
         this.loading = false
       }
     }
+  },
+  beforeDestroy() {
+    window.removeEventListener('keydown', this.handleGlobalKeyDown)
   }
 }
 </script>
