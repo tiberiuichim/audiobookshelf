@@ -6,8 +6,9 @@
       </div>
     </template>
 
-    <div ref="container" class="w-full rounded-lg bg-bg box-shadow-md overflow-y-auto overflow-x-hidden" style="max-height: 80vh">
-      <div v-if="show" class="w-full h-full py-5 px-6">
+    <div ref="container" class="w-full rounded-lg bg-bg box-shadow-md flex flex-col" style="max-height: 80vh; height: 620px;">
+      <!-- Scrollable content area -->
+      <div v-if="show" class="flex-grow overflow-y-auto overflow-x-hidden py-5 px-6">
         <p class="text-gray-300 text-sm mb-6 leading-relaxed">
           The following groups of duplicate files were detected in this book. Review the files that will be deleted and those that will stay, then click <strong>Delete selected duplicates</strong> to clean them up.
         </p>
@@ -25,6 +26,47 @@
         </div>
 
         <div v-else class="space-y-6">
+          <!-- Overview Dashboard Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
+            <!-- Left Column: Keeping -->
+            <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 flex flex-col">
+              <div class="flex items-center space-x-2 mb-2 text-emerald-400">
+                <span class="material-symbols text-xl">check_circle</span>
+                <span class="text-xs uppercase tracking-wider font-bold">Files to Keep</span>
+              </div>
+              <div class="flex-grow space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                <div v-for="file in allKeepFiles" :key="file.ino" class="text-xs text-gray-200 flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded border border-white/5">
+                  <span class="truncate pr-2 font-medium" :title="file.metadata.filename">{{ file.metadata.filename }}</span>
+                  <span class="flex-shrink-0 text-emerald-400 font-semibold text-[10px] bg-emerald-400/10 px-1.5 py-0.5 rounded uppercase tracking-wider">{{ file.metadata.ext.toUpperCase().replace('.', '') }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Cleaning -->
+            <div class="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center space-x-2 mb-3 text-rose-400">
+                  <span class="material-symbols text-xl">delete_sweep</span>
+                  <span class="text-xs uppercase tracking-wider font-bold">Duplicates to Remove</span>
+                </div>
+                <div class="text-xs text-gray-300 space-y-2">
+                  <p class="flex justify-between items-center">
+                    <span>Selected for Deletion:</span>
+                    <strong class="text-rose-400 font-bold text-sm bg-rose-500/15 px-2 py-0.5 rounded">{{ selectedInos.length }} / {{ allDeleteFiles.length }} files</strong>
+                  </p>
+                  <p class="flex justify-between items-center">
+                    <span>Potential Space Saved:</span>
+                    <strong class="text-emerald-400 font-bold text-sm bg-emerald-500/15 px-2 py-0.5 rounded">{{ $bytesPretty(spaceSavings) }}</strong>
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3 text-[10px] text-gray-400 italic">
+                * Deselect files in the detailed list below to customize.
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed list of duplicates -->
           <div v-for="(group, groupIdx) in duplicateGroups" :key="groupIdx" class="border border-white/10 rounded-lg overflow-hidden bg-primary/5 shadow-sm">
             <!-- Group Header -->
             <div class="bg-white/5 px-4 py-3 flex items-center justify-between border-b border-white/10">
@@ -91,24 +133,27 @@
               </div>
             </div>
           </div>
-
-          <!-- Space savings info & Actions -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-white/5">
-            <div class="flex items-center space-x-2 text-sm text-gray-300">
-              <span class="material-symbols text-info text-lg">info</span>
-              <p>
-                Potential Space Savings: <strong class="text-success font-semibold">{{ $bytesPretty(spaceSavings) }}</strong>
-              </p>
-            </div>
-            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
-              <ui-btn @click="close" :disabled="loading">{{ $strings.ButtonCancel || 'Cancel' }}</ui-btn>
-              <ui-btn color="bg-rose-600 hover:bg-rose-500 duration-200" :disabled="loading || !selectedInos.length" @click="confirmDelete">
-                <span class="material-symbols text-sm mr-1">delete</span>
-                Delete Selected Duplicates ({{ selectedInos.length }})
-              </ui-btn>
-            </div>
-          </div>
         </div>
+      </div>
+
+      <!-- Sticky actions footer -->
+      <div v-if="show && !loading && !loadingItem && duplicateGroups.length" class="flex-shrink-0 bg-white/2 border-t border-white/5 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-md">
+        <div class="flex items-center space-x-2 text-sm text-gray-300">
+          <span class="material-symbols text-info text-lg">info</span>
+          <p>
+            Potential Space Savings: <strong class="text-success font-semibold">{{ $bytesPretty(spaceSavings) }}</strong>
+          </p>
+        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+          <ui-btn @click="close" :disabled="loading">{{ $strings.ButtonCancel || 'Cancel' }}</ui-btn>
+          <ui-btn color="bg-rose-600 hover:bg-rose-500 duration-200" :disabled="loading || !selectedInos.length" @click="confirmDelete">
+            <span class="material-symbols text-sm mr-1">delete</span>
+            Delete Selected Duplicates ({{ selectedInos.length }})
+          </ui-btn>
+        </div>
+      </div>
+      <div v-else-if="show && !loading && !loadingItem" class="flex-shrink-0 bg-white/2 border-t border-white/5 px-6 py-4 flex items-center justify-end backdrop-blur-md">
+        <ui-btn @click="close">Close</ui-btn>
       </div>
     </div>
   </modals-modal>
@@ -287,6 +332,28 @@ export default {
         })
       })
       return savings
+    },
+    allKeepFiles() {
+      const files = []
+      this.duplicateGroups.forEach((g) => {
+        g.keep.forEach((f) => {
+          if (!files.some((existing) => existing.ino === f.ino)) {
+            files.push(f)
+          }
+        })
+      })
+      return files
+    },
+    allDeleteFiles() {
+      const files = []
+      this.duplicateGroups.forEach((g) => {
+        g.delete.forEach((f) => {
+          if (!files.some((existing) => existing.ino === f.ino)) {
+            files.push(f)
+          }
+        })
+      })
+      return files
     }
   },
   watch: {
