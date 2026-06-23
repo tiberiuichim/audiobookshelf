@@ -644,6 +644,10 @@ emptyMessage() {
           this.listLastEndIndex = -1
           this.currScrollTop = 0
           if (window.bookshelf) window.bookshelf.scrollTop = 0
+          // Re-fetch data without minified so full author data is available
+          this.pagesLoaded = {}
+          this.initialized = false
+          await this.loadPage(0)
           this.$nextTick(() => {
             this.handleListScroll(0)
           })
