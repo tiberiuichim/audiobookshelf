@@ -34,10 +34,10 @@
             >
               {{ bookTitle }}
             </nuxt-link>
-            <div class="text-xs text-gray-300 whitespace-nowrap overflow-hidden">
+            <div class="text-xs text-gray-300 truncate">
               <template v-for="(author, index) in bookAuthors">
-                <nuxt-link :key="author.id" :to="`/author/${author.id}`" class="inline-block truncate hover:underline max-w-full">{{ author.name }}</nuxt-link>
-                <span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1" class="align-top">, </span>
+                <a :key="author.id" href="#" class="hover:underline" @click.prevent="navigateToAuthor(author)">{{ author.name }}</a>
+                <span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1">, </span>
               </template>
             </div>
             <div class="flex items-center gap-1 text-[11px] text-gray-400 truncate">
@@ -385,6 +385,9 @@ export default {
         type: 'yesNo'
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    navigateToAuthor(author) {
+      this.$router.push(`/author/${author.id}`)
     },
     clickShowMore() {
       this.createMoreMenu()
