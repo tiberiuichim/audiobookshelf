@@ -78,17 +78,13 @@
           <ui-icon-btn icon="edit" borderless @click="clickEdit" />
         </div>
 
-        <div v-if="moreMenuItems.length" class="mx-1 relative" ref="moreIcon">
-          <ui-icon-btn icon="more_vert" borderless @click="clickShowMore" />
-        </div>
+        <ui-context-menu-dropdown v-if="moreMenuItems.length" :items="moreMenuItems" borderless class="mx-1" @action="moreMenuAction" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import MoreMenu from '@/components/widgets/MoreMenu'
-
 export default {
   props: {
     libraryItem: {
@@ -107,8 +103,7 @@ export default {
   data() {
     return {
       isHovering: false,
-      isProcessingReadUpdate: false,
-      isMoreMenuOpen: false
+      isProcessingReadUpdate: false
     }
   },
   computed: {
@@ -212,42 +207,42 @@ export default {
 
       if (this.userCanUpdate) {
         items.push({
-          func: 'showEditModalDetails',
+          action: 'edit-details',
           text: this.$strings.ButtonEditDetails
         })
       }
 
       if (this.userCanUpdate) {
         items.push({
-          func: 'showEditModalFiles',
+          action: 'edit-files',
           text: this.$strings.ButtonEditFiles
         })
       }
 
       if (this.userIsAdminOrUp) {
         items.push({
-          func: 'matchAudiobook',
+          action: 'match',
           text: this.$strings.ButtonMatchAudiobook
         })
       }
 
       if (!this.isPodcast && this.userCanUpdate) {
         items.push({
-          func: 'openCollections',
+          action: 'collections',
           text: this.$strings.LabelAddToCollection
         })
       }
 
       if (this.numTracks) {
         items.push({
-          func: 'openPlaylists',
+          action: 'playlists',
           text: this.$strings.LabelAddToPlaylist
         })
       }
 
       if (this.userIsAdminOrUp && this.numTracks) {
         items.push({
-          func: 'openShare',
+          action: 'share',
           text: this.$strings.LabelShare
         })
       }
@@ -257,7 +252,7 @@ export default {
           text: this.$strings.LabelSendEbookToDevice,
           subitems: this.$store.state.libraries.ereaderDevices.map((d) => ({
             text: d.name,
-            func: 'sendToDevice',
+            action: 'send-device',
             data: d.name
           }))
         })
@@ -265,14 +260,14 @@ export default {
 
       if (this.libraryItem.rssFeed) {
         items.push({
-          func: 'rssFeedOpen',
+          action: 'rss-feed',
           text: this.$strings.LabelOpenRSSFeed
         })
       }
 
       if (this.userCanDelete) {
         items.push({
-          func: 'deleteItem',
+          action: 'delete',
           text: this.$strings.ButtonDelete
         })
       }
@@ -286,9 +281,77 @@ export default {
     },
     onMouseleave() {
       this.isHovering = false
-      if (this.isMoreMenuOpen) {
-        this.isMoreMenuOpen = false
+    },
+    moreMenuAction({ action, data }) {
+      switch (action) {
+        case 'edit-details':
+          this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'details' })
+          break
+        case 'edit-files':
+          this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'files' })
+          break
+        case 'match':
+          this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
+          break
+        case 'collections':
+          this.$store.commit('setSelectedLibraryItem', this.libraryItem)
+          this.$store.commit('globals/setShowCollectionsModal', true)
+          break
+        case 'playlists':
+          this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: null }])
+          this.$store.commit('globals/setShowPlaylistsModal', true)
+          break
+        case 'share':
+          this.$store.commit('setSelectedLibraryItem', this.libraryItem)
+          this.$store.commit('globals/setShareModal', null)
+          break
+        case 'send-device':
+          this.$axios
+            .$post(`/api/libraries/${this.libraryItem.libraryId}/send-to-device`, {
+              libraryItemId: this.libraryItem.id,
+              deviceName: data
+            })
+            .then(() => this.$toast.success(this.$strings.ToastSendToDeviceSuccess))
+            .catch((error) => {
+              console.error('Failed to send to device', error)
+              this.$toast.error(this.$strings.ToastSendToDeviceFailed)
+            })
+          break
+        case 'rss-feed':
+          this.$store.commit('globals/setRSSFeedOpenCloseModal', {
+            id: this.libraryItem.id,
+            name: this.bookTitle,
+            type: 'book',
+            feed: this.libraryItem.rssFeed
+          })
+          break
+        case 'delete':
+          this.showDeleteConfirm()
+          break
       }
+    },
+    showDeleteConfirm() {
+      const payload = {
+        message: this.$strings.MessageConfirmDeleteLibraryItem,
+        checkboxLabel: this.$strings.LabelDeleteFromFileSystemCheckbox,
+        yesButtonText: this.$strings.ButtonDelete,
+        yesButtonColor: 'error',
+        checkboxDefaultValue: !Number(localStorage.getItem('softDeleteDefault') || 0),
+        callback: (confirmed, hardDelete) => {
+          if (confirmed) {
+            localStorage.setItem('softDeleteDefault', hardDelete ? 0 : 1)
+            this.$axios
+              .$delete(`/api/items/${this.libraryItem.id}?hard=${hardDelete ? 1 : 0}`)
+              .then(() => this.$toast.success(this.$strings.ToastItemDeletedSuccess))
+              .catch((error) => {
+                console.error('Failed to delete item', error)
+                this.$toast.error(this.$strings.ToastItemDeletedFailed)
+              })
+          }
+        },
+        type: 'yesNo'
+      }
+      this.$store.commit('globals/setConfirmPrompt', payload)
     },
     navigateToItem() {
       if (this.isSelectionMode) return
@@ -336,119 +399,7 @@ export default {
           this.$toast.error(updatePayload.isFinished ? this.$strings.ToastItemMarkedAsFinishedFailed : this.$strings.ToastItemMarkedAsNotFinishedFailed)
         })
     },
-    createMoreMenu() {
-      if (!this.$refs.moreIcon) return
 
-      const ComponentClass = Vue.extend(MoreMenu)
-
-      const _this = this
-      const instance = new ComponentClass({
-        propsData: {
-          items: this.moreMenuItems
-        },
-        created() {
-          this.$on('action', (action) => {
-            if (action.func && _this[action.func]) _this[action.func](action.data)
-          })
-          this.$on('close', () => {
-            _this.isMoreMenuOpen = false
-          })
-        }
-      })
-      instance.$mount()
-
-      const wrapperBox = this.$refs.moreIcon.getBoundingClientRect()
-      const el = instance.$el
-
-      const elHeight = this.moreMenuItems.length * 28 + 10
-      const elWidth = 180
-
-      let elTop = wrapperBox.top + wrapperBox.height
-      let elLeft = wrapperBox.left + wrapperBox.width
-      if (elTop + elHeight > window.innerHeight - 20) {
-        elTop = wrapperBox.top - elHeight
-      }
-      if (elLeft + elWidth > window.innerWidth - 20) {
-        elLeft = wrapperBox.right - elWidth
-      }
-
-      el.style.top = elTop + 'px'
-      el.style.left = elLeft + 'px'
-
-      this.isMoreMenuOpen = true
-      document.body.appendChild(el)
-    },
-    clickShowMore() {
-      this.createMoreMenu()
-    },
-    showEditModalDetails() {
-      this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'details' })
-    },
-    showEditModalFiles() {
-      this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'files' })
-    },
-    matchAudiobook() {
-      this.$store.commit('showEditModalOnTab', { libraryItem: this.libraryItem, tab: 'match' })
-    },
-    openCollections() {
-      this.$store.commit('setSelectedLibraryItem', this.libraryItem)
-      this.$store.commit('globals/setShowCollectionsModal', true)
-    },
-    openPlaylists() {
-      this.$store.commit('globals/setSelectedPlaylistItems', [{ libraryItem: this.libraryItem, episode: null }])
-      this.$store.commit('globals/setShowPlaylistsModal', true)
-    },
-    openShare() {
-      this.$store.commit('setSelectedLibraryItem', this.libraryItem)
-      this.$store.commit('globals/setShareModal', null)
-    },
-    sendToDevice(deviceName) {
-      this.$axios
-        .$post(`/api/libraries/${this.libraryItem.libraryId}/send-to-device`, {
-          libraryItemId: this.libraryItem.id,
-          deviceName
-        })
-        .then(() => {
-          this.$toast.success(this.$strings.ToastSendToDeviceSuccess)
-        })
-        .catch((error) => {
-          console.error('Failed to send to device', error)
-          this.$toast.error(this.$strings.ToastSendToDeviceFailed)
-        })
-    },
-    rssFeedOpen() {
-      this.$store.commit('globals/setRSSFeedOpenCloseModal', {
-        id: this.libraryItem.id,
-        name: this.bookTitle,
-        type: 'book',
-        feed: this.libraryItem.rssFeed
-      })
-    },
-    deleteItem() {
-      const payload = {
-        message: this.$strings.MessageConfirmDeleteLibraryItem,
-        checkboxLabel: this.$strings.LabelDeleteFromFileSystemCheckbox,
-        yesButtonText: this.$strings.ButtonDelete,
-        yesButtonColor: 'error',
-        checkboxDefaultValue: !Number(localStorage.getItem('softDeleteDefault') || 0),
-        callback: (confirmed, hardDelete) => {
-          if (confirmed) {
-            localStorage.setItem('softDeleteDefault', hardDelete ? 0 : 1)
-            this.$axios
-              .$delete(`/api/items/${this.libraryItem.id}?hard=${hardDelete ? 1 : 0}`)
-              .then(() => {
-                this.$toast.success(this.$strings.ToastItemDeletedSuccess)
-              })
-              .catch((error) => {
-                console.error('Failed to delete item', error)
-                this.$toast.error(this.$strings.ToastItemDeletedFailed)
-              })
-          }
-        },
-        type: 'yesNo'
-      }
-      this.$store.commit('globals/setConfirmPrompt', payload)
-    }
   }
 }
 </script>
