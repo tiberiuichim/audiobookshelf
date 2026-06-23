@@ -34,8 +34,11 @@
             >
               {{ bookTitle }}
             </nuxt-link>
-            <div v-if="authorName" class="text-xs text-gray-300 truncate">
-              <span class="text-gray-300">{{ authorName }}</span>
+            <div v-if="bookAuthors.length" class="text-xs text-gray-300 truncate">
+              <template v-for="(author, index) in bookAuthors">
+                <a :key="author.id" href="#" class="hover:underline" @click.prevent="navigateToAuthor(author)">{{ author.name }}</a>
+                <span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1">, </span>
+              </template>
             </div>
             <div class="flex items-center gap-1 text-[11px] text-gray-400 truncate">
               <template v-if="seriesList.length">
@@ -135,8 +138,8 @@ export default {
     bookTitle() {
       return this.mediaMetadata.title || this.libraryItem.path || ''
     },
-    authorName() {
-      return this.mediaMetadata.authorName || ''
+    bookAuthors() {
+      return this.mediaMetadata.authors || []
     },
     series() {
       return this.mediaMetadata.series || []
@@ -376,6 +379,9 @@ export default {
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
     },
+    navigateToAuthor(author) {
+      this.$router.push(`/library/${this.libraryItem.libraryId}/bookshelf?filter=authors.${this.$encode(author.id)}`)
+    },
     clickShowMore() {
       this.createMoreMenu()
     },
@@ -429,7 +435,7 @@ export default {
           libraryId: this.libraryItem.libraryId,
           episodeId: null,
           title: this.bookTitle,
-          subtitle: this.authorName || '',
+          subtitle: this.bookAuthors.map((au) => au.name).join(', '),
           caption: '',
           duration: this.media.duration || null,
           coverPath: this.media.coverPath || null
