@@ -34,7 +34,7 @@
             >
               {{ bookTitle }}
             </nuxt-link>
-            <div class="text-xs text-gray-300 truncate">
+            <div class="text-xs text-gray-300 overflow-hidden">
               <template v-for="(author, index) in bookAuthors">
                 <a :key="author.id" href="#" class="hover:underline" @click.prevent="navigateToAuthor(author)">{{ author.name }}</a>
                 <span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1">, </span>
@@ -51,10 +51,6 @@
               <template v-if="narratorList">
                 <span>{{ narratorList }}</span>
                 <span> · </span>
-              </template>
-              <template v-if="publisherName">
-                <span>{{ publisherName }}</span>
-                <span v-if="publishedYear"> · </span>
               </template>
               <template v-if="publishedYear">
                 <span>{{ publishedYear }}</span>
@@ -207,9 +203,6 @@ export default {
     narratorList() {
       const narrators = this.mediaMetadata.narrators || []
       return narrators.length ? narrators.join(', ') : ''
-    },
-    publisherName() {
-      return this.mediaMetadata.publisher || ''
     },
     publishedYear() {
       return this.mediaMetadata.publishedYear || ''
