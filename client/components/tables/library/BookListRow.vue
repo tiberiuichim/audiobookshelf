@@ -5,7 +5,7 @@
     @mouseover="onMouseover"
     @mouseleave="onMouseleave"
   >
-    <div class="flex items-center px-2 md:px-4 py-1" :style="{ height: rowHeight + 'px' }">
+          <div class="flex items-center px-4 md:px-8 py-1" :style="{ height: rowHeight + 'px' }">
       <div v-if="isSelectionMode" class="w-8 min-w-8 flex items-center justify-center">
         <ui-checkbox :checked="isSelected" @input="toggleSelect" />
       </div>
