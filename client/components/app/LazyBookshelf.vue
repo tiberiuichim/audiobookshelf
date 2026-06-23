@@ -434,8 +434,7 @@ emptyMessage() {
 
       let entityPath = this.entityName === 'series-books' ? 'items' : this.entityName
       const sfQueryString = this.currentSFQueryString ? this.currentSFQueryString + '&' : ''
-      const minified = this.isListView ? '' : 'minified=1&'
-      const fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&${minified}include=rssfeed,numEpisodesIncomplete,share`
+      const fullQueryString = `?${sfQueryString}limit=${this.booksPerFetch}&page=${page}&minified=1&include=rssfeed,numEpisodesIncomplete,share`
 
       const payload = await this.$axios.$get(`/api/libraries/${this.currentLibraryId}/${entityPath}${fullQueryString}`).catch((error) => {
         console.error('failed to fetch items', error)
@@ -644,10 +643,6 @@ emptyMessage() {
           this.listLastEndIndex = -1
           this.currScrollTop = 0
           if (window.bookshelf) window.bookshelf.scrollTop = 0
-          // Re-fetch data without minified so full author data is available
-          this.pagesLoaded = {}
-          this.initialized = false
-          await this.loadPage(0)
           this.$nextTick(() => {
             this.handleListScroll(0)
           })
