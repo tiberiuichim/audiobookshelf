@@ -214,21 +214,21 @@ export default {
       if (this.userCanUpdate) {
         items.push({
           func: 'edit-details',
-          text: this.$strings.ButtonEditDetails
+          text: this.$strings.HeaderDetails
         })
       }
 
       if (this.userCanUpdate) {
         items.push({
           func: 'edit-files',
-          text: this.$strings.ButtonEditFiles
+          text: this.$strings.HeaderFiles
         })
       }
 
       if (this.userIsAdminOrUp) {
         items.push({
           func: 'match',
-          text: this.$strings.ButtonMatchAudiobook
+          text: this.$strings.HeaderMatch
         })
       }
 
