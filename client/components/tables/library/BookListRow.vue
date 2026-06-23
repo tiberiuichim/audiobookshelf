@@ -1,6 +1,6 @@
 <template>
   <div
-    class="book-list-row w-full overflow-hidden relative contain-layout-style-paint"
+    class="book-list-row w-full relative"
     :class="isHovering ? 'bg-white/5' : ''"
     @mouseover="onMouseover"
     @mouseleave="onMouseleave"
@@ -78,13 +78,17 @@
           <ui-icon-btn icon="edit" borderless @click="clickEdit" />
         </div>
 
-        <ui-context-menu-dropdown v-if="moreMenuItems.length" :items="moreMenuItems" borderless class="mx-1" @action="moreMenuAction" />
+        <div v-if="moreMenuItems.length" class="mx-1" ref="moreIcon">
+          <ui-icon-btn icon="more_vert" borderless @click.stop="clickShowMore" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import MoreMenu from '@/components/widgets/MoreMenu'
+
 export default {
   props: {
     libraryItem: {
@@ -103,7 +107,8 @@ export default {
   data() {
     return {
       isHovering: false,
-      isProcessingReadUpdate: false
+      isProcessingReadUpdate: false,
+      isMoreMenuOpen: false
     }
   },
   computed: {
@@ -207,42 +212,42 @@ export default {
 
       if (this.userCanUpdate) {
         items.push({
-          action: 'edit-details',
+          func: 'edit-details',
           text: this.$strings.ButtonEditDetails
         })
       }
 
       if (this.userCanUpdate) {
         items.push({
-          action: 'edit-files',
+          func: 'edit-files',
           text: this.$strings.ButtonEditFiles
         })
       }
 
       if (this.userIsAdminOrUp) {
         items.push({
-          action: 'match',
+          func: 'match',
           text: this.$strings.ButtonMatchAudiobook
         })
       }
 
       if (!this.isPodcast && this.userCanUpdate) {
         items.push({
-          action: 'collections',
+          func: 'collections',
           text: this.$strings.LabelAddToCollection
         })
       }
 
       if (this.numTracks) {
         items.push({
-          action: 'playlists',
+          func: 'playlists',
           text: this.$strings.LabelAddToPlaylist
         })
       }
 
       if (this.userIsAdminOrUp && this.numTracks) {
         items.push({
-          action: 'share',
+          func: 'share',
           text: this.$strings.LabelShare
         })
       }
@@ -252,7 +257,7 @@ export default {
           text: this.$strings.LabelSendEbookToDevice,
           subitems: this.$store.state.libraries.ereaderDevices.map((d) => ({
             text: d.name,
-            action: 'send-device',
+            func: 'send-device',
             data: d.name
           }))
         })
@@ -260,14 +265,14 @@ export default {
 
       if (this.libraryItem.rssFeed) {
         items.push({
-          action: 'rss-feed',
+          func: 'rss-feed',
           text: this.$strings.LabelOpenRSSFeed
         })
       }
 
       if (this.userCanDelete) {
         items.push({
-          action: 'delete',
+          func: 'delete',
           text: this.$strings.ButtonDelete
         })
       }
@@ -352,6 +357,48 @@ export default {
         type: 'yesNo'
       }
       this.$store.commit('globals/setConfirmPrompt', payload)
+    },
+    clickShowMore() {
+      this.createMoreMenu()
+    },
+    createMoreMenu() {
+      if (!this.$refs.moreIcon) return
+
+      const ComponentClass = Vue.extend(MoreMenu)
+      const _this = this
+      const instance = new ComponentClass({
+        propsData: {
+          items: this.moreMenuItems
+        },
+        created() {
+          this.$on('action', ({ func, data }) => {
+            if (func && _this.moreMenuAction) _this.moreMenuAction({ action: func, data })
+          })
+          this.$on('close', () => {
+            _this.isMoreMenuOpen = false
+          })
+        }
+      })
+      instance.$mount()
+
+      const wrapperBox = this.$refs.moreIcon.getBoundingClientRect()
+      const el = instance.$el
+      const elHeight = this.moreMenuItems.length * 28 + 10
+      const elWidth = 192
+
+      let elTop = wrapperBox.top + wrapperBox.height
+      let elLeft = wrapperBox.left + wrapperBox.width
+      if (elTop + elHeight > window.innerHeight - 20) {
+        elTop = wrapperBox.top - elHeight
+      }
+      if (elLeft + elWidth > window.innerWidth - 20) {
+        elLeft = wrapperBox.right - elWidth
+      }
+
+      el.style.top = elTop + 'px'
+      el.style.left = elLeft + 'px'
+      this.isMoreMenuOpen = true
+      document.body.appendChild(el)
     },
     navigateToItem() {
       if (this.isSelectionMode) return
