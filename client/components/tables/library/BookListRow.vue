@@ -18,37 +18,54 @@
         >
           <covers-book-cover :library-item="libraryItem" :width="coverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" />
           <div v-if="isMissing || isInvalid" class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm">
-            <span class="material-symbols text-red-400 text-sm md:text-base">{{ isMissing ? 'warning' : 'error' }}</span>
+            <span class="material-symbols text-red-400 text-xs md:text-sm">{{ isMissing ? 'warning' : 'error' }}</span>
+          </div>
+          <div v-if="ebookFormat" class="absolute bottom-0 left-0 bg-black/60 rounded-br-sm px-1">
+            <span class="text-white/80 text-[10px] leading-tight">{{ ebookFormat }}</span>
           </div>
         </div>
 
-        <div class="ml-3 flex-1 min-w-0 flex items-center h-full">
+        <div class="ml-2 md:ml-3 flex-1 min-w-0 flex items-center h-full">
           <div class="min-w-0 flex-1">
             <nuxt-link
               :to="`/item/${libraryItem.id}`"
-              class="truncate block hover:underline text-sm md:text-base"
+              class="truncate block hover:underline text-xs md:text-sm font-medium"
               :class="{ 'text-gray-400': isMissing || isInvalid }"
             >
               {{ bookTitle }}
             </nuxt-link>
-            <div class="truncate text-xs md:text-sm text-gray-300">
+            <div class="truncate text-xs text-gray-300">
               <template v-for="(author, index) in bookAuthors">
                 <nuxt-link :key="author.id" :to="`/author/${author.id}`" class="truncate hover:underline">{{ author.name }}</nuxt-link>
                 <span :key="author.id + '-comma'" v-if="index < bookAuthors.length - 1">, </span>
               </template>
             </div>
-            <div v-if="seriesList.length" class="truncate text-xs text-gray-400">
-              <template v-for="(_series, index) in seriesList">
-                <nuxt-link :key="_series.id" :to="`/library/${libraryItem.libraryId}/series/${_series.id}`" class="hover:underline">{{ _series.text }}</nuxt-link>
-                <span :key="_series.id + '-comma'" v-if="index < seriesList.length - 1">, </span>
+            <div class="flex items-center gap-1 text-[11px] text-gray-400 truncate">
+              <template v-if="seriesList.length">
+                <template v-for="(_series, index) in seriesList">
+                  <nuxt-link :key="_series.id" :to="`/library/${libraryItem.libraryId}/series/${_series.id}`" class="hover:underline truncate">{{ _series.text }}</nuxt-link>
+                  <span :key="_series.id + '-comma'" v-if="index < seriesList.length - 1">,</span>
+                </template>
+                <span> · </span>
+              </template>
+              <template v-if="narratorList">
+                <span>{{ narratorList }}</span>
+                <span> · </span>
+              </template>
+              <template v-if="publisherName">
+                <span>{{ publisherName }}</span>
+                <span v-if="publishedYear"> · </span>
+              </template>
+              <template v-if="publishedYear">
+                <span>{{ publishedYear }}</span>
               </template>
             </div>
           </div>
 
-          <div class="hidden md:flex items-center ml-4 flex-shrink-0 gap-4">
+          <div class="hidden lg:flex items-center ml-4 flex-shrink-0 gap-4">
             <span v-if="durationText" class="text-xs text-gray-400 whitespace-nowrap">{{ durationText }}</span>
             <div v-if="itemProgress && !isPodcast" class="flex items-center gap-2">
-              <div class="w-16 h-1.5 bg-bg3 rounded-full overflow-hidden">
+              <div class="w-12 h-1 bg-bg3 rounded-full overflow-hidden">
                 <div class="h-full bg-primary rounded-full" :style="{ width: progressPercent + '%' }" />
               </div>
               <span v-if="progressPercent > 0 && progressPercent < 100" class="text-xs text-gray-400">{{ progressPercent }}%</span>
@@ -172,7 +189,7 @@ export default {
       return this.media.duration ? this.$elapsedPretty(this.media.duration) : ''
     },
     coverSize() {
-      return this.$store.state.globals.isMobile ? 30 : 45
+      return this.$store.state.globals.isMobile ? 22 : 32
     },
     coverWidth() {
       if (this.bookCoverAspectRatio === 1) return this.coverSize * 1.6
@@ -182,10 +199,20 @@ export default {
       return this.coverSize * (this.bookCoverAspectRatio === 1 ? 1.6 : this.bookCoverAspectRatio)
     },
     rowHeight() {
-      return Math.max(56, this.coverHeight + 16)
+      return Math.max(44, this.coverHeight + 12)
     },
     ebookFormat() {
       return this.mediaMetadata.ebookFormat || null
+    },
+    narratorList() {
+      const narrators = this.mediaMetadata.narrators || []
+      return narrators.length ? narrators.join(', ') : ''
+    },
+    publisherName() {
+      return this.mediaMetadata.publisher || ''
+    },
+    publishedYear() {
+      return this.mediaMetadata.publishedYear || ''
     },
     userCanUpdate() {
       return this.$store.getters['user/getUserCanUpdate']

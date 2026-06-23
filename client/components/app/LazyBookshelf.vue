@@ -279,9 +279,9 @@ emptyMessage() {
       return this.$store.getters['user/getBookshelfListView']
     },
     listRowHeight() {
-      const coverSize = this.$store.state.globals.isMobile ? 30 : 45
+      const coverSize = this.$store.state.globals.isMobile ? 22 : 32
       const coverH = this.coverAspectRatio === 1 ? coverSize * 1.6 : coverSize * this.coverAspectRatio
-      return Math.max(56, coverH + 16)
+      return Math.max(44, coverH + 12)
     },
     listTotalHeight() {
       return this.totalEntities * this.listRowHeight
