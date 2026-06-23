@@ -87,6 +87,7 @@
 </template>
 
 <script>
+import Vue from 'vue'
 import MoreMenu from '@/components/widgets/MoreMenu'
 
 export default {
