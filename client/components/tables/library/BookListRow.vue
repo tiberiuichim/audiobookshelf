@@ -29,7 +29,7 @@
           <div class="min-w-0 flex-1">
             <nuxt-link
               :to="`/item/${libraryItem.id}`"
-              class="truncate block hover:underline text-xs md:text-sm font-medium"
+              class="truncate block hover:underline text-sm md:text-base font-medium"
               :class="{ 'text-gray-400': isMissing || isInvalid }"
             >
               {{ bookTitle }}
