@@ -1,5 +1,25 @@
 <template>
   <div id="bookshelf" ref="bookshelf" class="w-full overflow-y-auto" :style="{ fontSize: sizeMultiplier + 'rem' }">
+    <!-- List view -->
+    <div v-if="isListView && initialized && entities.length" ref="listContainer" class="list-view-outer" :style="{ height: listTotalHeight + 'px', position: 'relative' }">
+      <template v-for="(row, i) in listRenderRows">
+        <div
+          :key="row.entity.id"
+          class="list-view-row absolute left-0 w-full"
+          :style="{ top: row.top + 'px', height: listRowHeight + 'px' }"
+        >
+          <tables-library-book-list-row
+            :library-item="row.entity"
+            :index="row.entityIndex"
+            :book-cover-aspect-ratio="coverAspectRatio"
+            @select="selectEntity"
+            @edit="editEntity"
+          />
+        </div>
+      </template>
+    </div>
+    <!-- Card view -->
+    <template v-if="!isListView">
     <template v-for="shelf in totalShelves">
       <div :key="shelf" :id="`shelf-${shelf - 1}`" class="w-full px-4e sm:px-8e relative" :class="{ bookshelfRow: !isAlternativeBookshelfView }" :style="{ height: shelfHeight + 'px' }">
         <!-- Card skeletons -->
@@ -8,6 +28,7 @@
         </template>
         <div v-if="!isAlternativeBookshelfView" class="bookshelfDivider w-full absolute bottom-0 left-0 right-0 z-20 h-6e" />
       </div>
+    </template>
     </template>
 
     <div v-if="initialized && !totalShelves && !hasFilter && entityName === 'items'" class="w-full flex flex-col items-center justify-center py-12">
@@ -84,7 +105,10 @@ export default {
       postScrollTimeout: null,
       currFirstEntityIndex: -1,
       currLastEntityIndex: -1,
-      isSelectAll: false
+      isSelectAll: false,
+      listRenderRows: [],
+      listLastStartIndex: -1,
+      listLastEndIndex: -1
     }
   },
   watch: {
@@ -250,6 +274,17 @@ emptyMessage() {
     },
     isScanningLibrary() {
       return !!this.$store.getters['tasks/getRunningLibraryScanTask'](this.currentLibraryId)
+    },
+    isListView() {
+      return this.$store.getters['user/getBookshelfListView']
+    },
+    listRowHeight() {
+      const coverSize = this.$store.state.globals.isMobile ? 30 : 45
+      const coverH = this.coverAspectRatio === 1 ? coverSize * 1.6 : coverSize * this.coverAspectRatio
+      return Math.max(56, coverH + 16)
+    },
+    listTotalHeight() {
+      return this.totalEntities * this.listRowHeight
     }
   },
   methods: {
@@ -499,6 +534,11 @@ emptyMessage() {
       var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
       this.mountEntities(0, lastBookIndex)
 
+      if (this.isListView) {
+        this.listRenderRows = []
+        this.$nextTick(() => this.handleListScroll(scrollPositionToRestore || 0))
+      }
+
       if (scrollPositionToRestore) {
         if (window.bookshelf) {
           window.bookshelf.scrollTop = scrollPositionToRestore
@@ -595,6 +635,22 @@ emptyMessage() {
       } else if (settings.bookshelfCoverSize !== this.currentBookWidth) {
         this.rebuild()
       }
+      if (settings.bookshelfListView !== undefined) {
+        if (this.isListView) {
+          this.destroyEntityComponents()
+          this.listRenderRows = []
+          this.listLastStartIndex = -1
+          this.listLastEndIndex = -1
+          this.currScrollTop = 0
+          if (window.bookshelf) window.bookshelf.scrollTop = 0
+          this.$nextTick(() => {
+            this.handleListScroll(0)
+          })
+        } else {
+          this.listRenderRows = []
+          this.executeRebuild()
+        }
+      }
     },
     getScrollRate() {
       const currentTimestamp = Date.now()
@@ -609,6 +665,10 @@ emptyMessage() {
       if (!e || !e.target) return
       clearTimeout(this.scrollTimeout)
       const { scrollTop } = e.target
+      if (this.isListView) {
+        this.handleListScroll(scrollTop)
+        return
+      }
       const scrollRate = this.getScrollRate()
       if (scrollRate > 5) {
         this.scrollTimeout = setTimeout(() => {
@@ -617,6 +677,44 @@ emptyMessage() {
         return
       }
       this.handleScroll(scrollTop)
+    },
+    handleListScroll(scrollTop) {
+      this.currScrollTop = scrollTop
+      this.lastScrollTop = scrollTop
+      this.lastTimestamp = Date.now()
+
+      const rowHeight = this.listRowHeight
+      const containerHeight = this.bookshelfHeight || 600
+      const bufferRows = 3
+
+      const firstVisibleIndex = Math.floor(scrollTop / rowHeight)
+      const lastVisibleIndex = Math.min(this.totalEntities - 1, Math.ceil((scrollTop + containerHeight) / rowHeight))
+
+      const startIndex = Math.max(0, firstVisibleIndex - bufferRows)
+      const endIndex = Math.min(this.totalEntities, lastVisibleIndex + 1 + bufferRows)
+
+      // Skip if range hasn't changed
+      if (startIndex === this.listLastStartIndex && endIndex === this.listLastEndIndex) return
+      this.listLastStartIndex = startIndex
+      this.listLastEndIndex = endIndex
+
+      // Load pages on demand
+      const firstPage = Math.floor(startIndex / this.booksPerFetch)
+      const lastPage = Math.floor((endIndex - 1) / this.booksPerFetch)
+      Promise.all([this.loadPage(firstPage), this.loadPage(lastPage)]).catch((error) => console.error('Failed to load page', error))
+
+      // Build render rows with absolute positioning
+      const newRows = []
+      for (let i = startIndex; i < endIndex; i++) {
+        if (this.entities[i]) {
+          newRows.push({
+            entity: this.entities[i],
+            entityIndex: i,
+            top: i * rowHeight
+          })
+        }
+      }
+      this.listRenderRows = newRows
     },
     libraryItemAdded(libraryItem) {
       console.log('libraryItem added', libraryItem)
@@ -836,12 +934,19 @@ emptyMessage() {
       var lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
       this.mountEntities(0, lastBookIndex)
 
+      if (this.isListView) {
+        this.$nextTick(() => this.handleListScroll(0))
+      }
+
       // Set last scroll position for this bookshelf page
       if (this.$store.state.lastBookshelfScrollData[this.page] && window.bookshelf) {
         const { path, scrollTop } = this.$store.state.lastBookshelfScrollData[this.page]
         if (path === this.routeFullPath) {
           // Exact path match with query so use scroll position
           window.bookshelf.scrollTop = scrollTop
+          if (this.isListView) {
+            this.$nextTick(() => this.handleListScroll(scrollTop))
+          }
         }
       }
     },
@@ -993,5 +1098,13 @@ emptyMessage() {
   background: rgb(149, 119, 90);
   background: var(--bookshelf-divider-bg);
   box-shadow: 0.125em 0.875em 0.5em #111111aa;
+}
+
+.list-view-outer {
+  will-change: contents;
+}
+
+.list-view-row {
+  will-change: transform;
 }
 </style>

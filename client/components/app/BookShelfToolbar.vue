@@ -84,6 +84,11 @@
 
         <div class="grow hidden sm:inline-block" />
 
+        <!-- view toggle button -->
+        <ui-tooltip v-if="isLibraryPage" :text="isListView ? $strings.LabelThumbnailView : $strings.LabelListView" direction="top">
+          <ui-icon-btn :icon="isListView ? 'grid_view' : 'view_list'" borderless class="ml-1 sm:ml-4 h-7.5 w-7.5" @click="toggleView" />
+        </ui-tooltip>
+
         <!-- library filter select -->
         <controls-library-filter-select v-if="isLibraryPage && !isBatchSelecting" v-model="settings.filterBy" class="w-36 sm:w-44 md:w-48 h-7.5 ml-1 sm:ml-4" @change="updateFilter" />
 
@@ -267,6 +272,9 @@ export default {
     },
     isLibraryPage() {
       return this.page === ''
+    },
+    isListView() {
+      return this.$store.getters['user/getBookshelfListView']
     },
     isSeriesPage() {
       return this.page === 'series'
@@ -641,6 +649,11 @@ export default {
     },
     saveSettings() {
       this.$store.dispatch('user/updateUserSettings', this.settings)
+    },
+    toggleView() {
+      this.$store.dispatch('user/updateUserSettings', {
+        bookshelfListView: !this.isListView
+      })
     },
     init() {
       this.settings = { ...this.$store.state.user.settings }

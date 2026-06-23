@@ -19,7 +19,8 @@ export const state = () => ({
     authorSortBy: 'name',
     authorSortDesc: false,
     jumpForwardAmount: 10,
-    jumpBackwardAmount: 10
+    jumpBackwardAmount: 10,
+    bookshelfListView: false
   }
 })
 
@@ -79,7 +80,8 @@ export const getters = {
   },
   getSizeMultiplier: (state) => {
     return state.settings.bookshelfCoverSize / 120
-  }
+  },
+  getBookshelfListView: (state) => !!state.settings.bookshelfListView
 }
 
 export const actions = {
