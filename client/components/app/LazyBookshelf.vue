@@ -1,7 +1,7 @@
 <template>
   <div id="bookshelf" ref="bookshelf" class="w-full overflow-y-auto" :style="{ fontSize: sizeMultiplier + 'rem' }">
     <!-- List view -->
-    <div v-if="isListView && initialized && entities.length" ref="listContainer" class="list-view-outer" :style="{ height: listTotalHeight + 'px', position: 'relative' }">
+    <div v-if="isListView && initialized && entities.length" ref="listContainer" class="list-view-outer pt-4" :style="{ height: listTotalHeight + 'px', position: 'relative' }">
       <template v-for="(row, i) in listRenderRows">
         <div
           :key="row.entity.id"
